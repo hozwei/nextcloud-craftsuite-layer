@@ -1,0 +1,21 @@
+{
+  "$comment": "Craft apps the translators support, with the newest release the tests passed with. The daily canary run tests the newest release; raise 'tested' once it passes.",
+  "apps": {
+    "pdfcraft": {
+      "repo": "storytold/pdfcraft",
+      "tested": "0.5.0"
+    },
+    "photocraft": {
+      "repo": "storytold/photocraft",
+      "tested": "0.6.0"
+    },
+    "vectorcraft": {
+      "repo": "storytold/vectorcraft",
+      "tested": "0.8.0"
+    },
+    "designcraft": {
+      "repo": "storytold/designcraft",
+      "tested": "0.5.0"
+    }
+  }
+}

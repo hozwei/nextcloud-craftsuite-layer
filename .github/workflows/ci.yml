@@ -1,0 +1,393 @@
+# SPDX-FileCopyrightText: 2026 The nextcloud-craftsuite-layer contributors
+# SPDX-License-Identifier: AGPL-3.0-or-later
+#
+# Checks every change: the translators and their end-to-end tests against the tested Craft
+# releases (tests/e2e/craft-versions.json), and the Nextcloud app in craftsuite_layer/.
+# The newest Craft releases are tested by canary.yml.
+#
+# Actions are pinned to full commit SHAs (version in the trailing comment) so a moved tag cannot
+# change what runs here; Dependabot proposes the updates (.github/dependabot.yml).
+
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# A new push to a pull request replaces its running checks. Other runs get a group of their own,
+# because a group also drops queued runs, and every commit on main should be checked.
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: true
+
+jobs:
+  translators-and-tests:
+    name: translators-and-tests
+    # Pinned rather than ubuntu-latest: `playwright install --with-deps` supports a fixed set of
+    # Ubuntu releases, so the image moves on purpose, not when GitHub flips the label.
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Check out
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+          cache: npm
+
+      # None of the dev dependencies needs an install script; skipping them keeps a compromised
+      # package release from running code at install time.
+      - name: Install dependencies
+        run: npm ci --ignore-scripts
+
+      # Includes the TypeScript specs: typescript-eslint reads tests/e2e/tsconfig.json for its
+      # type-aware rules (a forgotten await, for example) and needs nothing beyond npm ci.
+      - name: Lint
+        run: npm run lint
+
+      - name: Type-check
+        run: npm run typecheck
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium firefox webkit
+
+      # The key covers the fetch script too: it decides the unpacked layout, and a cache hit is
+      # trusted without downloading again.
+      - name: Cache Craft builds
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .craft-builds
+          key: craft-builds-${{ hashFiles('tests/e2e/craft-versions.json', 'tests/e2e/tools/fetch-craft.mjs') }}
+
+      - name: Fetch Craft builds
+        id: fetch
+        run: npm run craft:fetch
+
+      # hosting/inject-translator.sh is plain POSIX sh for release updaters (docs/hosting.md):
+      # ShellCheck, then its tests on made-up pages and on the fetched builds under dash, bash in
+      # POSIX mode and BusyBox sh, the shells of common updater images.
+      - name: Hosting script
+        run: |
+          command -v busybox >/dev/null || {
+            sudo apt-get update -qq
+            sudo apt-get install -y -qq --no-install-recommends busybox-static
+          }
+          shellcheck -s sh hosting/inject-translator.sh hosting/tests/inject-translator.test.sh
+          for shell in dash 'bash --posix' --busybox; do
+            sh hosting/tests/inject-translator.test.sh "$shell"
+          done
+
+      # Every Playwright project except those in NON_BLOCKING blocks the check, so a new project is
+      # covered without editing this file. The <app>-webkit projects are in NON_BLOCKING because
+      # they have passed only locally so far, through a WebKit wrapper with its own GL libraries, never on a GitHub
+      # runner, where the apps' WebGL2 depends on the image's libraries. Once one has passed in the
+      # step "End-to-end tests that do not block yet", remove it from NON_BLOCKING to make it
+      # blocking; that step then skips itself once the list is empty. canary.yml has the same list: change both.
+      - name: Select test projects
+        id: projects
+        env:
+          NON_BLOCKING: pdfcraft-webkit photocraft-webkit vectorcraft-webkit designcraft-webkit
+        run: |
+          npx playwright test -c tests/e2e/playwright.config.ts --list --reporter=json > "$RUNNER_TEMP/projects.json"
+          node - "$RUNNER_TEMP/projects.json" <<'JS'
+          const fs = require('node:fs');
+          const names = JSON.parse(fs.readFileSync(process.argv[2], 'utf8')).config.projects.map((p) => p.name);
+          const later = (process.env.NON_BLOCKING || '').split(' ').filter(Boolean);
+          for (const name of later.filter((n) => !names.includes(n))) console.log(`::warning::NON_BLOCKING names ${name}, which is no Playwright project.`);
+          const blocking = names.filter((n) => !later.includes(n));
+          const nonBlocking = names.filter((n) => later.includes(n));
+          if (!blocking.length) {
+            console.log('::error::Every Playwright project is in NON_BLOCKING.');
+            process.exit(1);
+          }
+          console.log(`Blocking: ${blocking.join(' ')}\nNon-blocking: ${nonBlocking.join(' ') || 'none'}`);
+          fs.appendFileSync(process.env.GITHUB_OUTPUT, `blocking=${blocking.join(' ')}\nnon-blocking=${nonBlocking.join(' ')}\n`);
+          JS
+
+      - name: End-to-end tests
+        env:
+          PROJECTS: ${{ steps.projects.outputs.blocking }}
+        run: |
+          args=()
+          for project in $PROJECTS; do args+=(--project "$project"); done
+          npm run test:e2e -- "${args[@]}"
+
+      # Cannot fail the check, see "Select test projects"; it runs even after a failure above, so
+      # every run shows how these projects fare. Its own timeout keeps a hang from cancelling the
+      # job. A Playwright run empties its output folders first, so this one writes into subfolders
+      # of the ones above.
+      - name: End-to-end tests that do not block yet
+        id: non-blocking
+        if: ${{ !cancelled() && steps.fetch.outcome == 'success' && steps.projects.outputs.non-blocking != '' }}
+        continue-on-error: true
+        timeout-minutes: 10
+        env:
+          PROJECTS: ${{ steps.projects.outputs.non-blocking }}
+          PLAYWRIGHT_HTML_OUTPUT_DIR: playwright-report/non-blocking
+        run: |
+          args=()
+          for project in $PROJECTS; do args+=(--project "$project"); done
+          npm run test:e2e -- "${args[@]}" --output test-results/non-blocking
+
+      - name: Upload Playwright report and test results
+        if: failure() || steps.non-blocking.outcome == 'failure'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: playwright-report
+          path: |
+            playwright-report/
+            test-results/
+          if-no-files-found: ignore
+          retention-days: 14
+          overwrite: true
+
+  nextcloud-app:
+    name: nextcloud-app (PHP ${{ matrix.php }})
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        # The PHP versions Nextcloud supports for the app's server range; follow the server's
+        # upgrade notes when it adds or drops one.
+        php: ['8.2', '8.3', '8.4', '8.5']
+        # Schema check and package once, on the oldest PHP: Composer then refuses dependencies
+        # that would not run there.
+        include:
+          - php: '8.2'
+            package: true
+    env:
+      APP: craftsuite_layer
+    steps:
+      - name: Check out
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up PHP ${{ matrix.php }}
+        uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # 2.40.0
+        with:
+          php-version: ${{ matrix.php }}
+          coverage: none
+
+      - name: Lint PHP
+        run: |
+          mapfile -d '' files < <(find "$APP" -name '*.php' -type f \
+            -not -path "$APP/vendor/*" -not -path "$APP/node_modules/*" -not -path "$APP/build/*" -print0)
+          if [ "${#files[@]}" -eq 0 ]; then
+            echo "::notice::No PHP files in $APP/ yet, nothing to lint."
+            exit 0
+          fi
+          failed=0
+          for file in "${files[@]}"; do
+            # Compile-time deprecations become errors in a later PHP release, so they fail too.
+            if ! out=$(php -d error_reporting=-1 -d display_errors=stderr -l "$file" 2>&1) \
+              || grep -q 'Deprecated:' <<<"$out"; then
+              printf '%s\n' "$out"
+              echo "::error file=$file::php -l on PHP $(php -r 'echo PHP_VERSION;') reported an error or a deprecation"
+              failed=1
+            fi
+          done
+          echo "Linted ${#files[@]} PHP files."
+          exit "$failed"
+
+      - name: Validate appinfo/info.xml against the App Store schema
+        if: matrix.package
+        env:
+          # The nextcloud/appstore commit to take info.xsd from, so a change there cannot break
+          # this check without a change here (Dependabot does not update it). To update, take the
+          # commit from `git ls-remote https://github.com/nextcloud/appstore refs/heads/master`,
+          # read what changed in nextcloudappstore/api/v1/release/info.xsd since this one, and set
+          # it here; at the latest before a release and when the app's Nextcloud range moves.
+          SCHEMA_COMMIT: d7b4b188d60a3223cf916b95dfa47e7f9431c367
+        run: |
+          info="$APP/appinfo/info.xml"
+          if [ ! -f "$info" ]; then
+            echo "::warning::$info does not exist yet, skipping the schema check."
+            exit 0
+          fi
+          command -v xmllint >/dev/null || {
+            sudo apt-get update -qq
+            sudo apt-get install -y -qq --no-install-recommends libxml2-utils
+          }
+          # The schema the App Store validates uploads with, so a release cannot be refused there.
+          curl -fsSL --retry 3 -o "$RUNNER_TEMP/info.xsd" \
+            "https://raw.githubusercontent.com/nextcloud/appstore/$SCHEMA_COMMIT/nextcloudappstore/api/v1/release/info.xsd"
+          xmllint --noout --schema "$RUNNER_TEMP/info.xsd" "$info"
+          # The App Store also requires the id to match the archive's top folder.
+          id=$(xmllint --xpath 'string(/info/id)' "$info")
+          if [ "$id" != "$APP" ]; then
+            echo "::error file=$info::<id> is '$id', expected '$APP'"
+            exit 1
+          fi
+
+      - name: Set up Node.js
+        if: matrix.package
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+          cache: npm
+
+      # The app's front end is bundled by the repository's esbuild (make appstore runs it).
+      - name: Install dependencies
+        if: matrix.package
+        run: npm ci --ignore-scripts
+
+      # Every text the app shows has a German translation, and l10n/*.js matches l10n/*.json.
+      - name: Check translations
+        if: matrix.package
+        run: npm run l10n:check
+
+      - name: Build the App Store package
+        id: package
+        if: matrix.package
+        run: |
+          if [ ! -f "$APP/Makefile" ]; then
+            echo "::warning::$APP/Makefile does not exist yet, skipping the package check."
+            exit 0
+          fi
+          make -C "$APP" appstore
+          mapfile -t tarballs < <(find "$APP/build" -name '*.tar.gz' -type f 2>/dev/null)
+          if [ "${#tarballs[@]}" -eq 0 ]; then
+            echo "::error::make appstore left no .tar.gz under $APP/build/"
+            exit 1
+          fi
+          for tarball in "${tarballs[@]}"; do
+            echo "== $tarball"
+            tar -tzvf "$tarball"
+            # The App Store's archive rules: one top folder named like the app id,
+            # appinfo/info.xml inside it, and no .git folder.
+            entries=$(tar -tzf "$tarball" | sed 's#^\./##')
+            if grep -v -e "^$APP/" -e "^$APP\$" <<<"$entries"; then
+              echo "::error::$tarball has entries outside $APP/ (listed above)"
+              exit 1
+            fi
+            if ! grep -qx "$APP/appinfo/info.xml" <<<"$entries"; then
+              echo "::error::$tarball has no $APP/appinfo/info.xml"
+              exit 1
+            fi
+            if grep -E '(^|/)\.git(/|$)' <<<"$entries"; then
+              echo "::error::$tarball contains a .git folder (listed above)"
+              exit 1
+            fi
+          done
+          echo "built=true" >> "$GITHUB_OUTPUT"
+
+      # For trying a pull request in a real Nextcloud.
+      - name: Upload the App Store package
+        if: steps.package.outputs.built == 'true'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: ${{ env.APP }}-appstore
+          path: ${{ env.APP }}/build/**/*.tar.gz
+          retention-days: 14
+          overwrite: true
+
+  # The app in a real Nextcloud with the real Craft builds: the editor page with PdfCraft
+  # (tests/e2e/specs/nextcloud.spec.ts) and with PhotoCraft, VectorCraft and DesignCraft, which
+  # save the opened file under another name or type (nextcloud-apps.spec.ts); the Files entries,
+  # the settings page, shares to a second user and the German texts (nextcloud-files.spec.ts).
+  # Once per Nextcloud release in info.xml's range: the Files entry relies on Files' action
+  # registry, which belongs to the server's @nextcloud/files major. Nextcloud runs the App Store
+  # package, as users install it, not the source folder.
+  nextcloud-e2e:
+    name: nextcloud-e2e (${{ matrix.nextcloud }})
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        # Official images, pinned to a patch release; Dependabot does not update these, so raise
+        # them by hand with each server release (and add a row when info.xml's max-version grows).
+        nextcloud: ['34.0.4-apache', '35.0.1-apache']
+    env:
+      # A throwaway instance on the runner; the password protects nothing.
+      NEXTCLOUD_URL: http://localhost:8080
+      NEXTCLOUD_USER: admin
+      NEXTCLOUD_PASSWORD: e2e-admin-password
+      # A second user, no administrator: shares and the admin-only settings.
+      NEXTCLOUD_USER2: e2e-user
+      NEXTCLOUD_PASSWORD2: e2e-user2-password-4b7e9d
+      # The test server's app origin is 127.0.0.2:<base+1>, see tests/e2e/server/serve.mjs.
+      CRAFTSUITE_PORT_BASE: 8701
+    steps:
+      - name: Check out
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci --ignore-scripts
+
+      # The archive's staged folder: only the files the App Store package ships.
+      - name: Build the App Store package
+        run: make -C craftsuite_layer appstore
+
+      - name: Start Nextcloud ${{ matrix.nextcloud }}
+        env:
+          IMAGE: nextcloud:${{ matrix.nextcloud }}
+        run: |
+          docker run -d --name nextcloud -p 8080:80 \
+            -e SQLITE_DATABASE=nextcloud \
+            -e NEXTCLOUD_ADMIN_USER="$NEXTCLOUD_USER" -e NEXTCLOUD_ADMIN_PASSWORD="$NEXTCLOUD_PASSWORD" \
+            -e NEXTCLOUD_TRUSTED_DOMAINS=localhost \
+            -v "$PWD/craftsuite_layer/build/stage/craftsuite_layer:/var/www/html/custom_apps/craftsuite_layer" \
+            "$IMAGE"
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
+      - name: Cache Craft builds
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .craft-builds
+          key: craft-builds-${{ hashFiles('tests/e2e/craft-versions.json', 'tests/e2e/tools/fetch-craft.mjs') }}
+
+      - name: Fetch Craft builds
+        run: npm run craft:fetch
+
+      # The image installs Nextcloud on its first start; status.php says when it is done. Every
+      # Craft app's address points to the test server, which serves all four under /<app>/.
+      - name: Set up the app in Nextcloud
+        timeout-minutes: 10
+        run: |
+          until curl -fsS "$NEXTCLOUD_URL/status.php" 2>/dev/null | grep -q '"installed":true'; do sleep 5; done
+          occ() { docker exec -u www-data nextcloud php occ "$@"; }
+          occ app:enable craftsuite_layer
+          occ app:disable firstrunwizard || true
+          docker exec -e OC_PASS="$NEXTCLOUD_PASSWORD2" -u www-data nextcloud php occ user:add --password-from-env "$NEXTCLOUD_USER2"
+          for app in pdfcraft photocraft vectorcraft designcraft; do
+            occ config:app:set craftsuite_layer "${app}_url" --value="http://127.0.0.2:$((CRAFTSUITE_PORT_BASE + 1))/$app/"
+          done
+
+      - name: End-to-end tests in Nextcloud
+        run: npm run test:e2e -- --project nextcloud-chromium
+
+      - name: Nextcloud log
+        if: failure()
+        run: docker exec nextcloud cat /var/www/html/data/nextcloud.log || docker logs nextcloud
+
+      - name: Upload Playwright report and test results
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: playwright-report-nextcloud-${{ matrix.nextcloud }}
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 14

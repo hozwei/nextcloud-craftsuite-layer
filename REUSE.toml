@@ -1,0 +1,45 @@
+# Copyright and license of the files that cannot carry an SPDX header of their own, in the format
+# of the REUSE specification 3.3 (https://reuse.software/spec-3.3/). Every other file has the
+# header itself. LICENSE is the license text itself; the specification does not cover files
+# named LICENSE, so it needs no entry.
+version = 1
+
+# JSON has no comments.
+[[annotations]]
+path = [
+  "package.json",
+  "package-lock.json",
+  "tests/e2e/craft-versions.json",
+  "tests/e2e/tsconfig.json",
+  "craftsuite_layer/composer.json",
+  "craftsuite_layer/tsconfig.json",
+  "craftsuite_layer/l10n/*.json",
+]
+precedence = "override"
+SPDX-FileCopyrightText = "2026 The nextcloud-craftsuite-layer contributors"
+SPDX-License-Identifier = "AGPL-3.0-or-later"
+
+# Test fixtures: written by the make-fixtures.mjs scripts next to them, or (DesignCraft, see
+# docs/apps/designcraft.md) saved by the Craft app from our own inputs. Binary or data formats
+# without room for a header; the generator scripts carry their own.
+[[annotations]]
+path = [
+  "tests/e2e/fixtures/*.pdf",
+  "tests/e2e/fixtures/photocraft/**/*.psd",
+  "tests/e2e/fixtures/photocraft/*.png",
+  "tests/e2e/fixtures/vectorcraft/*.vectorcraft",
+  "tests/e2e/fixtures/vectorcraft/*.svg",
+  "tests/e2e/fixtures/designcraft/*.designcraft",
+  "tests/e2e/fixtures/designcraft/*.idml",
+]
+precedence = "override"
+SPDX-FileCopyrightText = "2026 The nextcloud-craftsuite-layer contributors"
+SPDX-License-Identifier = "AGPL-3.0-or-later"
+
+# Written by craftsuite_layer/l10n.mjs from l10n/*.json, in the format Nextcloud's translationtool
+# writes (no room for a header).
+[[annotations]]
+path = "craftsuite_layer/l10n/*.js"
+precedence = "override"
+SPDX-FileCopyrightText = "2026 The nextcloud-craftsuite-layer contributors"
+SPDX-License-Identifier = "AGPL-3.0-or-later"

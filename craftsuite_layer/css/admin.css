@@ -1,0 +1,36 @@
+/*
+ * SPDX-FileCopyrightText: 2026 The nextcloud-craftsuite-layer contributors
+ * SPDX-License-Identifier: AGPL-3.0-or-later
+ */
+
+.craftsuite-admin {
+	display: grid;
+	gap: 12px;
+	max-width: 720px;
+}
+
+.craftsuite-admin__row {
+	display: grid;
+	grid-template-columns: 140px 1fr;
+	align-items: center;
+	column-gap: 12px;
+}
+
+.craftsuite-admin__row input {
+	width: 100%;
+}
+
+.craftsuite-admin__hint {
+	grid-column: 2;
+	color: var(--color-text-maxcontrast);
+}
+
+.craftsuite-admin__hint--error {
+	color: var(--color-error-text, var(--color-error));
+}
+
+.craftsuite-admin__actions {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+}

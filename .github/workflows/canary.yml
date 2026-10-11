@@ -1,0 +1,431 @@
+# SPDX-FileCopyrightText: 2026 The nextcloud-craftsuite-layer contributors
+# SPDX-License-Identifier: AGPL-3.0-or-later
+#
+# Daily run against the newest Craft releases. The Craft apps update themselves from upstream,
+# so a release can break a translator without any change here; this run says so before
+# deployments pick the release up.
+#
+# The tests run in two parts (see the header of tests/e2e/specs/pdfcraft.spec.ts):
+#  - Contract tests check what the host and the browser see. They decide the run: a failure
+#    advises holding the release back and opens one issue labelled 'canary' (or comments on the
+#    open one); the next passing run comments and closes it.
+#  - Tests tagged @ui also click at fixed points in the app, so a moved button fails them without
+#    the translator being at fault. They cannot fail the run. When only they fail, the summary
+#    says which pointer positions need updating, and an issue labelled 'canary-ui' tracks it: a
+#    green run's summary goes unread, while these tests stop covering their scenarios and CI
+#    would fail them as soon as 'tested' is raised. The issue closes once they pass again.
+#
+# A test that passes only on its retry counts as failed and is listed in the summary: a release
+# that changes the timing should be looked at before deployments take it.
+#
+# The job nextcloud-next looks ahead at the next Nextcloud release instead, from the server's
+# development branch: the Files entry depends on the action registry of @nextcloud/files 4.x, and
+# when the branch asks for another major, an issue labelled 'canary-nextcloud' says so before that
+# release ships. It also warns once the branch's version is above info.xml's max-version. Nothing
+# else of the server is checked.
+#
+# When the newest release passes, raise its 'tested' version in tests/e2e/craft-versions.json.
+
+name: Canary
+
+on:
+  schedule:
+    # 04:23 UTC: upstream Craft releases tend to come out around 03:00 UTC, and deployments
+    # usually take a release only once it is a day old, so this run warns in between. The odd
+    # minute avoids the top of the hour, when GitHub delays or drops the most scheduled runs.
+    # GitHub turns schedules off after 60 days without activity in a public repository; the
+    # Actions tab turns them back on.
+    - cron: '23 4 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# One run at a time, so two runs cannot both find no open issue and open one each. A running
+# run is never cancelled (it would report nothing); a queued one may be replaced by a newer one.
+concurrency:
+  group: canary
+  cancel-in-progress: false
+
+jobs:
+  canary:
+    name: newest Craft releases
+    runs-on: ubuntu-24.04
+    timeout-minutes: 75
+    outputs:
+      summary: ${{ steps.summary.outputs.summary }}
+      ui: ${{ steps.ui.outcome }}
+    steps:
+      - name: Check out
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+          cache: npm
+
+      # See ci.yml: no dev dependency needs an install script.
+      - name: Install dependencies
+        run: npm ci --ignore-scripts
+
+      # No cache here: a new release is a new download anyway. Step timeouts below the job's keep
+      # a hang a failure (which reports) rather than a cancellation (which does not).
+      - name: Fetch the newest Craft releases
+        id: fetch
+        timeout-minutes: 10
+        run: npm run craft:fetch-latest
+
+      # Every Playwright project of an app in craft-versions.json (named <app>-<browser>) plus the
+      # translator tests on Chromium, so a new app or browser is covered without editing this file.
+      # Projects in NON_BLOCKING have not passed on a GitHub runner yet: as in ci.yml (keep both
+      # lists the same), they run but cannot decide the run or its advice.
+      # Installs only the browsers these need; an unexpected name installs all of them.
+      - name: Select test projects
+        id: projects
+        env:
+          NON_BLOCKING: pdfcraft-webkit photocraft-webkit vectorcraft-webkit designcraft-webkit
+        run: |
+          npx playwright test -c tests/e2e/playwright.config.ts --list --reporter=json > "$RUNNER_TEMP/projects.json"
+          node - "$RUNNER_TEMP/projects.json" <<'JS'
+          const fs = require('node:fs');
+          const names = JSON.parse(fs.readFileSync(process.argv[2], 'utf8')).config.projects.map((p) => p.name);
+          const apps = Object.keys(JSON.parse(fs.readFileSync('tests/e2e/craft-versions.json', 'utf8')).apps);
+          const ofApp = (app) => names.filter((n) => n.startsWith(`${app}-`));
+          const all = ['translator-chromium', ...apps.flatMap(ofApp)];
+          const nonBlocking = (process.env.NON_BLOCKING || '').split(' ').filter(Boolean);
+          const projects = all.filter((n) => !nonBlocking.includes(n));
+          const later = all.filter((n) => nonBlocking.includes(n));
+          const untested = apps.filter((app) => ofApp(app).length === 0);
+          const engines = ['chromium', 'firefox', 'webkit'];
+          const wanted = [...new Set(all.map((n) => n.split('-').pop()))];
+          const browsers = wanted.every((b) => engines.includes(b)) ? wanted : engines;
+          for (const app of untested) console.log(`::warning::No Playwright project tests ${app}.`);
+          console.log(`Projects: ${projects.join(' ')}\nNot deciding yet: ${later.join(' ')}\nBrowsers: ${browsers.join(' ')}`);
+          fs.appendFileSync(process.env.GITHUB_OUTPUT,
+            `projects=${projects.join(' ')}\nlater=${later.join(' ')}\nuntested=${untested.join(' ')}\nbrowsers=${browsers.join(' ')}\n`);
+          JS
+
+      - name: Install Playwright browsers
+        env:
+          BROWSERS: ${{ steps.projects.outputs.browsers }}
+        run: |
+          read -ra names <<<"$BROWSERS"
+          npx playwright install --with-deps "${names[@]}"
+
+      # The contract tests (all not tagged @ui) decide the run. With CI set, the config retries a
+      # failed test once; --fail-on-flaky-tests keeps a test that passes only on the retry from
+      # counting as passed. A Playwright run empties its output folders first, so the two runs get
+      # their own; their JSON reports feed the summary.
+      - name: Run the contract tests
+        id: test
+        timeout-minutes: 25
+        env:
+          PROJECTS: ${{ steps.projects.outputs.projects }}
+          PLAYWRIGHT_HTML_OUTPUT_DIR: playwright-report/contract
+          PLAYWRIGHT_JSON_OUTPUT_FILE: ${{ runner.temp }}/contract.json
+        run: |
+          args=()
+          for project in $PROJECTS; do args+=(--project "$project"); done
+          npm run test:e2e -- "${args[@]}" --grep-invert @ui --fail-on-flaky-tests \
+            --output test-results/contract --add-reporter json
+
+      # The @ui tests cannot fail the run (see the top of this file). They also run after failed
+      # contract tests, so the summary always shows how they fare.
+      - name: Run the UI tests
+        id: ui
+        if: ${{ !cancelled() && (steps.test.outcome == 'success' || steps.test.outcome == 'failure') }}
+        continue-on-error: true
+        timeout-minutes: 15
+        env:
+          PROJECTS: ${{ steps.projects.outputs.projects }}
+          PLAYWRIGHT_HTML_OUTPUT_DIR: playwright-report/ui
+          PLAYWRIGHT_JSON_OUTPUT_FILE: ${{ runner.temp }}/ui.json
+        run: |
+          args=()
+          for project in $PROJECTS; do args+=(--project "$project"); done
+          npm run test:e2e -- "${args[@]}" --grep @ui --pass-with-no-tests --fail-on-flaky-tests \
+            --output test-results/ui --add-reporter json
+
+      # The NON_BLOCKING projects, all their tests; see "Select test projects".
+      - name: Run the tests that do not decide yet
+        id: later
+        if: ${{ !cancelled() && steps.projects.outputs.later != '' && (steps.test.outcome == 'success' || steps.test.outcome == 'failure') }}
+        continue-on-error: true
+        timeout-minutes: 15
+        env:
+          PROJECTS: ${{ steps.projects.outputs.later }}
+          PLAYWRIGHT_HTML_OUTPUT_DIR: playwright-report/later
+        run: |
+          args=()
+          for project in $PROJECTS; do args+=(--project "$project"); done
+          npm run test:e2e -- "${args[@]}" --output test-results/later
+
+      - name: Write the summary
+        id: summary
+        if: always()
+        env:
+          FETCH: ${{ steps.fetch.outcome }}
+          TEST: ${{ steps.test.outcome }}
+          UI: ${{ steps.ui.outcome }}
+          PROJECTS: ${{ steps.projects.outputs.projects }}
+          UNTESTED: ${{ steps.projects.outputs.untested }}
+        run: |
+          node <<'JS'
+          const fs = require('node:fs');
+          const path = require('node:path');
+          const crypto = require('node:crypto');
+          const read = (file) => { try { return JSON.parse(fs.readFileSync(file, 'utf8')); } catch { return null; } };
+          const manifest = read('tests/e2e/craft-versions.json');
+          const selected = read('.craft-builds/selected.json') || {};
+          const { FETCH, TEST, UI, PROJECTS, UNTESTED, RUNNER_TEMP } = process.env;
+          const outcome = (o) => ({ success: 'passed', failure: 'failed', cancelled: 'cancelled', skipped: 'skipped' })[o] || 'did not run';
+          // Failed and flaky (passed only on a retry) tests of a Playwright JSON report.
+          const problems = (file) => {
+            const report = read(file);
+            const found = { unexpected: [], flaky: [] };
+            const walk = (suite, titles) => {
+              for (const spec of suite.specs || []) {
+                for (const test of spec.tests || []) {
+                  if (test.status !== 'unexpected' && test.status !== 'flaky') continue;
+                  found[test.status].push({
+                    spec: path.relative(process.cwd(), path.join(report.config.rootDir, spec.file)),
+                    name: `[${test.projectName}] ${[...titles, spec.title].join(' \u203a ')}`,
+                  });
+                }
+              }
+              for (const child of suite.suites || []) walk(child, [...titles, child.title]);
+            };
+            for (const suite of report?.suites || []) walk(suite, [suite.title]);
+            return found;
+          };
+          const contract = problems(path.join(RUNNER_TEMP, 'contract.json'));
+          const ui = problems(path.join(RUNNER_TEMP, 'ui.json'));
+          const passed = FETCH === 'success' && TEST === 'success';
+          const untested = (UNTESTED || '').split(' ').filter(Boolean);
+          const headline = passed && UI === 'success' ? 'the newest Craft releases pass'
+            : passed ? `the contract tests pass, the UI tests ${outcome(UI)}`
+            : FETCH === 'failure' ? 'fetching the newest Craft releases failed'
+            : TEST === 'failure' ? 'the contract tests failed' : 'the run failed before the tests';
+          const lines = [
+            `### Canary: ${headline}`,
+            '',
+            '| App | Tested (craft-versions.json) | Newest release (this run) |',
+            '| --- | --- | --- |',
+          ];
+          const fresh = [];
+          for (const [app, entry] of Object.entries(manifest?.apps || {})) {
+            const latest = selected[app];
+            const note = !latest ? 'unknown' : latest === entry.tested ? latest : `**${latest}** (new)`;
+            lines.push(`| ${app} | ${entry.tested} | ${note}${untested.includes(app) ? ', no tests' : ''} |`);
+            if (latest && latest !== entry.tested) fresh.push({ app, label: `${app} ${latest}` });
+          }
+          lines.push('', `Fetch: ${outcome(FETCH)}. Projects: ${PROJECTS || 'none selected'}. Contract tests: ${outcome(TEST)}. UI tests (@ui): ${outcome(UI)}.`);
+          const list = (heading, tests) => {
+            if (!tests.length) return;
+            lines.push('', `${heading}:`, ...tests.slice(0, 20).map((t) => `- \`${t.name.replace(/`/g, "'")}\``));
+            if (tests.length > 20) lines.push(`- and ${tests.length - 20} more`);
+          };
+          list('Contract tests that failed', contract.unexpected);
+          list('Contract tests that passed only on a retry (counted as failed)', contract.flaky);
+          list('UI tests that failed', ui.unexpected);
+          list('UI tests that passed only on a retry (counted as failed)', ui.flaky);
+          const raise = fresh.filter((f) => !untested.includes(f.app)).map((f) => f.label);
+          const uiSpecs = [...new Set([...ui.unexpected, ...ui.flaky].map((t) => t.spec))];
+          const positions = `the pointer positions in the AT table of ${uiSpecs.join(', ') || 'each spec with @ui tests'} need updating`;
+          if (passed && UI === 'success') {
+            if (raise.length) lines.push('', `Raise \`tested\` in tests/e2e/craft-versions.json: ${raise.join(', ')}.`);
+          } else if (passed && raise.length) {
+            lines.push('', `The contract tests pass, so deployments can take ${raise.join(', ')}. The @ui tests ${outcome(UI)}: they click at fixed points in the app, so ${positions} for the new release. Raise \`tested\` in tests/e2e/craft-versions.json only after that, because CI runs the @ui tests against it; the Playwright report of this run has the details.`);
+          } else if (passed) {
+            lines.push('', `The contract tests pass, but the @ui tests ${outcome(UI)} without a new release of a tested app, so the cause is here or in the test environment (browsers, runner image); the Playwright report of this run has the details.`);
+          } else if (FETCH === 'failure') {
+            lines.push('', 'A release without its web build or SHA256SUMS.txt fails here, and so does a failed download; the log of the fetch step says which.');
+          } else if (TEST === 'failure') {
+            const onlyFlaky = !contract.unexpected.length && contract.flaky.length > 0;
+            lines.push('', (fresh.length
+              ? `Hold back ${fresh.map((f) => f.label).join(', ')} in deployments until the translators handle it; the Playwright report of this run has the details.`
+              : 'No new release, so the cause is here or in the test environment (browsers, runner image); the Playwright report of this run has the details.')
+              + (onlyFlaky ? ' Each failure passed on its retry: the release may only have changed the timing, which still counts until a rerun of this workflow passes.' : ''));
+          }
+          const md = lines.join('\n') + '\n';
+          fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, md);
+          const eof = `EOF_${crypto.randomUUID()}`;
+          fs.appendFileSync(process.env.GITHUB_OUTPUT, `summary<<${eof}\n${md}${eof}\n`);
+          JS
+
+      - name: Note the tests that do not decide yet
+        if: ${{ always() && (steps.later.outcome == 'success' || steps.later.outcome == 'failure') }}
+        env:
+          LATER: ${{ steps.later.outcome }}
+          PROJECTS: ${{ steps.projects.outputs.later }}
+        run: |
+          printf '\nNot deciding yet (NON_BLOCKING, see ci.yml): %s, %s.\n' "$PROJECTS" "$LATER" >> "$GITHUB_STEP_SUMMARY"
+
+      # Also when only the @ui tests or the not yet deciding tests failed, which does not fail the job.
+      - name: Upload Playwright report and test results
+        if: failure() || steps.ui.outcome == 'failure' || steps.later.outcome == 'failure'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: playwright-report
+          path: |
+            playwright-report/
+            test-results/
+          if-no-files-found: ignore
+          retention-days: 14
+          overwrite: true
+
+  # Early warning for the next Nextcloud release, from two raw files of the server's development
+  # branch (no API). Nothing else of the server is checked; the nextcloud-e2e job in ci.yml tests
+  # the released servers.
+  #  - The Files entry (craftsuite_layer/src/files.ts) registers into the action registry of
+  #    @nextcloud/files 4.x (window._nc_files_scope.v4_0), the major Nextcloud 34 and 35 ship. The
+  #    job fails when package.json asks for another major (output changed=true, which opens the
+  #    'canary-nextcloud' issue): the app then needs the new major, a test against that server and
+  #    a wider info.xml range before the release comes out.
+  #  - It warns when the branch's major version is above info.xml's max-version: Nextcloud
+  #    disables the app there as incompatible until that range and the nextcloud-e2e matrix grow.
+  # Any other failure (a download, a moved file) does not set changed=true and only warns in
+  # report.
+  nextcloud-next:
+    name: next Nextcloud release
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      message: ${{ steps.check.outputs.message }}
+      changed: ${{ steps.check.outputs.changed }}
+    steps:
+      - name: Check out
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          sparse-checkout: craftsuite_layer/appinfo/info.xml
+          sparse-checkout-cone-mode: false
+
+      - name: Check the server's development branch
+        id: check
+        run: |
+          base=https://raw.githubusercontent.com/nextcloud/server/master
+          curl -fsSL --retry 3 -o "$RUNNER_TEMP/package.json" "$base/package.json"
+          curl -fsSL --retry 3 -o "$RUNNER_TEMP/version.php" "$base/version.php"
+          node - "$RUNNER_TEMP/package.json" "$RUNNER_TEMP/version.php" craftsuite_layer/appinfo/info.xml <<'JS'
+          const fs = require('node:fs');
+          const crypto = require('node:crypto');
+          const [pkgFile, versionFile, infoFile] = process.argv.slice(2);
+          const pkg = JSON.parse(fs.readFileSync(pkgFile, 'utf8'));
+          const version = /\$OC_VersionString\s*=\s*'([^']+)'/.exec(fs.readFileSync(versionFile, 'utf8'))?.[1] ?? 'unknown';
+          const major = Number(/^(\d+)\./.exec(version)?.[1] ?? NaN);
+          const max = Number(/<nextcloud\b[^>]*\bmax-version="(\d+)/.exec(fs.readFileSync(infoFile, 'utf8'))?.[1] ?? NaN);
+          const range = String(pkg.dependencies?.['@nextcloud/files'] ?? '');
+          const ok = /^[\^~]?4(\.|$)/.test(range);
+          const lines = [];
+          let changed = false;
+          if (ok) {
+            lines.push(`Nextcloud ${version} (development branch) still asks for @nextcloud/files ${range}, the major whose action registry the Files entries use. Only this dependency is checked, nothing else of the server.`);
+          } else if (range) {
+            changed = true;
+            lines.push(`Nextcloud ${version} (development branch) asks for @nextcloud/files '${range}' instead of 4.x. The Files entry (craftsuite_layer/src/files.ts) registers into the 4.x action registry: move it to the new major, test it against that server and widen info.xml's range before the release.`);
+          } else {
+            lines.push(`The package.json of Nextcloud ${version} (development branch) names no @nextcloud/files dependency: the check in .github/workflows/canary.yml needs updating.`);
+          }
+          if (!Number.isFinite(major) || !Number.isFinite(max)) {
+            lines.push(`Could not compare the branch's version (${version}) with info.xml's max-version.`);
+          } else if (major > max) {
+            lines.push(`Nextcloud ${major} is above info.xml's max-version ${max}: Nextcloud disables the app there as incompatible until that range and the nextcloud-e2e matrix in ci.yml include it.`);
+          }
+          for (const [i, line] of lines.entries()) {
+            const level = i > 0 ? 'warning' : !ok ? 'error' : '';
+            console.log(level ? `::${level}::${line}` : line);
+          }
+          const message = lines.join('\n\n');
+          fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, message + '\n');
+          const eof = `EOF_${crypto.randomUUID()}`;
+          fs.appendFileSync(process.env.GITHUB_OUTPUT, `message<<${eof}\n${message}\n${eof}\nchanged=${changed}\n`);
+          if (!ok) process.exit(1);
+          JS
+
+  # Separate job so that only code from this repository runs with write access to issues; the
+  # job above runs the downloaded Craft builds.
+  report:
+    name: report
+    needs: [canary, nextcloud-next]
+    # Only for main (a manual run on another branch must not touch the issues), and not for a
+    # cancelled run. Each part below looks at its own job's result, so a canary job that timed out
+    # does not keep the Nextcloud check from being reported, nor the other way round.
+    if: ${{ !cancelled() && github.ref == 'refs/heads/main' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      issues: write
+    steps:
+      - name: Open, update or close the canary issues
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RESULT: ${{ needs.canary.result }}
+          UI: ${{ needs.canary.outputs.ui }}
+          SUMMARY: ${{ needs.canary.outputs.summary }}
+          NEXT: ${{ needs.nextcloud-next.result }}
+          NEXT_CHANGED: ${{ needs.nextcloud-next.outputs.changed }}
+          NEXT_MESSAGE: ${{ needs.nextcloud-next.outputs.message }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          body="$RUNNER_TEMP/body.md"
+          printf '%s\n\nRun: %s\n' "${SUMMARY:-No summary, the run failed before the tests.}" "$RUN_URL" > "$body"
+          # Comments on the open issue with label $1, or opens one titled $2 (label description $3,
+          # label colour $4).
+          report() {
+            issue=$(gh issue list --label "$1" --state open --limit 1 --json number --jq '.[0].number // empty')
+            if [ -n "$issue" ]; then
+              gh issue comment "$issue" --body-file "$body"
+              return
+            fi
+            if ! gh label list --search "$1" --json name --jq '.[].name' | grep -qx -- "$1"; then
+              gh label create "$1" --color "$4" --description "$3"
+            fi
+            gh issue create --title "$2" --label "$1" --body-file "$body"
+          }
+          # Comments on and closes the open issue with label $1, if there is one.
+          resolve() {
+            issue=$(gh issue list --label "$1" --state open --limit 1 --json number --jq '.[0].number // empty')
+            if [ -n "$issue" ]; then
+              gh issue comment "$issue" --body-file "$body"
+              gh issue close "$issue" --reason completed
+            fi
+          }
+          # A canary job that was cancelled or skipped (a timeout, for example) reports nothing.
+          if [ "$RESULT" = success ] || [ "$RESULT" = failure ]; then
+            if [ "$RESULT" = failure ]; then
+              report canary 'Canary: the newest Craft releases fail the tests' \
+                'Daily test run against the newest Craft releases failed' d93f0b
+            else
+              resolve canary
+            fi
+            # The @ui tests get their own issue, see the top of this file. It is left alone when
+            # the contract tests failed too: they may be the cause, and the 'canary' issue covers
+            # that.
+            if [ "$UI" = failure ] && [ "$RESULT" = success ]; then
+              report canary-ui 'Canary: pointer positions in the @ui tests need updating' \
+                'Daily run: the @ui tests (fixed pointer positions) fail against the newest Craft releases' fbca04
+            elif [ "$UI" = success ]; then
+              resolve canary-ui
+            fi
+          else
+            echo "::warning::The job 'newest Craft releases' ended with '$RESULT'; the canary issues are left as they are."
+          fi
+          # The next Nextcloud release (job nextcloud-next) has an issue of its own, opened only
+          # when the check found another @nextcloud/files major. Any other failure (a download, a
+          # moved file) is a warning here, not an issue that blames the next release.
+          printf '%s\n\nRun: %s\n' "$NEXT_MESSAGE" "$RUN_URL" > "$body"
+          if [ "$NEXT_CHANGED" = true ]; then
+            report canary-nextcloud 'Canary: the next Nextcloud release changes what the Files entry depends on' \
+              "Daily check: Nextcloud's development branch asks for another @nextcloud/files major" 0082c9
+          elif [ "$NEXT" = success ]; then
+            resolve canary-nextcloud
+          else
+            echo "::warning::The check of the next Nextcloud release ended with '$NEXT' and no result; see the job 'next Nextcloud release'."
+            printf '\nThe check of the next Nextcloud release ended with "%s" and no result; see the job "next Nextcloud release". %s\n' \
+              "$NEXT" "$NEXT_MESSAGE" >> "$GITHUB_STEP_SUMMARY"
+          fi

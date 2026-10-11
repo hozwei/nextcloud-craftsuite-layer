@@ -1,0 +1,67 @@
+# SPDX-FileCopyrightText: 2026 The nextcloud-craftsuite-layer contributors
+# SPDX-License-Identifier: AGPL-3.0-or-later
+#
+# nginx server for the Craft apps: /<app>/ serves an unpacked web build with the translator
+# added by inject-translator.sh. The headers follow docs/hosting.md#headers.
+#
+# A template for the official nginx images (nginx, nginxinc/nginx-unprivileged): put it in
+# /etc/nginx/templates/; at start their entrypoint replaces ${CRAFTSUITE_ALLOWED_ORIGINS} with
+# that environment variable and writes the result to /etc/nginx/conf.d/. Give the updater the
+# same variable for inject-translator.sh, so frame-ancestors and data-allowed-origins always list
+# the same Nextcloud origins (separated by spaces). Without the images' entrypoint, write the
+# origins in by hand.
+#
+# TLS is left to a reverse proxy in front. Behind a login gate, use "private" instead of
+# "public" in Cache-Control.
+
+server {
+  listen 8080;
+  root /srv/craft;
+  index index.html;
+
+  server_tokens off;
+  absolute_redirect off;   # relative redirects (/pdfcraft -> /pdfcraft/) behind a proxy
+  charset utf-8;           # text/html; charset=utf-8
+
+  include /etc/nginx/mime.types;   # has application/wasm for .wasm
+  types {
+    font/ttf ttf;
+    text/javascript mjs;
+  }
+
+  # Compression: .gz files written once per release (gzip -9 -k), else on the fly.
+  gzip_static on;
+  gzip on;
+  gzip_vary on;
+  gzip_proxied any;        # also for requests that came through a proxy (Via header)
+  gzip_comp_level 5;
+  gzip_types text/css text/plain text/javascript application/javascript application/wasm
+    application/json image/svg+xml font/ttf;
+
+  # Hidden files: temporary files of the updater and the injector, .htaccess.
+  location ~ /\. {
+    return 404;
+  }
+
+  # The translator: fixed names, so browsers check for a new version on every load. The
+  # injector also adds a checksum to their URLs (?v=...).
+  location ~ ^/[^/]+/craftsuite-layer/ {
+    add_header Cache-Control "no-cache" always;
+    add_header Content-Security-Policy "frame-ancestors ${CRAFTSUITE_ALLOWED_ORIGINS}" always;
+    add_header X-Content-Type-Options "nosniff" always;
+  }
+
+  # The apps' WebAssembly and JavaScript: their names carry a content hash.
+  location ~ \.(wasm|js|mjs)$ {
+    add_header Cache-Control "public, max-age=31536000, immutable" always;
+    add_header Content-Security-Policy "frame-ancestors ${CRAFTSUITE_ALLOWED_ORIGINS}" always;
+    add_header X-Content-Type-Options "nosniff" always;
+  }
+
+  # index.html and everything else: revalidate, so a new release takes effect on reload.
+  location / {
+    add_header Cache-Control "no-cache" always;
+    add_header Content-Security-Policy "frame-ancestors ${CRAFTSUITE_ALLOWED_ORIGINS}" always;
+    add_header X-Content-Type-Options "nosniff" always;
+  }
+}

@@ -1,0 +1,12 @@
+# SPDX-FileCopyrightText: 2026 The nextcloud-craftsuite-layer contributors
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
+node_modules/
+.craft-builds/
+test-results/
+playwright-report/
+blob-report/
+/craftsuite_layer/js/
+/craftsuite_layer/vendor/
+/craftsuite_layer/build/
+*.log

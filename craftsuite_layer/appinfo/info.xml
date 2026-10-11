@@ -1,0 +1,39 @@
+<?xml version="1.0"?>
+<!--
+  - SPDX-FileCopyrightText: 2026 The nextcloud-craftsuite-layer contributors
+  - SPDX-License-Identifier: AGPL-3.0-or-later
+  -
+  - Elements stay in the order of the App Store schema: `make lint INFO_XSD=...` validates this
+  - file as it is, without the reordering the App Store applies before its own check.
+-->
+<info xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:noNamespaceSchemaLocation="https://apps.nextcloud.com/schema/apps/info.xsd">
+  <id>craftsuite_layer</id>
+  <name>Craft Suite Layer</name>
+  <summary>Open your files in storytold's Craft web apps (PdfCraft, PhotoCraft, VectorCraft, DesignCraft) and save the results back</summary>
+  <description>Craft Suite Layer lets Nextcloud open files in storytold's Craft web apps PdfCraft, PhotoCraft, VectorCraft and DesignCraft, and save the results back. The Craft apps stay unmodified and can keep updating from their upstream releases: they run on their own origin, and a small translator script added to each app's page connects it to Nextcloud.
+
+**Status:** early. Files offers "Open in PdfCraft" and the like for each Craft app an administrator set up under Administration settings > Craft apps. Saves come back into Nextcloud: a save of the opened file replaces it and keeps its versions, a save in the app's own format (a PNG saved as PSD) becomes a new file next to the original, exports become new files, and a file changed elsewhere gets a conflict copy. English and German.
+
+Needs the Craft apps hosted with the translator. Source code, hosting template and documentation: https://github.com/hozwei/nextcloud-craftsuite-layer</description>
+  <version>0.1.0</version>
+  <licence>AGPL-3.0-or-later</licence>
+  <author>The nextcloud-craftsuite-layer contributors</author>
+  <namespace>CraftsuiteLayer</namespace>
+  <category>integration</category>
+  <category>files</category>
+  <category>office</category>
+  <website>https://github.com/hozwei/nextcloud-craftsuite-layer</website>
+  <bugs>https://github.com/hozwei/nextcloud-craftsuite-layer/issues</bugs>
+  <repository type="git">https://github.com/hozwei/nextcloud-craftsuite-layer.git</repository>
+  <dependencies>
+    <!-- Only what CI covers: each Nextcloud version end to end (on the images' PHP 8.5),
+         PHP 8.2 to 8.4 with php -l only. Widen the ranges together with the test matrix. -->
+    <php min-version="8.2" max-version="8.5"/>
+    <nextcloud min-version="34" max-version="35"/>
+  </dependencies>
+  <settings>
+    <admin>OCA\CraftsuiteLayer\Settings\Admin</admin>
+    <admin-section>OCA\CraftsuiteLayer\Settings\AdminSection</admin-section>
+  </settings>
+</info>

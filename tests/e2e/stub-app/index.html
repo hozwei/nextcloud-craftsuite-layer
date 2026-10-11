@@ -1,0 +1,21 @@
+<!doctype html>
+<!-- SPDX-FileCopyrightText: 2026 The nextcloud-craftsuite-layer contributors -->
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
+<!-- Stub app for the translator tests, laid out like PdfCraft's index.html: one canvas, the app
+     script after it. The test server injects the translator first thing in the head element
+     (after the first real head tag; comments are skipped). -->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Craft stub app</title>
+  <style>
+    html, body { margin: 0; height: 100%; overflow: hidden; background: #f1f1f3; }
+    canvas { width: 100%; height: 100%; display: block; outline: none; }
+  </style>
+</head>
+<body>
+  <canvas id="pdfcraft"></canvas>
+  <script src="./stub.js"></script>
+</body>
+</html>

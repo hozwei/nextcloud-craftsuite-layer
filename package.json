@@ -1,0 +1,39 @@
+{
+  "name": "nextcloud-craftsuite-layer",
+  "private": true,
+  "description": "Open and save storytold's Craft web apps from Nextcloud: translators, the Nextcloud app's front end, end-to-end tests and tooling",
+  "license": "AGPL-3.0-or-later",
+  "type": "module",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "build": "node craftsuite_layer/build.mjs",
+    "build:dev": "node craftsuite_layer/build.mjs --dev",
+    "lint": "eslint .",
+    "typecheck": "tsc -p tests/e2e/tsconfig.json && tsc -p craftsuite_layer/tsconfig.json",
+    "l10n:check": "node craftsuite_layer/l10n.mjs check",
+    "l10n:write": "node craftsuite_layer/l10n.mjs write",
+    "craft:fetch": "node tests/e2e/tools/fetch-craft.mjs",
+    "craft:fetch-latest": "node tests/e2e/tools/fetch-craft.mjs --latest",
+    "test:e2e": "playwright test -c tests/e2e/playwright.config.ts",
+    "test": "npm run lint && npm run typecheck && npm run l10n:check && npm run test:e2e"
+  },
+  "dependencies": {
+    "@nextcloud/files": "4.1.0",
+    "@nextcloud/l10n": "3.4.1",
+    "@nextcloud/router": "3.2.0"
+  },
+  "devDependencies": {
+    "@eslint/js": "10.0.1",
+    "@playwright/test": "1.63.0",
+    "@types/node": "24.19.2",
+    "esbuild": "0.28.2",
+    "eslint": "10.12.0",
+    "eslint-plugin-playwright": "2.12.1",
+    "fflate": "0.8.3",
+    "globals": "17.13.0",
+    "typescript": "6.0.3",
+    "typescript-eslint": "8.71.1"
+  }
+}

@@ -1,0 +1,32 @@
+{
+  "name": "hozwei/craftsuite-layer",
+  "description": "Nextcloud app that opens storytold's Craft web apps on files and saves the results back",
+  "license": "AGPL-3.0-or-later",
+  "homepage": "https://github.com/hozwei/nextcloud-craftsuite-layer",
+  "support": {
+    "issues": "https://github.com/hozwei/nextcloud-craftsuite-layer/issues",
+    "source": "https://github.com/hozwei/nextcloud-craftsuite-layer"
+  },
+  "authors": [
+    {
+      "name": "The nextcloud-craftsuite-layer contributors"
+    }
+  ],
+  "require": {
+    "php": "^8.2"
+  },
+  "require-dev": {
+    "nextcloud/ocp": "dev-stable34"
+  },
+  "autoload": {
+    "psr-4": {
+      "OCA\\CraftsuiteLayer\\": "lib/"
+    }
+  },
+  "config": {
+    "platform": {
+      "php": "8.2"
+    },
+    "sort-packages": true
+  }
+}

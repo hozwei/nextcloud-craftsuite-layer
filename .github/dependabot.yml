@@ -1,0 +1,49 @@
+# SPDX-FileCopyrightText: 2026 The nextcloud-craftsuite-layer contributors
+# SPDX-License-Identifier: AGPL-3.0-or-later
+#
+# Weekly update pull requests, minor and patch updates grouped into one per ecosystem and
+# directory; major updates come one by one because they tend to need changes. A release has to
+# be a week old before it is proposed: compromised package releases are mostly caught and pulled
+# within days. Security updates are not delayed.
+
+version: 2
+
+updates:
+  # The translator tooling, the end-to-end tests and the Nextcloud app's front end (its libraries are
+  # bundled into craftsuite_layer/js/ by craftsuite_layer/build.mjs).
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 7
+    groups:
+      minor-and-patch:
+        update-types: [minor, patch]
+    ignore:
+      # Files keeps its actions in a registry per @nextcloud/files major (window._nc_files_scope.v4_0).
+      # The bundled major must be the one the supported servers ship (4.x for Nextcloud 34 and 35), so
+      # it moves by hand, together with info.xml's range and the nextcloud-e2e matrix.
+      - dependency-name: '@nextcloud/files'
+        update-types: ['version-update:semver-major']
+
+  - package-ecosystem: composer
+    directory: /craftsuite_layer
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 7
+    groups:
+      minor-and-patch:
+        update-types: [minor, patch]
+
+  # Updates the SHA pins in .github/workflows/ together with their version comments.
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 7
+    groups:
+      minor-and-patch:
+        update-types: [minor, patch]

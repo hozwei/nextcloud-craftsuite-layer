@@ -1,0 +1,7 @@
+# SPDX-FileCopyrightText: 2026 The nextcloud-craftsuite-layer contributors
+# SPDX-License-Identifier: AGPL-3.0-or-later
+#
+# Not scanned for translatable texts by translationtool (Nextcloud's Transifex tooling):
+# bundles with minified names and other apps' t() calls.
+js/
+build/

@@ -1,0 +1,110 @@
+/*
+ * SPDX-FileCopyrightText: 2026 The nextcloud-craftsuite-layer contributors
+ * SPDX-License-Identifier: AGPL-3.0-or-later
+ */
+
+/* The editor fills the content area below Nextcloud's header. */
+#content.app-craftsuite_layer {
+	display: flex;
+	flex-direction: column;
+}
+
+.craftsuite-editor {
+	display: flex;
+	flex: 1 1 auto;
+	flex-direction: column;
+	min-height: 0;
+	height: 100%;
+}
+
+/* Nextcloud's rules for #app-content are for pages that scroll; this one keeps the app in view. */
+#content.app-craftsuite_layer #app-content.craftsuite-editor {
+	flex: 1 1 auto;
+	overflow: hidden;
+}
+
+.craftsuite-editor__bar {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	padding: 4px 12px;
+	border-bottom: 1px solid var(--color-border);
+	background: var(--color-main-background);
+}
+
+.craftsuite-editor__name {
+	font-weight: bold;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.craftsuite-editor__status {
+	flex: 1 1 auto;
+	color: var(--color-text-maxcontrast);
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.craftsuite-editor[data-state='error'] .craftsuite-editor__status,
+.craftsuite-editor__status.craftsuite-editor__status--error {
+	color: var(--color-error-text, var(--color-error));
+}
+
+/* Saves the page could not store, one per line, until the user discards them; long names wrap. */
+.craftsuite-editor__offers {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+	max-height: 30vh;
+	overflow-y: auto;
+	margin: 0;
+	padding: 4px 12px;
+	list-style: none;
+	border-bottom: 1px solid var(--color-border);
+	background: var(--color-main-background);
+}
+
+.craftsuite-editor__offers:empty {
+	display: none;
+}
+
+.craftsuite-editor__offer {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 4px 8px;
+	min-width: 0;
+	overflow-wrap: anywhere;
+}
+
+.craftsuite-editor__offer a {
+	font-weight: bold;
+	text-decoration: underline;
+}
+
+.craftsuite-editor__frame {
+	flex: 1 1 auto;
+	width: 100%;
+	min-height: 0;
+	border: 0;
+	background: var(--color-main-background);
+}
+
+.craftsuite-editor__message {
+	margin: 48px auto;
+	max-width: 600px;
+	text-align: center;
+}
+
+.craftsuite-editor__message p + p {
+	margin-top: 12px;
+}
+
+.craftsuite-editor__actions {
+	display: flex;
+	flex-wrap: wrap;
+	justify-content: center;
+	gap: 12px;
+}

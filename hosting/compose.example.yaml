@@ -1,0 +1,31 @@
+# SPDX-FileCopyrightText: 2026 The nextcloud-craftsuite-layer contributors
+# SPDX-License-Identifier: AGPL-3.0-or-later
+#
+# Example: the web server for the Craft apps (see README.md in this folder). Copy it to
+# compose.yaml next to nginx/ and a folder www/ that holds one folder per app, each an unpacked
+# web build after inject-translator.sh:
+#
+#   www/pdfcraft/index.html, www/pdfcraft/craftsuite-layer/core.js, ...
+#
+# Set CRAFTSUITE_ALLOWED_ORIGINS (in .env or the environment) to the Nextcloud origins, separated
+# by spaces, and give your updater the same value for inject-translator.sh. Put a reverse proxy
+# with TLS in front of port 8080; the apps need https.
+services:
+  web:
+    image: nginxinc/nginx-unprivileged:1.30-alpine-slim
+    restart: unless-stopped
+    environment:
+      CRAFTSUITE_ALLOWED_ORIGINS: ${CRAFTSUITE_ALLOWED_ORIGINS:?set the Nextcloud origins, e.g. https://cloud.example.com}
+    volumes:
+      - ./nginx/craft-apps.conf.template:/etc/nginx/templates/default.conf.template:ro
+      - ./www:/srv/craft:ro
+    read_only: true
+    tmpfs:
+      - /tmp
+      - /etc/nginx/conf.d   # the rendered template goes here, replacing the image's default.conf
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    ports:
+      - "127.0.0.1:8080:8080"
