@@ -3,14 +3,15 @@
  * SPDX-FileCopyrightText: 2026 The nextcloud-craftsuite-layer contributors
  * SPDX-License-Identifier: AGPL-3.0-or-later
  *
- * Load right after core.js. What PhotoCraft (web build, checked with 0.6.0) does and why the rules
+ * Load right after core.js. What PhotoCraft (web build, checked with 0.7.0) does and why the rules
  * below follow from it is described in docs/apps/photocraft.md:
  *  - It takes dropped files on its canvas (canvas#photocraft_canvas, through eframe); the core's
  *    default drop target fits. On the web every drop opens a new document tab, also while a
  *    document is open: the web shell reads dropped files itself and never places them.
- *  - Every download (Save, Save As, Export As, Quick Export as PNG, Save for Web, swatch, preset and
- *    measurement exports) is a Blob behind a hidden <a download> that is clicked and removed; the
- *    object URL is revoked after 10 s. The Blob type follows the extension.
+ *  - Every download (Save, Save As, Export As, Quick Export as PNG, Save for Web, a smart object's
+ *    Export Contents, swatch, preset and measurement exports) is a Blob behind a hidden
+ *    <a download> that is clicked and removed; the object URL is revoked after 10 s. The Blob type
+ *    follows the extension.
  *  - Save and Save As show no dialog on the web. A dropped file has no path, so Save writes
  *    '<stem>.psd' (a .pdn: '<stem>.pcraft'), a full rewrite. Only a PSD opened under a lowercase
  *    '.psd' name comes back under its own name. The document then takes the name it was saved
@@ -29,7 +30,8 @@
  *    Duplicate ('photo.psd copy'), Split Channels ('photo.psd_Red') and Crop and Straighten Photos
  *    ('photo.psd copy 2'). Save cuts the name at its last dot, so they save as 'photo.psd' too and
  *    pass as the document: a known gap (docs/apps/photocraft.md), which only a document id in
- *    PhotoCraft's files could close.
+ *    PhotoCraft's files could close. So does a smart object's Export Contents (since 0.7.0) when
+ *    the PSD stored its file under the saved name.
  *
  * Rule: a download is the document only if it has exactly the name PhotoCraft saves the opened
  * file under (savedName: '<stem>.psd', so 'photo.png' gives 'photo.psd' and the host keeps the
@@ -71,7 +73,7 @@
   // Names PhotoCraft gives new documents: 'Untitled-1' from File > New (new_doc_ui.rs), 'Untitled'
   // from New from Clipboard and file.new without a name, the first free 'Untitled-N' for a
   // template (file_open.rs, with the translated base), 'Untitled_Panorama<n>' and 'Untitled_HDR<n>'
-  // (photo_cmds.rs). The translations of 'Untitled' are those of the 0.6.0 catalogs
+  // (photo_cmds.rs). The translations of 'Untitled' are those of the 0.7.0 catalogs
   // (crates/ui-egui/src/i18n/*.tsv).
   const UNTITLED = new RegExp('^(?:(?:' + ['Untitled', 'Unbenannt', 'Sans titre', 'Sin título', 'Senza titolo',
     'Sem título', 'Naamloos', 'Bez názvu', 'Bez tytułu', 'Без имени', 'Без назви', 'Χωρίς τίτλο',
@@ -80,12 +82,13 @@
   // Preset files open no document (preset_files_ui.rs, PRESET_EXTS, and the Preset Manager's own
   // .pcpresets): a brush named like the image must not block its saves.
   const PRESET = /\.(abr|grd|aco|ase|kys|psp|pcpresets)$/i;
-  // A zip is a .pcraft by content (format/src/lib.rs is_pcraft); the other types PhotoCraft opens
-  // are not zips.
+  // A zip is a .pcraft by content (format/src/lib.rs is_pcraft) or, since 0.7.0, an OpenRaster
+  // file (.ora, which saves as '<stem>.psd'). Both count as a .pcraft: telling them apart would
+  // only turn fewer saves into new files.
   const ZIP = [0x50, 0x4b, 0x03, 0x04];
 
   // Files the app read from a user's own drop or from its file picker. The core's drop is
-  // synthetic (isTrusted false) and does not count. PhotoCraft 0.6.0 reads both through `files`
+  // synthetic (isTrusted false) and does not count. PhotoCraft 0.7.0 reads both through `files`
   // (eframe's drop handler and the file picker's <input type=file>); should a release read them
   // another way, such files go unnoticed again (see docs/apps/photocraft.md, known gaps).
   // foreignStems: the stems of the names PhotoCraft saves them under ('<stem>.psd', after the

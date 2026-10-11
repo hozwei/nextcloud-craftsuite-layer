@@ -24,10 +24,10 @@
 // A daily canary runs this file against every new DesignCraft release, so the steps that drive
 // the app (section "UI") are kept apart from the checks of what the host and the browser see
 // (section "Contract"). DesignCraft has no command palette (Ctrl+K is Preferences, and Quick
-// Apply on Ctrl+Enter runs its first entry at once), so the steps use its keyboard shortcuts,
-// from crates/ui-egui/src/menus.rs (UI_COMMANDS) and crates/engine/src/cmd/layout.rs. Only the
-// test tagged @ui also clicks with the pointer: a moved menu item fails it without the translator
-// being at fault.
+// Apply on Ctrl+Enter lists matching styles before commands; before 0.6.0 it ran its first entry
+// at once), so the steps use its keyboard shortcuts, from crates/ui-egui/src/menus.rs
+// (UI_COMMANDS) and crates/engine/src/cmd/layout.rs. Only the test tagged @ui also clicks with
+// the pointer: a moved menu item fails it without the translator being at fault.
 //
 // The fixtures in fixtures/designcraft/ were made with DesignCraft 0.5.0 (see the docs page):
 // craftsuite-probe.designcraft stores the title 'Untitled-1', from-indesign.idml the name
@@ -142,8 +142,9 @@ async function scenario(context: BrowserContext, title: string, body: (page: Pag
 
 type Box = { x: number; y: number; width: number; height: number };
 
-// Pointer targets (DesignCraft 0.5.0), relative to the app frame at the pinned viewport. This is
-// the only layout knowledge in this file; when a release moves something, fix it here.
+// Pointer targets (measured on DesignCraft 0.5.0, still right in 0.6.0), relative to the app frame
+// at the pinned viewport. This is the only layout knowledge in this file; when a release moves
+// something, fix it here.
 const AT = {
   // Menu bar, after the home button: File.
   fileMenu: (b: Box) => ({ x: b.x + 59, y: b.y + 17 }),

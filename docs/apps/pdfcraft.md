@@ -8,12 +8,13 @@
 |---|---|
 | Upstream | [github.com/storytold/pdfcraft](https://github.com/storytold/pdfcraft) |
 | Adapter | [`translators/pdfcraft.js`](../../translators/pdfcraft.js) |
-| Tested version | `tested` in [`tests/e2e/craft-versions.json`](../../tests/e2e/craft-versions.json) (0.5.0 when this page was written) |
+| Tested version | `tested` in [`tests/e2e/craft-versions.json`](../../tests/e2e/craft-versions.json) (0.5.0 when this page was written, checked again with 0.6.0) |
 | Tests | [`tests/e2e/specs/pdfcraft.spec.ts`](../../tests/e2e/specs/pdfcraft.spec.ts) (Chromium and WebKit, see [Tests](#tests)), plus [`tests/e2e/specs/translator.spec.ts`](../../tests/e2e/specs/translator.spec.ts) against a stub app that imitates PdfCraft: every scenario in Chromium, those that depend on the browser also in Firefox and WebKit |
 
 This page records what the PdfCraft web build does in the browser, as far as the translator
-depends on it, and how the adapter follows from it. The facts were checked against the 0.5.0
-source and web build. Upstream may change any of them; the daily canary run (see
+depends on it, and how the adapter follows from it. The facts were checked against the 0.6.0
+source and web build (first written for 0.5.0); source references are to the `v0.6.0` tag.
+Upstream may change any of them; the daily canary run (see
 [development.md](../development.md#continuous-integration)) is there to notice.
 
 ## What the web build does
@@ -26,29 +27,40 @@ source and web build. Upstream may change any of them; the daily canary run (see
 - `?file=<url>` opens a PDF on startup, if the URL is same-origin or allows the app's origin
   through CORS. The layer does not use it: the host sends the bytes instead, so Nextcloud never
   has to serve files to another origin.
+- Since 0.6.0, `?host=parent` turns on a `postMessage` bridge for a parent page on the app's own
+  origin (`apps/pdfcraft-web/src/main.rs:57-73`, `:122-246`): the parent sends files
+  (`pdfcraft:open`), and Save posts the bytes to the parent (`pdfcraft:save`) instead of
+  downloading them (`crates/ui-egui/src/editing.rs:419-425`). The layer runs the app on an origin
+  of its own, so it cannot use the bridge and does not turn it on; see
+  [Hosting notes](#hosting-notes) for why the app URL must not contain `host=parent`.
 - There is no JavaScript-visible signal that a file was opened, could not be opened, or has
   unsaved changes. A broken file shows an error inside the app; the host only gets `delivered`.
+  Since 0.6.0 PdfCraft cancels the `beforeunload` event while a document has unsaved changes
+  (`apps/pdfcraft-web/src/main.rs:54-56`, `:89-101`). Chromium then asks before the page that
+  frames the app is left; WebKit did not ask in the same check (the test host, an edit, then a
+  navigation of the page). The host still learns nothing.
 
 **Saving and downloads**
 
-- Every download goes through one helper: a `Blob` with type `application/pdf` (even for
-  `.docx`, `.csv`, `.xfdf` or `.png`), `URL.createObjectURL`, a detached `<a download>`, `click()`,
-  then the URL is revoked at once. The type says nothing, so the translator keeps the `Blob` from
-  `createObjectURL` and the `save` message carries no MIME type.
+- Every download goes through one helper (`crates/ui-egui/src/editing.rs:684-700`, unchanged in
+  0.6.0): a `Blob` with type `application/pdf` (even for `.docx`, `.csv`, `.xfdf` or `.png`),
+  `URL.createObjectURL`, a detached `<a download>`, `click()`, then the URL is revoked at once.
+  The type says nothing, so the translator keeps the `Blob` from `createObjectURL` and the `save`
+  message carries no MIME type.
 - Firefox gives a download typed `application/pdf` a `.pdf` extension, so it saves the app's own
   exports as, for example, `<stem>.pdf` instead of `<stem>.docx` (checked with the stub app,
   which downloads the same way). The translator's fallback download is a copy typed
   `application/octet-stream`, which keeps the name in every engine.
-- Save and Save As write the document's name exactly as it was opened (no `.pdf` appended).
-  Usually they write an incremental update: the original bytes plus an appended section. PdfCraft
-  then marks the document saved and shows "Downloaded <name>", without knowing whether the host
-  stored it.
+- Save and Save As write the document's name exactly as it was opened (no `.pdf` appended,
+  `crates/ui-egui/src/editing.rs:382`, `:424`). Usually they write an incremental update: the
+  original bytes plus an appended section. PdfCraft then marks the document saved and shows
+  "Downloaded <name>" (`editing.rs:426-437`), without knowing whether the host stored it.
 - Save rewrites the whole file instead after redaction, Sanitize document, Remove hidden
   information or a security change (a password added or removed), and for a file PdfCraft
   repaired on open (damaged cross-reference data): the previous revision would still hold what
-  was removed (`crates/cos/src/writer.rs:184-187`, `crates/redact/src/lib.rs:419-421`,
+  was removed (`crates/cos/src/writer.rs:184-187`, `crates/redact/src/lib.rs:420-422`,
   `crates/redact/src/sanitize.rs:385`, `:394`, `crates/cos/src/document.rs:315-326`). PdfCraft
-  then goes on editing the bytes it wrote (`crates/engine/src/lib.rs:2576-2588`, `mark_saved`), so
+  then goes on editing the bytes it wrote (`crates/engine/src/lib.rs:2722-2734`, `mark_saved`), so
   every later Save appends to those, not to the opened file.
 - Other downloads have other names, or rewrite the file. Examples:
 
@@ -60,19 +72,20 @@ source and web build. Upstream may change any of them; the daily canary run (see
 | Reduce file size, PDF Optimizer | `<stem> (reduced).pdf`, `<stem> (optimized).pdf` | `export` |
 | Export to Word, HTML, RTF | `<stem>.docx`, `<stem>.html`, `<stem>.rtf` | `export` |
 | Export form data | `<stem>.xfdf` | `export` |
-| Split document, Extract pages | the parts' names | `export` |
+| Split document, Extract pages | the parts' names; Extract pages also takes a name typed in its dialog (`crates/ui-egui/src/files.rs:451-462`, `:495`) | `export` |
 | Export to Image | the images' names | `export` |
 | Export measurements as CSV | `measurements.csv` | `export` |
-| Action Wizard | the document's name, file rewritten | `export`; signed PDFs see [known gaps](#known-gaps) |
+| Action Wizard | the document's name, file rewritten (`crates/ui-egui/src/actions_ui.rs:110`) | `export`; signed PDFs see [known gaps](#known-gaps) |
 | Recognize Text on several files | each input file's name | `export`, unless the result extends the stored bytes |
-| Attachment opened in a tab, then saved | the attachment's own name, taken from the document | `export` (name sanitised) |
+| Attachment opened in a tab, then saved | the attachment's own name, taken from the document (`crates/ui-egui/src/lib.rs:1080-1084`) | `export` (name sanitised) |
 
 `<stem>` is the document's name without its extension. Any download whose name differs from the
 opened document's is an `export`.
 
 **Links**
 
-- Links such as About > Contributors use `window.open` with target `_self`. In a frame that would
+- Links such as About > Contributors are egui hyperlinks (`crates/ui-egui/src/credits.rs:280`,
+  `:307`), which eframe opens with `window.open` and target `_self`. In a frame that would
   replace the editor; the translator opens them in a new window instead.
 
 ## How the adapter classifies
@@ -108,7 +121,8 @@ continues it replaces that new file.
   The result still begins with the opened bytes, and Nextcloud's file versions (where enabled)
   keep the previous state.
 - **No unsaved-changes signal.** The host cannot tell whether the user has unsaved edits and must
-  warn on close.
+  warn on close. PdfCraft's own `beforeunload` question (since 0.6.0, see
+  [Opening](#what-the-web-build-does)) tells the host nothing and comes only from some browsers.
 - **`delivered` is not "opened".** The host cannot tell whether PdfCraft could read the file.
 - **Saved means downloaded.** PdfCraft marks the document saved when the download starts. If the
   host cannot store the file, the translator's fallback browser download is the copy the user
@@ -121,9 +135,15 @@ continues it replaces that new file.
   headers (no COOP/COEP). It asks not to send `X-Frame-Options: DENY` or a `frame-ancestors`
   that excludes the embedding page. For a sandboxed iframe it needs at least
   `allow-scripts allow-same-origin allow-downloads allow-popups`.
-- The 0.5.0 web build renders with WebGL2 (eframe's glow renderer). Without WebGL2 it cannot run,
-  and the translator reports `the app registered no drop target`. `HOSTING.md` also mentions
-  WebGPU and `?webgl`/`?cpu` flags; the 0.5.0 build does not read them.
+- The web build (0.5.0 and 0.6.0) renders with WebGL2 (eframe's glow renderer,
+  `apps/pdfcraft-web/Cargo.toml`). Without WebGL2 it cannot run, and the translator reports
+  `the app registered no drop target`. `HOSTING.md` also mentions WebGPU and `?webgl`/`?cpu`
+  flags; the build does not read them.
+- The configured app URL must not contain `host=parent`. With it, PdfCraft 0.6.0 posts every
+  Save to its parent on the app's own origin instead of downloading it and marks the document
+  saved (`crates/ui-egui/src/editing.rs:419-439`). Under a parent on another origin, such as
+  Nextcloud, the browser drops that message without an error, so the save reaches neither the
+  translator nor the user.
 - The loader is Trunk's inline module script in `index.html`. It imports
   `pdfcraft-web-<hash>.js`, awaits the `.wasm` module at its top level and then dispatches
   `TrunkApplicationStarted`; `index.html` also preloads both files with integrity hashes. A
@@ -157,10 +177,10 @@ reports every scenario that fails as `scenario failed: <title>`, not only the fi
 
 The tests drive PdfCraft with the keyboard and the command palette, typing the English command
 labels from PdfCraft's `crates/engine/src/commands.rs`. Only the `ui` test also clicks with the
-pointer; its click positions are in the `AT` table of the spec, measured on 0.5.0 at a 1400x900
-viewport with the locale `en-US`. It runs with a longer time limit (`test.slow()`), so that a
-path that misses its button can run into its waits and every such path still gets reported.
-When a new release fails the canary:
+pointer; its click positions are in the `AT` table of the spec, measured on 0.5.0 (and still
+right in 0.6.0) at a 1400x900 viewport with the locale `en-US`. It runs with a longer time limit
+(`test.slow()`), so that a path that misses its button can run into its waits and every such
+path still gets reported. When a new release fails the canary:
 
 - **Contract tests fail.** The release changed something the translator relies on (see
   [architecture.md](../architecture.md#upstream-coupling-points)). Sites that host the app should hold the
@@ -181,3 +201,10 @@ An embedding API for the web build is requested in
 [storytold/pdfcraft#422](https://github.com/storytold/pdfcraft/issues/422) (open, no response as
 of 2026-10-10). With such an API, the open and save paths would no longer depend on drops and
 downloads; see [architecture.md](../architecture.md#native-embedding-apis).
+
+PdfCraft 0.6.0 has a first such bridge (`?host=parent`, see
+[Opening](#what-the-web-build-does)), but only for a parent page on the app's own origin: it
+posts to and hears from that origin alone. PdfCraft marks the document saved as soon as
+`pdfcraft:save` is posted; the parent reports a failed store itself. The bridge also reports
+unsaved changes (`pdfcraft:dirty`), which the translator cannot see. A host on another origin, as
+Nextcloud is for the layer, would need the bridge to accept a configured parent origin.

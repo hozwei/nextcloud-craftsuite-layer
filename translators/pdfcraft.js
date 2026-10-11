@@ -3,11 +3,13 @@
  * SPDX-FileCopyrightText: 2026 The nextcloud-craftsuite-layer contributors
  * SPDX-License-Identifier: AGPL-3.0-or-later
  *
- * Load right after core.js. What PdfCraft (web build, checked with 0.5.0) does and why the rules
+ * Load right after core.js. What PdfCraft (web build, checked with 0.6.0) does and why the rules
  * below follow from it is described in docs/apps/pdfcraft.md:
  *  - It takes dropped files on its canvas; the core's default drop target fits.
  *  - Every download (Save, Print to PDF, exports, Action Wizard, split parts) is a Blob behind a
- *    detached <a download>. Its type is always application/pdf, so it says nothing.
+ *    detached <a download>. Its type is always application/pdf, so it says nothing. (With
+ *    '?host=parent' in its URL, 0.6.0 posts saves to a parent on its own origin instead; the
+ *    hosting must not set it.)
  *  - Save names the file exactly like the opened document. It writes an incremental update (the
  *    saved bytes start with the bytes last saved), except after redaction, Sanitize document,
  *    Remove hidden information or a security change, or for a file it repaired on open: then it

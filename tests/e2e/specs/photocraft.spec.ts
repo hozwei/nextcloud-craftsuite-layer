@@ -20,7 +20,7 @@
 //                 by 10 s: the host gets no error, and the file opens once the app takes drops
 //   ui (@ui)      the paths that need pointer clicks: File > Save in the menu bar saves the
 //                 document; the Export button of the Export As dialog exports a new file;
-//                 PhotoCraft's own link with target _self (About > Contributors) opens a new window
+//                 PhotoCraft's own link (About > Contributors) opens a new window, the editor stays
 //
 // A daily canary runs this file against every new PhotoCraft release, so the steps that drive the
 // app (section "UI") are kept apart from the checks of what the host and the browser see
@@ -144,13 +144,36 @@ async function scenario(context: BrowserContext, title: string, body: (page: Pag
 
 type Box = { x: number; y: number; width: number; height: number };
 
-// Pointer targets (PhotoCraft 0.6.0), relative to the app frame at the pinned viewport. This is
-// the only layout knowledge in this file; when a release moves something, fix it here.
+// The File menu from its top down to Save, in the order PhotoCraft draws it: the File rows of
+// crates/ui-egui/src/menu_catalog.rs, with New from Clipboard after New and the Open Recent
+// submenu after Open As (menus.rs menu_items); '---' is a separator. A release that adds a row
+// above Save moves Save down: add the row here (0.7.0 added Open EXR Parts…).
+const FILE_MENU = {
+  rows: ['New…', 'New from Clipboard', 'Open…', 'Open As…', 'Open Recent', 'Open EXR Parts…', '---',
+    'Close', 'Close All', 'Close Others', '---', 'Save'],
+  // The top of the first row in the frame: below the menu bar, the menu's margin and the
+  // scroll-up arrow (16 px and 6 px spacing, menu_nav.rs level) that a menu taller than the frame
+  // gets, as the File menu has been since 0.7.0 (in 0.6.0 it fit, and its first row began at 35).
+  top: 57,
+};
+
+// The middle of a menu row, from the rows above it: 24 px per row (interact_size, theme.rs) and
+// 9 px per separator (MENU_SEPARATOR, menus.rs).
+function menuRowY(menu: { rows: string[]; top: number }, label: string) {
+  const at = menu.rows.indexOf(label);
+  if (at < 0) throw new Error(`no row ${label} in the menu's rows`);
+  const separators = menu.rows.slice(0, at).filter((row) => row === '---').length;
+  return menu.top + (at - separators) * 24 + separators * 9 + 12;
+}
+
+// Pointer targets (PhotoCraft 0.7.0), relative to the app frame at the pinned viewport. This and
+// FILE_MENU are the only layout knowledge in this file; when a release moves something, fix it
+// here.
 const AT = {
   // Menu bar: File, the first menu right of the app icon.
   fileMenu: (b: Box) => ({ x: b.x + 57, y: b.y + 15 }),
-  // The File menu: Save, the first item after Close Others.
-  fileSave: (b: Box) => ({ x: b.x + 73, y: b.y + 257 }),
+  // The File menu: Save, by its rows.
+  fileSave: (b: Box) => ({ x: b.x + 73, y: b.y + menuRowY(FILE_MENU, 'Save') }),
   // Export As, a modal centred in the frame: Export, the default button, first of the two in the
   // Windows and Linux order, last in the macOS order (Cancel Export; see platformIsMac()).
   exportButton: (b: Box, mac: boolean) => ({ x: b.x + b.width / 2 + (mac ? 258 : 164), y: b.y + b.height / 2 + 188 }),
@@ -547,9 +570,11 @@ test('ui: File > Save, the Export As dialog and About > Contributors with the po
     expectNoDownloads(downloads);
   });
 
-  await scenario(context, 'PhotoCraft\'s own link with target _self (About > Contributors) opens a new window', async (page, downloads) => {
-    // The link leads to an https page: answer it here, so the test needs no network. The test
-    // origins are all http.
+  await scenario(context, 'PhotoCraft\'s own link (About > Contributors) opens a new window, the editor stays', async (page, downloads) => {
+    // Up to 0.6.0 the names were egui hyperlinks, opened with target _self, which the translator
+    // turns into a new window; since 0.7.0 they open a new tab themselves (credits.rs, links.rs).
+    // Either way the editor must stay in the frame. The link leads to an https page: answer it
+    // here, so the test needs no network. The test origins are all http.
     await context.route((url) => url.protocol === 'https:', (route) => route.fulfill({ contentType: 'text/html', body: '' }));
     const app = await openInHost(page, PROBE_PSD);
     await runCommand(page, app, 'About PhotoCraft', PALETTE);

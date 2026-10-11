@@ -3,7 +3,7 @@
  * SPDX-FileCopyrightText: 2026 The nextcloud-craftsuite-layer contributors
  * SPDX-License-Identifier: AGPL-3.0-or-later
  *
- * Load right after core.js. What VectorCraft (web build, checked with 0.8.0) does and why the
+ * Load right after core.js. What VectorCraft (web build, checked with 0.9.0) does and why the
  * rules below follow from it is described in docs/apps/vectorcraft.md:
  *  - It takes dropped files on its canvas (canvas#vectorcraft_canvas, through eframe). With no
  *    document open a drop opens the file; with one open, a drop on the canvas places the file into
@@ -132,9 +132,9 @@
     // before that listener (web.rs start(), fonts.rs): builds with a fonts/ folder fetch Noto Sans
     // Arabic there, up to 20 s per font, and with the core's default of 3 s the host would get a
     // provisional startup error ('the app registered no drop target') before 'ready'. Builds
-    // without the folder (0.8.0) add the listener right after their start. Should a release drop
-    // the pointer listener, eframe's, added after the graphics start, would be the first, and this
-    // wait would include the graphics start too.
+    // without the folder (0.8.0, 0.9.0) add the listener right after their start. Should a
+    // release drop the pointer listener, eframe's, added after the graphics start, would be the
+    // first, and this wait would include the graphics start too.
     dropTargetTimeout: 30000,
     dropTarget(registered) {
       return document.getElementById(CANVAS) || registered;

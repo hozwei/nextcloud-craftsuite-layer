@@ -3,19 +3,21 @@
  * SPDX-FileCopyrightText: 2026 The nextcloud-craftsuite-layer contributors
  * SPDX-License-Identifier: AGPL-3.0-or-later
  *
- * Load right after core.js. What DesignCraft (web build, checked with 0.5.0) does and why the
+ * Load right after core.js. What DesignCraft (web build, checked with 0.6.0) does and why the
  * rules below follow from it is described in docs/apps/designcraft.md:
  *  - It takes dropped files on its canvas (canvas#designcraft_canvas, through eframe); the core's
  *    default drop target fits. A dropped .designcraft or .idml opens as a new document titled
  *    with the file name up to its last dot (an IDML package also loses any '.idml' left at the
  *    end of that); a title stored inside the file is ignored. Anything else is placed into the
- *    open document, and with no document open nothing opens.
+ *    open document, and with no document open nothing opens. A file dropped while a dialog is
+ *    open is not opened.
  *  - Every download is a Blob behind an <a download> that is clicked and removed at once. Its type
- *    follows the extension and is wrong for .designcraft (application/json for a zip).
+ *    follows the extension (since 0.6.0 application/vnd.designcraft+zip for .designcraft).
  *  - Save and Save As (no dialog on the web) write '<title>.designcraft': the whole document as a
- *    new zip package, not an update of the opened bytes. Exports are named '<title>.<ext>' or
- *    '<title>-p<n>.png', so Export IDML of an opened .idml reuses the opened name; that is
- *    DesignCraft's own rewrite of the file, never a save of it.
+ *    new zip package, not an update of the opened bytes. Exports are named '<title>.<ext>' (Export
+ *    PDF since 0.6.0: the title in its dialog) or '<title>-p<n>.png', so Export IDML of an opened
+ *    .idml reuses the opened name; that is DesignCraft's own rewrite of the file, never a save of
+ *    it.
  *  - New documents are titled 'Untitled-N', counting from 1 in each session (opening a file does
  *    not count), so a new document can save under the opened file's name. The package's
  *    document.json stores the creation time (`created`, Unix seconds), set when a document is

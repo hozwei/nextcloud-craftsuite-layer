@@ -23,8 +23,8 @@
 //                 startup instead of waiting
 //   ui (@ui)      the paths that need pointer clicks: File > Save and the OK button of the Save
 //                 As dialog save the document; File > Export > Export As SVG... and the OK button
-//                 of SVG Options give an export; VectorCraft's own link with target _self (About
-//                 > Contributors) opens a new window
+//                 of SVG Options give an export; VectorCraft's own link (About > Contributors)
+//                 opens a new window and the editor stays in the frame
 //
 // A daily canary runs this file against every new VectorCraft release, so the steps that drive
 // the app (section "UI") are kept apart from the checks of what the host and the browser see
@@ -153,19 +153,24 @@ async function scenario(context: BrowserContext, title: string, body: (page: Pag
 
 type Box = { x: number; y: number; width: number; height: number };
 
-// Pointer targets (VectorCraft 0.8.0), relative to the app frame at the pinned viewport. This is
-// the only layout knowledge in this file; when a release moves something, fix it here.
+// Pointer targets (VectorCraft 0.9.0), relative to the app frame at the pinned viewport. This is
+// the only layout knowledge in this file; when a release moves something, fix it here. Each
+// target is given from the anchor egui places it at: the File menu and its Export submenu open
+// under and beside the File title, so their entries are offsets from FILE, and a release that
+// only moves the title (0.9.0 dropped the app menu "VectorCraft" before it and lowered the bar)
+// needs FILE re-measured alone; the dialogs are modals anchored at the frame's centre.
+const FILE = { x: 78, y: 15 }; // the File title in the menu bar, the first menu after Home
 const AT = {
-  // Menu bar: File, after the app menu "VectorCraft".
-  fileMenu: (b: Box) => ({ x: b.x + 157, y: b.y + 21 }),
+  fileMenu: (b: Box) => ({ x: b.x + FILE.x, y: b.y + FILE.y }),
   // File menu: Save (after Close and Close All), and Export, which opens a submenu on hover.
-  fileSave: (b: Box) => ({ x: b.x + 168, y: b.y + 267 }),
-  fileExport: (b: Box) => ({ x: b.x + 173, y: b.y + 521 }),
+  fileSave: (b: Box) => ({ x: b.x + FILE.x + 11, y: b.y + FILE.y + 246 }),
+  fileExport: (b: Box) => ({ x: b.x + FILE.x + 16, y: b.y + FILE.y + 500 }),
   // File > Export submenu: Export As SVG..., third after Export for Screens and Export As.
-  exportAsSvg: (b: Box) => ({ x: b.x + 444, y: b.y + 579 }),
-  // Save As and SVG Options, modals centred horizontally in the frame: OK, the bottom-right button.
-  saveAsOk: (b: Box) => ({ x: b.x + b.width / 2 + 154, y: b.y + 510 }),
-  svgOptionsOk: (b: Box) => ({ x: b.x + b.width / 2 + 154, y: b.y + 573 }),
+  exportAsSvg: (b: Box) => ({ x: b.x + FILE.x + 287, y: b.y + FILE.y + 558 }),
+  // Save As and SVG Options, modals centred in the frame (a little above the middle): OK, the
+  // bottom-right button.
+  saveAsOk: (b: Box) => ({ x: b.x + b.width / 2 + 154, y: b.y + b.height / 2 + 148 }),
+  svgOptionsOk: (b: Box) => ({ x: b.x + b.width / 2 + 154, y: b.y + b.height / 2 + 211 }),
   // About VectorCraft, a modal centred in the frame and sized to its tab. On the About tab: the
   // Contributors tab, second in its tab row. On the Contributors tab: the first name, a link.
   aboutContributorsTab: (b: Box) => ({ x: b.x + b.width / 2 - 99, y: b.y + b.height / 2 - 101 }),
@@ -246,6 +251,19 @@ async function openSaveAs(page: Page, app: Frame) {
     timeout: 10_000,
   }).toBe(true);
   await settle(page.locator('#app'), app);
+}
+
+// For the @ui test: whether the dialog the clicks open is shown. Save As and SVG Options open with
+// a text field focused (File Name, Decimal), and eframe's <input> keeps the focus until the dialog
+// closes (see textEditing()). So a click that missed fails here and names the AT entries to
+// re-measure, instead of ending in a save that never arrives.
+async function expectDialog(app: Frame, dialog: string, shown: boolean, targets: string) {
+  await expect.poll(() => textEditing(app), {
+    message: shown
+      ? `${dialog} opened (if not, a click missed: check ${targets} in AT)`
+      : `${dialog} closed (if not, the click missed its OK: check ${targets} in AT)`,
+    timeout: 10_000,
+  }).toBe(shown);
 }
 
 // The first Save: Enter confirms the suggested name.
@@ -426,6 +444,12 @@ test('contract: an allowed host opens the file and stores every save, nothing is
 });
 
 test('another name: a save of the document under another name than the opened one is still the document', async ({ context }) => {
+  // Four paths in a page each, each starting the app (a 56 MB module in 0.9.0) and saving up to
+  // three times. On a busy machine, with Chromium and WebKit side by side, this ran past the
+  // default 120 s (WebKit took 78 s in a passing run), so it gets the slow budget, as the @ui
+  // test does.
+  test.slow();
+
   await scenario(context, 'an SVG saves as <stem>.vectorcraft, the document, twice; Export As SVG under the opened name stays an export', async (page, downloads) => {
     const app = await openInHost(page, `?target=vectorcraft&name=${SVG}`);
     await editByKeyboard(page, app, 'Control+g');
@@ -546,7 +570,9 @@ test('ui: File menu, dialog buttons and About > Contributors with the pointer', 
     const app = await openInHost(page, `?target=vectorcraft&name=${NATIVE}`);
     await clickApp(page, app, 'the File menu', AT.fileMenu);
     await clickApp(page, app, 'Save in the File menu', AT.fileSave);
+    await expectDialog(app, 'Save As', true, 'FILE, fileSave');
     await clickApp(page, app, 'OK in the Save As dialog', AT.saveAsOk);
+    await expectDialog(app, 'Save As', false, 'saveAsOk');
     const { save, bytes } = await hostSave(page, 1);
     expectDocument(save, 'craftsuite-probe.vectorcraft');
     expectNative(bytes, 'craftsuite-probe.vectorcraft');
@@ -558,16 +584,20 @@ test('ui: File menu, dialog buttons and About > Contributors with the pointer', 
     await clickApp(page, app, 'the File menu', AT.fileMenu);
     await hoverApp(page, app, 'Export in the File menu', AT.fileExport);
     await clickApp(page, app, 'Export As SVG... in the Export submenu', AT.exportAsSvg);
+    await expectDialog(app, 'SVG Options', true, 'FILE, fileExport, exportAsSvg');
     await clickApp(page, app, 'OK in SVG Options', AT.svgOptionsOk);
+    await expectDialog(app, 'SVG Options', false, 'svgOptionsOk');
     const { save, bytes } = await hostSave(page, 1);
     expectExport(save, 'craftsuite-probe.svg');
     expect(bytes.toString('utf8'), 'an SVG').toContain('<svg');
     expectNoDownloads(downloads);
   });
 
-  await scenario(context, 'VectorCraft\'s own link with target _self (About > Contributors) opens a new window', async (page, downloads) => {
-    // The links lead to https pages: answer them here, so the test needs no network. The test
-    // origins are all http.
+  await scenario(context, 'VectorCraft\'s own link (About > Contributors) opens a new window, the editor stays', async (page, downloads) => {
+    // Since 0.9.0 VectorCraft opens it with window.open(url, '_blank') on the frame after the
+    // click, through the translator's window.open (0.8.0 used target _self, which would have
+    // replaced the editor in the frame). The links lead to https pages: answer them here, so the
+    // test needs no network. The test origins are all http.
     await context.route((url) => url.protocol === 'https:', (route) => route.fulfill({ contentType: 'text/html', body: '' }));
     const app = await openInHost(page, `?target=vectorcraft&name=${NATIVE}`);
     await command(page, app, 'help.about'); // About VectorCraft

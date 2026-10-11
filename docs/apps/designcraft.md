@@ -8,41 +8,47 @@
 |---|---|
 | Upstream | [github.com/storytold/designcraft](https://github.com/storytold/designcraft) |
 | Adapter | [`translators/designcraft.js`](../../translators/designcraft.js) |
-| Tested version | `tested` in [`tests/e2e/craft-versions.json`](../../tests/e2e/craft-versions.json) (0.5.0 when this page was written) |
+| Tested version | `tested` in [`tests/e2e/craft-versions.json`](../../tests/e2e/craft-versions.json) (0.5.0 when this page was written, checked again with 0.6.0) |
 | Tests | [`tests/e2e/specs/designcraft.spec.ts`](../../tests/e2e/specs/designcraft.spec.ts) (Chromium and WebKit, see [Tests](#tests)) |
 
 This page records what the DesignCraft web build does in the browser, as far as the translator
-depends on it, and how the adapter follows from it. The facts were checked against the 0.5.0
-source and web build. Upstream may change any of them; the daily canary run (see
-[development.md](../development.md#continuous-integration)) is there to notice. Source
-references are to the 0.5.0 tag; `web.rs` is `apps/designcraft-web/src/web.rs`, the other paths
-are under `crates/`.
+depends on it, and how the adapter follows from it. The facts were checked against the 0.6.0
+source and web build (first written for 0.5.0). Upstream may change any of them; the daily
+canary run (see [development.md](../development.md#continuous-integration)) is there to notice.
+Source references are to the `v0.6.0` tag; `web.rs` and `browser_policy.rs` are in
+`apps/designcraft-web/src/`, the other paths are under `crates/`.
 
 ## What the web build does
 
 **Opening**
 
-- It takes dropped files on its canvas (`canvas#designcraft_canvas`, `web.rs:29`), where eframe
+- It takes dropped files on its canvas (`canvas#designcraft_canvas`, `web.rs:30`), where eframe
   registers its drop listener. The drop handler does not check `isTrusted`, so the translator's
   simulated drop works like a user's drop. The core's default drop target fits; the adapter needs
   no `dropTarget`.
-- Each dropped file is read asynchronously and keeps its `File.name` (`web.rs:87-104`). Then the
-  name decides, in any letter case (`ui-egui/src/lib.rs:556-574`, `drain_inbox`):
+- Each dropped file is read asynchronously and keeps its `File.name` (`web.rs:88-104`); since
+  0.6.0 the drop also records the document that was active when it arrived. Then the name
+  decides, in any letter case (`ui-egui/src/lib.rs:683-708`, `import_file`, and `:1012-1015`):
   - `.designcraft` or `.idml`: opens as a new document tab;
   - `.ase`: loads the swatches into the open document;
   - anything else: placed into the open document, like File > Place.
 
   So a file of any other type opens nothing on the start screen: DesignCraft reports in its
-  status bar that `file.place` is not available with no document open, and the host has only
-  seen `delivered`.
+  status bar `Import cancelled: the originating document has closed` (`lib.rs:629-633`; 0.5.0
+  said that `file.place` is not available), and the host has only seen `delivered`.
+- Since 0.6.0 a file that arrives while a dialog is open is not opened either: DesignCraft
+  reports `<name>: import cancelled while a dialog is open; choose the file again` in its status
+  bar (`ui-egui/src/lib.rs:672-675`). The translator drops the file as soon as the app can take
+  files, before the user can open a dialog, and hosts open one file per frame (see
+  [protocol.md](../protocol.md#open)); a later `open` would meet this.
 - An IDML package is recognised by its content, a zip whose first, stored entry `mimetype`
-  holds `application/vnd.adobe.indesign-idml-package` (`engine/src/cmd/file.rs:201-214`,
-  `idml/src/lib.rs:71-76`); its name only routes the drop.
+  holds `application/vnd.adobe.indesign-idml-package` (`engine/src/cmd/file.rs:219-232`,
+  `idml/src/lib.rs:72-77`); its name only routes the drop.
 - **The document's title comes from the file name**, never from the file: the name up to its
-  last dot (`ui-egui/src/lib.rs:565-566`), which replaces the title stored in a `.designcraft`
-  (`engine/src/cmd/file.rs:209-211`) or the `Name` in an IDML's `designmap.xml`
-  (`engine/src/cmd/interchange.rs:115-117`). For an IDML package DesignCraft also cuts every
-  `.idml` left at the end of that (`interchange.rs:103`, `trim_end_matches`), so
+  last dot (`ui-egui/src/lib.rs:706-707`), which replaces the title stored in a `.designcraft`
+  (`engine/src/cmd/file.rs:227-229`) or the `Name` in an IDML's `designmap.xml`
+  (`engine/src/cmd/interchange.rs:146-148`). For an IDML package DesignCraft also cuts every
+  `.idml` left at the end of that (`interchange.rs:134`, `trim_end_matches`), so
   `x.idml.idml` gets the title `x`. The tests open fixtures whose stored titles differ from
   their names.
 - There is no `?file=` and no embedding API. The only query flags are `webgl` and `sample`
@@ -52,14 +58,15 @@ are under `crates/`.
 
 **Saving and downloads**
 
-- Every download goes through one helper (`web.rs:151-175`): a `Blob` typed by the extension
-  (`web.rs:177-186`), `URL.createObjectURL`, an `<a download>` with `display: none` appended to
-  `<body>`, `click()`, then the element is removed at once and the URL revoked after 10 s. The
-  type is wrong for `.designcraft` (`application/json` for a zip), so the `save` message carries
-  no MIME type, as for every app. There is no File System Access API.
+- Every download goes through one helper (`web.rs:154-178`): a `Blob` typed by the extension
+  (`browser_policy.rs:10-19`), `URL.createObjectURL`, an `<a download>` with `display: none`
+  appended to `<body>`, `click()`, then the element is removed at once and the URL revoked after
+  10 s. Since 0.6.0 the type of a `.designcraft` is `application/vnd.designcraft+zip` (0.5.0 gave
+  `application/json`). The `save` message carries no MIME type, as for every app. There is no
+  File System Access API.
 - Save (Cmd+S) and Save As… (Cmd+Shift+S) (`ui-egui/src/menus.rs:12-13`) both run
   `download_document` when there is a download service, which is always the case on the web
-  (`menus.rs:719`, `menus.rs:1383-1392`). Neither asks for a name: the file is
+  (`menus.rs:739`, `menus.rs:1450-1459`). Neither asks for a name: the file is
   `<title>.designcraft`, the whole document written as a new zip package (`format/src/lib.rs:46-74`:
   the stored `mimetype` entry with `application/vnd.designcraft+zip` first, then `meta.json`,
   `document.json` and `assets/`), not an update of the opened bytes. DesignCraft then marks the
@@ -69,8 +76,8 @@ are under `crates/`.
   (the name every document made in the web build gets on its first Save), a new document saves
   under the opened name.
 - `document.json` stores the creation time (`created`, Unix seconds, `doc/src/lib.rs:527-531`),
-  set when a document is created (`doc/src/build.rs:158`) or imported from IDML
-  (`idml/src/import.rs:2243`) and kept by every load and save. The desktop app sets it; the web
+  set when a document is created (`doc/src/build.rs:159`) or imported from IDML
+  (`idml/src/import.rs:2339`) and kept by every load and save. The desktop app sets it; the web
   build has no clock and stores 0 (`doc/src/vars.rs:104-114`).
 - On Windows and Linux the shortcuts are Ctrl+S and Ctrl+Shift+S (`Cmd` is Ctrl there). The
   tests press Ctrl, also in WebKit with Safari's user agent.
@@ -81,13 +88,14 @@ are under `crates/`.
 |---|---|---|
 | Save (Ctrl+S), Save As… (Ctrl+Shift+S) of the opened document | `<title>.designcraft`, the whole package | `document` |
 | Save of another document (File > New Document…, or a file opened from the user's disk with File > Open…) | `<its title>.designcraft` | `export`; with the opened document's title see [How the adapter classifies](#how-the-adapter-classifies) and [known gaps](#known-gaps) |
-| Export Page as PNG… (Ctrl+E) | `<title>-p<n>.png`, n the page in view (`menus.rs:1413`) | `export` |
-| Export IDML… | `<title>.idml` (`menus.rs:1431`); for an opened `<title>.idml` that is the opened name | `export` |
-| Export PDF…, Export PDF (Interactive)…, Print Booklet… | `<title>.pdf` (`menus.rs:1479`, `menus.rs:1451`) | `export` |
+| Export Page as PNG… (Ctrl+E) | `<title>-p<n>.png`, n the page in view (`menus.rs:1480`) | `export` |
+| Export IDML… | `<title>.idml` (`menus.rs:1498`); for an opened `<title>.idml` that is the opened name | `export` |
+| Export PDF… | since 0.6.0 through a dialog whose title field starts as `<title>`: `<that title>.pdf`, or `Export.pdf` when it is emptied (`ui-egui/src/dialogs.rs:1974-1978`) | `export` |
+| Export PDF (Interactive)…, Print Booklet… | `<title>.pdf` (`menus.rs:1546`, `menus.rs:1518`) | `export` |
 | Export EPUB…, Export EPUB (Fixed Layout)… | `<title>.epub` | `export` |
 | Export HTML…, Export XML… | `<title>.html`, `<title>.xml` | `export` |
-| Export Text… (needs a story being edited) | `<title>.rtf` (`menus.rs:804`) | `export` |
-| Save Swatches for Exchange… | `Swatches.ase` (`menus.rs:860`) | `export` |
+| Export Text… (needs a story being edited) | `<title>.rtf` (`menus.rs:824`) | `export` |
+| Save Swatches for Exchange… | `Swatches.ase` (`menus.rs:881`) | `export` |
 | Save a Copy…, Package… | nothing: no download on the web (`engine/src/cmd/file.rs:26-32` writes only outside the browser) | |
 
 **Links**
@@ -96,7 +104,7 @@ are under `crates/`.
   (`ui-egui/src/credits.rs:259`, `credits.rs:282`), which eframe opens with `window.open` and
   target `_self`. In a frame that would replace the editor; the translator opens them in a new
   window instead. Links in the Help menu and on the start screen open a new tab anyway
-  (`ui-egui/src/lib.rs:784-786`).
+  (`ui-egui/src/lib.rs:935-937`).
 
 ## How the adapter classifies
 
@@ -135,7 +143,9 @@ too; if it has none, the saved name is not `Untitled-<n>.designcraft`. Otherwise
   names with a lower-case extension, so in Nextcloud `X.DESIGNCRAFT` arrives as `X.designcraft`
   and its saves replace it in place; only an `.idml` gets a new file next to it. Once the host has
   stored a save, the core takes it as the reference for the next one.
-- The package check is a guard: in 0.5.0 nothing but Save writes `<title>.designcraft`.
+- The package check is a guard: in 0.5.0 and 0.6.0 nothing but Save writes
+  `<title>.designcraft` on the web (the Save button of the 0.6.0 question before closing a
+  document with unsaved changes is Save too).
 
 ## Known gaps
 
@@ -149,20 +159,21 @@ too; if it has none, the saved name is not `Untitled-<n>.designcraft`. Otherwise
   both have none (made in the browser) or the same (copies of one file). The host may replace the
   opened file with it. Nextcloud's file versions (where enabled) keep the previous state.
 - **No unsaved-changes signal.** DesignCraft shows unsaved changes only as `*` in the document
-  tab (`ui-egui/src/chrome.rs:464`), asks nothing before the page unloads, and has no crash
-  recovery in the browser (`ui-egui/src/lib.rs:610-619` runs only outside it). The host cannot
+  tab (`ui-egui/src/chrome.rs:502`), asks nothing before the page unloads, and has no crash
+  recovery in the browser (`ui-egui/src/lib.rs:745-754` runs only outside it). The host cannot
   tell whether the user has unsaved edits and must warn on close. Close is Ctrl+W, as in
-  InDesign, but in a browser Ctrl+W closes the tab.
+  InDesign (since 0.6.0 it asks first for a document with unsaved changes, `menus.rs:1789-1799`),
+  but in a browser Ctrl+W closes the tab.
 - **`delivered` is not "opened".** The host cannot tell whether DesignCraft could read the file;
   a file it cannot open shows an error in its status bar only.
 - **Saved means downloaded.** DesignCraft marks the document saved when the download starts
-  (`menus.rs:1390-1391`). If the host cannot store the file, the translator's fallback browser
+  (`menus.rs:1457-1458`). If the host cannot store the file, the translator's fallback browser
   download is the copy the user keeps. The Nextcloud editor page relies on that download and
   offers no retry of its own; it says in its status line why the file was not stored.
 - **Memory.** DesignCraft passes every opened and saved file through base64
-  (`ui-egui/src/lib.rs:560`, `menus.rs:1385-1386`) and needs about ten times the file size in
-  wasm memory (a 20 MB document: about 170 MB on open, 220 MB after a save, in Chromium). Very
-  large documents may fail inside the app, while the host only sees `delivered`.
+  (`ui-egui/src/lib.rs:700`, `menus.rs:1452-1453`) and needs about ten times the file size in
+  wasm memory (a 20 MB document: about 170 MB on open, 220 MB after a save, in Chromium with
+  0.5.0). Very large documents may fail inside the app, while the host only sees `delivered`.
 - **Firefox is untested.** The headless Firefox of the test machines has no WebGL, so
   DesignCraft cannot start there.
 
@@ -172,24 +183,26 @@ too; if it has none, the saved name is not `Untitled-<n>.designcraft`. Otherwise
   special headers (no COOP/COEP). It asks not to send `X-Frame-Options: DENY` or a
   `frame-ancestors` that excludes the embedding page. For a sandboxed iframe it needs at least
   `allow-scripts allow-same-origin allow-downloads allow-popups`.
-- The 0.5.0 web build renders with wgpu: WebGPU where the browser has it, else WebGL2. With
-  neither, it shows `DesignCraft failed to start` in place of the canvas (`web.rs:66-71`) and
-  registers no drop target, and the host gets `the app registered no drop target`. The tests
-  run on WebGL2 (Chromium with SwiftShader, which offers no WebGPU adapter here, and WebKit).
-- Query flags are matched as substrings of the whole query string: `webgl` forces WebGL2
-  (`web.rs:44`), and `sample` opens a sample document at startup (`web.rs:59`). The configured
-  app URL must not contain either by accident. `HOSTING.md` also lists `?cpu`; the 0.5.0 build
-  does not read it.
-- The `.wasm` file is 41.8 MB, 17.5 MB with gzip (`HOSTING.md` says about 13 MB and 5 MB).
-  Serve it compressed, preferably precompressed with Brotli.
+- The web build (0.5.0 and 0.6.0) renders with wgpu: WebGPU where the browser has it, else
+  WebGL2. With neither, it shows `DesignCraft failed to start` in place of the canvas
+  (`web.rs:67-72`) and registers no drop target, and the host gets `the app registered no drop
+  target`. The tests run on WebGL2 (Chromium with SwiftShader, which offers no WebGPU adapter
+  here, and WebKit).
+- Query flags are query keys, matched exactly (case-sensitive, after percent-decoding); their
+  values are ignored, so `?sample=false` still counts (`browser_policy.rs:5-8`, since 0.6.0;
+  0.5.0 matched substrings of the whole query string). `webgl` forces WebGL2 (`web.rs:45`), and
+  `sample` opens a sample document at startup (`web.rs:60`). The configured app URL must not
+  have either key. `HOSTING.md` also lists `?cpu`; the build does not read it.
+- The `.wasm` file of 0.6.0 is 43.1 MB, 18.0 MB with gzip (`HOSTING.md` says about 13 MB and
+  5 MB). Serve it compressed, preferably precompressed with Brotli.
 - The loader is Trunk's inline module script in `index.html`. It imports
   `designcraft-web-<hash>.js`, awaits the `.wasm` module and then dispatches
   `TrunkApplicationStarted`. A `.wasm` file that is missing or cannot be compiled makes the
   loader fail, and the host gets `the app failed to load: ...`; a Content-Security-Policy that
   blocks the inline script leads to `the app did not start in time` (see
   [protocol.md](../protocol.md#errors)).
-- `HOSTING.md` says preferences are kept in the frame's `localStorage`; the 0.5.0 build stores
-  nothing there (eframe's persistence is not enabled).
+- `HOSTING.md` says preferences are kept in the frame's `localStorage`; the build (0.5.0 and
+  0.6.0) stores nothing there (eframe's persistence is not enabled).
 - Keyboard shortcuts reach the app after the user clicks into the frame.
 
 ## File types
@@ -228,21 +241,24 @@ contract tests; the canary runs them apart from the `@ui` test.
 A test with several scenarios (`saved-as`) runs each in a page of its own and reports every
 scenario that fails as `scenario failed: <title>`, not only the first.
 
-DesignCraft has no command palette: Ctrl+K opens Preferences (`menus.rs:55`), and Quick Apply
-(Ctrl+Enter, `menus.rs:54`) runs its first entry, which creates a new document, in the same
-frame that opens it. So
-the tests use DesignCraft's keyboard shortcuts from `menus.rs` (`UI_COMMANDS`) and
-`engine/src/cmd/layout.rs` (Insert Pages…, Ctrl+Shift+P), and confirm dialogs with Enter
-(`ui-egui/src/dialogs.rs:1373-1381`). Only the `ui` test also clicks with the pointer; its click
-positions are in the `AT` table of the spec, measured on 0.5.0 at a 1400x900 viewport with the
-locale `en-US`. When a new release fails the canary:
+DesignCraft has no command palette: Ctrl+K opens Preferences (`menus.rs:55`). Quick Apply
+(Ctrl+Enter, `menus.rs:54`) searches styles and commands. In 0.5.0 it ran its first entry (which
+creates a new document) in the same frame that opened it; 0.6.0 waits for a fresh Enter
+(`menus.rs:2118-2120`, `:2156-2162`), but which entry comes first depends on the query and the
+document's styles. So the tests use DesignCraft's keyboard shortcuts from `menus.rs`
+(`UI_COMMANDS`) and `engine/src/cmd/layout.rs` (Insert Pages…, Ctrl+Shift+P), and confirm
+dialogs with Enter (`ui-egui/src/dialogs.rs:1708-1716`). Only the `ui` test also clicks with the
+pointer; its click positions are in the `AT` table of the spec, measured on 0.5.0 (and still
+right in 0.6.0) at a 1400x900 viewport with the locale `en-US`. When a new release fails the
+canary:
 
 - **Contract tests fail.** The release changed something the translator relies on: the drop
-  routing (`web.rs:7`, `ui-egui/src/lib.rs:556-574`), the title rule, the download helper
-  (`web.rs:151-186`), Save going through `download_document` (`menus.rs:719`, `menus.rs:1383`) or
-  the package format (`format/src/lib.rs`). The rules fail towards new files, not towards
-  overwriting: a save under a name the adapter does not expect arrives as an `export`. Sites that host the app
-  should hold the release back until the adapter is fixed.
+  routing (`ui-egui/src/lib.rs:654-708`, `:1012-1015`), the title rule, the download helper
+  (`web.rs:154-178`, `browser_policy.rs:10-19`), Save going through `download_document`
+  (`menus.rs:739`, `menus.rs:1450`) or the package format (`format/src/lib.rs`). The rules fail
+  towards new files, not towards overwriting: a save under a name the adapter does not expect
+  arrives as an `export`. Sites that host the app should hold the release back until the adapter
+  is fixed.
 - **Only the `@ui` test fails.** A menu item moved. Re-measure the positions in `AT`; the
   translator is not at fault.
 - **A shortcut changed upstream.** The tests that press it fail: Ctrl+S, Ctrl+Shift+S, Ctrl+E,
@@ -262,8 +278,9 @@ the package with a creation time that the desktop app would store (the web build
 DesignCraft has no embedding API. With one, as requested for PdfCraft in
 [storytold/pdfcraft#422](https://github.com/storytold/pdfcraft/issues/422), the open and save
 paths would no longer depend on drops and downloads; see
-[architecture.md](../architecture.md#native-embedding-apis). Worth reporting upstream as well:
-the `application/json` type of a `.designcraft` download, Save a Copy… doing nothing on the web,
-the creation time 0 in documents of the web build (`js_sys::Date` would give it a clock, and a
-new document could then be told from the opened one), and the `?cpu` flag and sizes in
-`HOSTING.md`.
+[architecture.md](../architecture.md#native-embedding-apis). PdfCraft 0.6.0 has a first such
+bridge, for a parent on the app's own origin only (see [pdfcraft.md](pdfcraft.md#upstream));
+DesignCraft 0.6.0 has none. Worth reporting upstream as well: Save a Copy… doing nothing on the
+web, the creation time 0 in documents of the web build (`js_sys::Date` would give it a clock,
+and a new document could then be told from the opened one), and the `?cpu` flag and sizes in
+`HOSTING.md`. (The `application/json` type of a `.designcraft` download is fixed in 0.6.0.)

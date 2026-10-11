@@ -13,6 +13,20 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Changed
+
+- Tested with the newest releases: PdfCraft 0.6.0, PhotoCraft 0.7.0, VectorCraft 0.9.0 and
+  DesignCraft 0.6.0, in Chromium and WebKit. The adapters needed no changes; the app pages in
+  `docs/apps/` are checked against the new sources.
+- The `@ui` tests of PhotoCraft and VectorCraft find their menu entries again: PhotoCraft 0.7.0
+  added File > Open EXR Parts… (and its File menu now scrolls at the test's window size), and
+  VectorCraft 0.9.0 dropped the app menu before File and made the menu bar lower. PhotoCraft's
+  test now finds File > Save from the menu's rows; VectorCraft's places menu entries relative to
+  the File title, and both name the entry to re-measure when a click misses.
+- docs: PdfCraft 0.6.0 has a same-origin bridge enabled by `?host=parent`; under a Nextcloud on
+  another origin it would drop every save, so the app address must not carry it. PhotoCraft
+  0.7.0 and VectorCraft 0.9.0 open their contributor links in a new tab themselves.
+
 ## [0.1.0] - 2026-10-11
 
 ### Added

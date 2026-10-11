@@ -35,10 +35,10 @@ or SVG keeps its Nextcloud viewer on a click; the Craft app is in its action men
 
 | App | Tested version | In the action menu for | Also on a click on the file |
 |---|---|---|---|
-| PdfCraft | 0.5.0 | `pdf` | none |
-| PhotoCraft | 0.6.0 | `psd` `psb` `pcraft` `tga` `png` `jpg` `jpeg` `webp` `gif` `bmp` `tif` `tiff` `ico` `heic` `heif` | `psd` `psb` `pcraft` `tga` |
-| VectorCraft | 0.8.0 | `vectorcraft` `drawcraft` `ai` `eps` `svgz` `dxf` `svg` `emf` `wmf` `pdf` | `vectorcraft` `drawcraft` `eps` `svgz` `dxf` |
-| DesignCraft | 0.5.0 | `designcraft` `idml` | `designcraft` `idml` |
+| PdfCraft | 0.6.0 | `pdf` | none |
+| PhotoCraft | 0.7.0 | `psd` `psb` `pcraft` `tga` `png` `jpg` `jpeg` `webp` `gif` `bmp` `tif` `tiff` `ico` `heic` `heif` | `psd` `psb` `pcraft` `tga` |
+| VectorCraft | 0.9.0 | `vectorcraft` `drawcraft` `ai` `eps` `svgz` `dxf` `svg` `emf` `wmf` `pdf` | `vectorcraft` `drawcraft` `eps` `svgz` `dxf` |
+| DesignCraft | 0.6.0 | `designcraft` `idml` | `designcraft` `idml` |
 
 Files are matched by extension, in any letter case. The tested version is the Craft release the
 tests pass with; a daily canary run tests each newer release. The Nextcloud app's texts are in
@@ -78,18 +78,18 @@ sha256sum -c SHA256SUMS
 
 ### 1. Host the Craft apps with the translator
 
-For each Craft app, here PdfCraft 0.5.0: download and check its web build, then add the
+For each Craft app, here PdfCraft 0.6.0: download and check its web build, then add the
 translator, with the origin of your Nextcloud as the one allowed to frame the app.
 
 ```sh
 tar -xzf craftsuite-layer-hosting-$v.tar.gz
-r=https://github.com/storytold/pdfcraft/releases/download/v0.5.0
-curl -fL --remote-name-all "$r/pdfcraft-web-0.5.0.zip" "$r/SHA256SUMS.txt"
+r=https://github.com/storytold/pdfcraft/releases/download/v0.6.0
+curl -fL --remote-name-all "$r/pdfcraft-web-0.6.0.zip" "$r/SHA256SUMS.txt"
 sha256sum -c --ignore-missing SHA256SUMS.txt
-unzip -q pdfcraft-web-0.5.0.zip
+unzip -q pdfcraft-web-0.6.0.zip
 sh craftsuite-layer-hosting-$v/hosting/inject-translator.sh \
-  --allowed-origins https://cloud.example.com pdfcraft-web-0.5.0
-find pdfcraft-web-0.5.0 -type f \( -name '*.wasm' -o -name '*.js' -o -name '*.html' \) -exec gzip -9 -k -f {} \;
+  --allowed-origins https://cloud.example.com pdfcraft-web-0.6.0
+find pdfcraft-web-0.6.0 -type f \( -name '*.wasm' -o -name '*.js' -o -name '*.html' \) -exec gzip -9 -k -f {} \;
 ```
 
 Serve the folder at `https://craft.example.com/pdfcraft/`, with `frame-ancestors` for the same

@@ -137,8 +137,9 @@ async function scenario(context: BrowserContext, title: string, body: (page: Pag
 
 type Box = { x: number; y: number; width: number; height: number };
 
-// Pointer targets (PdfCraft 0.5.0), relative to the app frame at the pinned viewport. This is the
-// only layout knowledge in this file; when a release moves something, fix it here.
+// Pointer targets (measured on PdfCraft 0.5.0, still right in 0.6.0), relative to the app frame at
+// the pinned viewport. This is the only layout knowledge in this file; when a release moves
+// something, fix it here.
 const AT = {
   // Mode bar, right end: Print, Save (floppy icon), Document properties.
   toolbarSave: (b: Box) => ({ x: b.x + b.width - 64, y: b.y + 62 }),

@@ -219,7 +219,7 @@ Pull request #2263 proposes `window.photocraft` and a `postMessage` API enabled 
 | Translator | `LAYER_VERSION` in `translators/core.js`, reported as `layerVersion` in `hello` and `ready` | 0.1.0 |
 | Nextcloud app | `<version>` in `craftsuite_layer/appinfo/info.xml` | 0.1.0, Nextcloud 34 and 35 |
 | Release | the tag `v<version>` | v0.1.0 |
-| Tested app versions | `tests/e2e/craft-versions.json` | PdfCraft 0.5.0, PhotoCraft 0.6.0, VectorCraft 0.8.0, DesignCraft 0.5.0 |
+| Tested app versions | `tests/e2e/craft-versions.json` | PdfCraft 0.6.0, PhotoCraft 0.7.0, VectorCraft 0.9.0, DesignCraft 0.6.0 |
 
 The translator and the Nextcloud app share one version number, and a release carries both: the
 app, and the translators with the injector for the hosting
