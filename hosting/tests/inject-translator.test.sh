@@ -56,7 +56,7 @@ if [ -f "$builds/selected.json" ]; then
   for app in pdfcraft photocraft vectorcraft designcraft; do
     ver=$(sed -n "s/.*\"$app\": *\"\([^\"]*\)\".*/\1/p" "$builds/selected.json")
     src=$builds/$app/$ver/$app-web-$ver
-    [ -n "$ver" ] && [ -f "$src/index.html" ] && [ -f "$repo/translators/$app.js" ] || continue
+    if [ -z "$ver" ] || [ ! -f "$src/index.html" ] || [ ! -f "$repo/translators/$app.js" ]; then continue; fi
     d=$work/$app-web-$ver
     mkdir "$d" && cp "$src/index.html" "$d/" && cp "$src/index.html" "$work/$app.orig"
     run 1 "$app: --check before" --check -o "$O" "$d"

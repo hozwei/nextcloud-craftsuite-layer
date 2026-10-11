@@ -26,6 +26,10 @@ updates:
       # it moves by hand, together with info.xml's range and the nextcloud-e2e matrix.
       - dependency-name: '@nextcloud/files'
         update-types: ['version-update:semver-major']
+      # typescript-eslint supports only a range of TypeScript versions (its peer dependency), so a
+      # new TypeScript minor moves by hand together with typescript-eslint; patches still come.
+      - dependency-name: 'typescript'
+        update-types: ['version-update:semver-major', 'version-update:semver-minor']
 
   - package-ecosystem: composer
     directory: /craftsuite_layer

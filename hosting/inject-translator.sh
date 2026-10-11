@@ -219,11 +219,11 @@ fi
 # --- Inputs -----------------------------------------------------------------------------------
 [ -d "$dir" ] || die 3 "no such folder: $dir"
 index=$dir/index.html
-[ -f "$index" ] && [ ! -h "$index" ] || die 3 "$index is missing or not a regular file"
+if [ ! -f "$index" ] || [ -h "$index" ]; then die 3 "$index is missing or not a regular file"; fi
 [ -r "$index" ] || die 3 "cannot read $index"
 layer=$dir/craftsuite-layer
 if [ -e "$layer" ] || [ -h "$layer" ]; then
-  [ -d "$layer" ] && [ ! -h "$layer" ] || die 3 "$layer exists but is not a folder"
+  if [ ! -d "$layer" ] || [ -h "$layer" ]; then die 3 "$layer exists but is not a folder"; fi
 fi
 
 if [ "$mode" != remove ]; then
@@ -233,12 +233,15 @@ if [ "$mode" != remove ]; then
       *) translators=../translators ;;
     esac
   fi
-  [ -f "$translators/core.js" ] && [ -r "$translators/core.js" ] ||
+  if [ ! -f "$translators/core.js" ] || [ ! -r "$translators/core.js" ]; then
     die 3 "$translators/core.js not found: pass --translators"
+  fi
   # Its own exit code: only this case lets an updater serve the release without the layer.
   [ -e "$translators/$app.js" ] || [ -h "$translators/$app.js" ] ||
     die 6 "no adapter for $app in this version of the layer ($translators/$app.js not found)"
-  [ -f "$translators/$app.js" ] && [ -r "$translators/$app.js" ] || die 3 "$translators/$app.js is not a readable file"
+  if [ ! -f "$translators/$app.js" ] || [ ! -r "$translators/$app.js" ]; then
+    die 3 "$translators/$app.js is not a readable file"
+  fi
   # A checksum in the URLs: a cache that keeps *.js for a year still gets new translator files.
   # cksum is POSIX, but some BusyBox builds leave it out (Debian's busybox-static does); then
   # sha256sum or md5sum.
@@ -329,7 +332,7 @@ END {
 noeol=0
 [ -n "$(tail -c 1 "$index" | tr -d '\n')" ] && noeol=1
 tmp=$dir/.index.html.craftsuite-$$
-# shellcheck disable=SC2329 # called by the EXIT trap
+# shellcheck disable=SC2317,SC2329 # called by the EXIT trap (the code differs between versions)
 cleanup() { rm -f "$tmp" "$tmp.len" "$layer/.core.js.craftsuite-$$" "$layer/.$app.js.craftsuite-$$"; }
 trap cleanup EXIT
 trap 'exit 130' HUP INT TERM

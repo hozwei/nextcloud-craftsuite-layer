@@ -130,7 +130,9 @@ test('files entry: Open in PdfCraft opens the editor; a click opens PhotoCraft f
   expect(await menu(page, 'picture.png'), 'the PNG has the entry').toContain('Open in PhotoCraft');
   await page.keyboard.press('Escape');
   await row(page, 'picture.png').locator('[data-cy-files-list-row-name-link]').click();
-  await expect(page, 'a click on the PNG opens the Viewer').toHaveURL(/\/apps\/files\/files\/\d+\?.*openfile=true/);
+  // Files writes the address in more than one form (/apps/files/files/<id>?...&openfile=true or
+  // /apps/files/?dir=...&openfile=true); what counts is that Files opened the file itself.
+  await expect(page, 'a click on the PNG opens the Viewer').toHaveURL(/\/apps\/files\/[^#]*[?&]openfile=true/);
   await page.keyboard.press('Escape');
   await row(page, 'picture.psd').locator('[data-cy-files-list-row-name-link]').click();
   // The request token Files added (a click of the user) opens the editor at once; the page then
