@@ -19,9 +19,10 @@ use OCP\IL10N;
 use OCP\IRequest;
 
 /**
- * Saves the Craft app addresses, and the languages the apps start in, from the admin settings
- * page. Administrators only (no NoAdminRequired), with a recent password confirmation: the address
- * decides where users' files are sent. All fields are checked first; one bad field saves nothing.
+ * Saves the Craft app addresses, the languages the apps start in and which apps are the default app
+ * for all their types, from the admin settings page. Administrators only (no NoAdminRequired), with
+ * a recent password confirmation: the address decides where users' files are sent. All fields are
+ * checked first; one bad field saves nothing.
  */
 class SettingsController extends Controller {
 	public function __construct(
@@ -37,14 +38,18 @@ class SettingsController extends Controller {
 	 * @param array<string, mixed> $urls app id => address ('' removes it)
 	 * @param array<string, mixed> $languages app id => '' (the app decides; removes the key), 'user'
 	 *                                        or one of the app's languages
+	 * @param array<string, mixed> $defaultApps app id => true (the default app for all its types) or
+	 *                                          false (removes the key); only apps with shared types
 	 */
 	#[PasswordConfirmationRequired]
 	#[FrontpageRoute(verb: 'POST', url: '/settings')]
-	public function save(array $urls = [], array $languages = []): JSONResponse {
+	public function save(array $urls = [], array $languages = [], array $defaultApps = []): JSONResponse {
 		$errors = [];
 		$languageErrors = [];
+		$defaultAppErrors = [];
 		$values = [];
 		$languageValues = [];
+		$defaultAppValues = [];
 		foreach (CraftApps::APPS as $app => $info) {
 			if (!array_key_exists($app, $urls)) {
 				continue;
@@ -73,8 +78,19 @@ class SettingsController extends Controller {
 			}
 			$languageValues[$app] = $value;
 		}
-		if ($errors !== [] || $languageErrors !== []) {
-			return new JSONResponse(['errors' => $errors, 'languageErrors' => $languageErrors], Http::STATUS_BAD_REQUEST);
+		foreach (CraftApps::APPS as $app => $info) {
+			if (!array_key_exists($app, $defaultApps)) {
+				continue;
+			}
+			$value = $defaultApps[$app];
+			if (!is_bool($value) || ($value && CraftApps::sharedExtensions($app) === [])) {
+				$defaultAppErrors[$app] = $this->l->t('%s cannot be made the default app.', [$info['name']]);
+				continue;
+			}
+			$defaultAppValues[$app] = $value;
+		}
+		if ($errors !== [] || $languageErrors !== [] || $defaultAppErrors !== []) {
+			return new JSONResponse(['errors' => $errors, 'languageErrors' => $languageErrors, 'defaultAppErrors' => $defaultAppErrors], Http::STATUS_BAD_REQUEST);
 		}
 		foreach ($values as $app => $url) {
 			if ($url === '') {
@@ -90,6 +106,18 @@ class SettingsController extends Controller {
 				$this->appConfig->setValueString(Application::APP_ID, CraftApps::languageKey($app), $value);
 			}
 		}
-		return new JSONResponse(['saved' => array_keys($values + $languageValues)]);
+		foreach ($defaultAppValues as $app => $value) {
+			if ($value) {
+				$this->appConfig->setValueBool(Application::APP_ID, CraftApps::defaultAppKey($app), true);
+			} else {
+				$this->appConfig->deleteKey(Application::APP_ID, CraftApps::defaultAppKey($app));
+			}
+		}
+		// The lines under the apps, which say what a click opens now.
+		$hints = [];
+		foreach (array_keys(CraftApps::APPS) as $app) {
+			$hints[$app] = $this->craftApps->hint($app);
+		}
+		return new JSONResponse(['saved' => array_keys($values + $languageValues + $defaultAppValues), 'hints' => $hints]);
 	}
 }

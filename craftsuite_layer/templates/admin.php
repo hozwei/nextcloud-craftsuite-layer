@@ -9,14 +9,16 @@
 	<h2><?php p($l->t('Craft app addresses')); ?></h2>
 	<p class="settings-hint"><?php p($l->t('Where each Craft app is hosted, for example https://craft.example.com/pdfcraft/. The address must use https and another host name than Nextcloud, and its hosting must allow this Nextcloud. Files offers "Open in …" only for apps with an address.')); ?></p>
 	<p class="settings-hint"><?php p($l->t('The language each app starts in: the app\'s own default, the user\'s Nextcloud language, or a fixed one. A language a user picks inside PdfCraft, PhotoCraft or CADCraft stays theirs.')); ?></p>
+	<p class="settings-hint"><?php p($l->t('On a click in Files, an app opens the file types no other app opens. Made the default app, it also opens the types another app opens (the Viewer, Nextcloud Office, ONLYOFFICE, Euro-Office), and that app stays in the file\'s menu. The line under each app says which types a click opens in it.')); ?></p>
 	<form class="craftsuite-admin" novalidate>
 		<div class="craftsuite-admin__row craftsuite-admin__head" aria-hidden="true">
 			<span></span>
 			<span><?php p($l->t('Address')); ?></span>
 			<span><?php p($l->t('Starts in')); ?></span>
+			<span><?php p($l->t('On a click')); ?></span>
 		</div>
 <?php foreach ($_['apps'] as $id => $app):
-	$hint = $l->t('Opens: %s', [implode(', ', array_map(fn (string $e) => '.' . $e, $app['extensions']))]);
+	$hint = $app['hint'];
 	$problem = $app['problem'] ?? $app['languageProblem'];
 	$choices = array_merge(['user'], $app['languages']); ?>
 		<div class="craftsuite-admin__row">
@@ -36,6 +38,15 @@
 			</select>
 <?php else: ?>
 			<span class="craftsuite-admin__fixed" title="<?php p($l->t('This version of %s always starts in English.', [$app['name']])); ?>"><?php p($l->t('English')); ?></span>
+<?php endif; ?>
+<?php if ($app['defaultApp'] !== null): ?>
+			<label class="craftsuite-admin__default" title="<?php p($l->t('A click in Files also opens in %s the file types another app opens. The other app stays in the file\'s menu.', [$app['name']])); ?>">
+				<input id="craftsuite-layer-<?php p($id); ?>-default" type="checkbox" data-app="<?php p($id); ?>"<?php if ($app['defaultApp']): ?> checked<?php endif; ?>
+					aria-describedby="craftsuite-layer-<?php p($id); ?>-hint">
+				<span><span class="hidden-visually"><?php p($app['name']); ?>: </span><?php p($l->t('Default app')); ?></span>
+			</label>
+<?php else: ?>
+			<span class="craftsuite-admin__fixed" title="<?php p($l->t('Only Craft apps open these file types: a click opens them in %s once it has an address.', [$app['name']])); ?>"><span class="hidden-visually"><?php p($l->t('On a click')); ?>: </span><?php p($l->t('Always')); ?></span>
 <?php endif; ?>
 			<span id="craftsuite-layer-<?php p($id); ?>-hint" data-hint="<?php p($hint); ?>"
 				class="craftsuite-admin__hint<?php if ($problem !== null): ?> craftsuite-admin__hint--error<?php endif; ?>"><?php p($problem ?? $hint); ?></span>

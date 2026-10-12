@@ -283,6 +283,10 @@ For the Nextcloud app's list:
 | `dng`, `cr2`, `cr3`, `nef`, `nrw`, `arw`, `raf`, `orf`, `rw2`, `rwl`, `pef`, `srw` | the raw photo, decoded; exports are new files next to it | yes | yes: no common Nextcloud app opens camera raws |
 | `jpg`, `jpeg`, `png`, `tif`, `tiff`, `webp` | the photo; exports are new files next to it | yes | no: the Viewer opens them, and PhotoCraft offers them too |
 
+An administrator can make LightCraft the default app ([nextcloud-app.md](../nextcloud-app.md#configuring));
+then a click opens the JPEG, PNG, TIFF and WebP files in LightCraft too, unless PhotoCraft is the
+default app as well, which comes first.
+
 Match the extension in any letter case. Nextcloud 34 and 35 give `arw`, `cr2`, `dcr`, `dng`, `erf`,
 `iiq`, `k25`, `kdc`, `mef`, `nef`, `orf`, `pef`, `raf`, `rw2`, `sr2`, `srf` and `xrf` the type
 `image/x-dcraw`

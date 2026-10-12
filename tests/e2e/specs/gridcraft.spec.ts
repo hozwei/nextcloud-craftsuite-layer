@@ -18,9 +18,10 @@
 //              document (a new file next to the original), and so does the next save; GridCraft's
 //              sales sample (charts, a table, notes) saves back unchanged as the document; an
 //              opened Book1.xlsx, named like a new workbook, is never saved back, and the save of a
-//              new workbook under that name is a new file too; a different craftsuite-probe.xlsx
-//              that the user brings in (File > Open; in Chromium also a drop from the desktop) is
-//              never the document
+//              new workbook under that name is a new file too; the blanks of the "+ New" entry in
+//              Files (blanks/blank.xlsx on A4, and blank-letter.xlsx) open, and their first saves
+//              are the document; a different craftsuite-probe.xlsx that the user brings in
+//              (File > Open; in Chromium also a drop from the desktop) is never the document
 //   language   the host's language (lang=ru) under the browser locale en-US: ready reports 'ru',
 //              the app frame's navigator.language is 'ru', and the ribbon's tab row is the one a
 //              start under the browser locale ru-RU shows, not the one of an English start
@@ -285,19 +286,21 @@ async function dropFromDesktop(page: Page, app: Frame, titles: string[], file: s
 }
 
 // Loads the test host with a fixture and waits until GridCraft shows it, with no message box in
-// front. `bytes` serves those bytes under `name` instead of a file in fixtures/gridcraft/.
+// front. `bytes` serves those bytes under `name` instead of a file in fixtures/gridcraft/. A name
+// under blanks/ is a blank of the "+ New" entries in Files (craftsuite_layer/assets/).
 async function openInHost(page: Page, name: string, query = '', bytes?: Buffer) {
   const titles = watchTitles(page);
   if (bytes) {
     await page.route(`${HOST}files/gridcraft/${encodeURIComponent(name)}`,
       (route) => route.fulfill({ body: bytes, contentType: 'application/octet-stream' }));
   }
-  await page.goto(`${HOST}?target=gridcraft&name=${encodeURIComponent(`gridcraft/${name}`)}${query}`);
+  const file = name.startsWith('blanks/') ? name : `gridcraft/${name}`;
+  await page.goto(`${HOST}?target=gridcraft&name=${encodeURIComponent(file)}${query}`);
   await untilHost(page, 'the translator delivered the file (or reported an error)',
     (h) => h.state === 'delivered' || h.errors.length > 0, 90_000);
   expect((await hostRecord(page)).errors, 'translator errors while opening').toEqual([]);
   const app = appFrame(page);
-  await waitForTitle(app, titles, titleOf(name), 0);
+  await waitForTitle(app, titles, titleOf(path.basename(name)), 0);
   await closeMessageBox(page, app);
   return { app, titles };
 }
@@ -475,7 +478,7 @@ test('contract: an allowed host opens the file and stores every save, nothing is
 });
 
 test('saved-as: interchange files, copies, new workbooks and files the user brings in', async ({ context, browserName }) => {
-  // Nine pages, each loading GridCraft: more than the default timeout allows on a busy machine.
+  // Eleven pages, each loading GridCraft: more than the default timeout allows on a busy machine.
   test.slow();
 
   // GridCraft rewrites every save from its own model and drops what it does not model (here the
@@ -556,6 +559,17 @@ test('saved-as: interchange files, copies, new workbooks and files the user brin
     expect(workbook(other.bytes).cells, 'the new workbook, not the opened one').not.toContain(MARKER);
     expectNoDownloads(downloads);
   });
+
+  // The blank of the "+ New" entry in Files (craftsuite_layer/blanks.mjs): GridCraft's own new
+  // workbook on A4, so its save is the document, not a copy.
+  for (const name of ['blank.xlsx', 'blank-letter.xlsx']) {
+    await scenario(context, `the + New blank ${name} opens, and its first save is the document`, async (page, downloads) => {
+      const { app } = await openInHost(page, `blanks/${name}`);
+      await press(page, app, 'Control+s');
+      expectDocument((await hostSave(page, 1)).save, name);
+      expectNoDownloads(downloads);
+    });
+  }
 
   // A file the user brings in opens as a further window titled with its own name and saves as
   // '<stem>.xlsx': with the opened file's name it would come back under the document's name, with

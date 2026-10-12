@@ -50,6 +50,21 @@ class ConfigLexicon implements ILexicon {
 				);
 			}
 		}
+		foreach (CraftApps::APPS as $app => $info) {
+			// Only for apps with types other apps in Nextcloud open too (CraftApps::sharedExtensions()).
+			$shared = CraftApps::sharedExtensions($app);
+			if ($shared === []) {
+				continue;
+			}
+			$entries[] = new Entry(
+				key: CraftApps::defaultAppKey($app),
+				type: ValueType::BOOL,
+				defaultRaw: false,
+				definition: 'Whether ' . $info['name'] . ' is the default app: a click in Files opens also .' . implode(', .', $shared) . ' in it, not in the Viewer, Nextcloud Office, ONLYOFFICE or Euro-Office (a type another Craft app opens as its own stays with that app)',
+				// Needed on every Files page (what a click opens), so not lazy.
+				lazy: false,
+			);
+		}
 		$entries[] = new Entry(
 			key: FileTypes::KEY,
 			type: ValueType::STRING,

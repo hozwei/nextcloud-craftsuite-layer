@@ -17,7 +17,8 @@
 //              the next save, with the edit; 'X.DESIGNCRAFT' saves as 'X.designcraft' and an IDML
 //              named 'x.idml.idml' as 'x.designcraft', both as the document. Untitled-1.designcraft
 //              from the desktop app (a creation time) saves as the document, and a new document
-//              (Ctrl+N), which saves under the same name, as a new file
+//              (Ctrl+N), which saves under the same name, as a new file. The blank of the "+ New"
+//              entry in Files (blanks/blank.designcraft) opens, and its first save is the document
 //   ui (@ui)  the File menu with the pointer, on an opened .idml: Save saves the document; Export
 //              IDML…, under the opened name, arrives as a new file
 //
@@ -64,6 +65,7 @@ interface HostSave {
   id: number;
   kind: 'document' | 'export';
   openId: number | null;
+  follows: number | null;
   name: string;
   size: number;
   sha256: string;
@@ -198,13 +200,15 @@ const insertPage = (page: Page, app: Frame) => keyAndConfirm(page, app, 'insert 
 const newDocument = (page: Page, app: Frame) => keyAndConfirm(page, app, 'create a new document', 'Control+n');
 
 // Loads the test host with a fixture and waits until the translator has handed it to the app.
-// `bytes` serves those bytes under `name` instead of a file in fixtures/designcraft/.
+// `bytes` serves those bytes under `name` instead of a file in fixtures/designcraft/. A name
+// under blanks/ is a blank of the "+ New" entries in Files (craftsuite_layer/assets/).
 async function openInHost(page: Page, name: string, query = '', bytes?: Buffer) {
   if (bytes) {
     await page.route(`${HOST}files/designcraft/${encodeURIComponent(name)}`,
       (route) => route.fulfill({ body: bytes, contentType: 'application/octet-stream' }));
   }
-  await page.goto(`${HOST}?target=designcraft&name=${encodeURIComponent(`designcraft/${name}`)}${query}`);
+  const file = name.startsWith('blanks/') ? name : `designcraft/${name}`;
+  await page.goto(`${HOST}?target=designcraft&name=${encodeURIComponent(file)}${query}`);
   await untilHost(page, 'the translator delivered the file (or reported an error)',
     (h) => h.state === 'delivered' || h.errors.length > 0, 90_000);
   expect((await hostRecord(page)).errors, 'translator errors while opening').toEqual([]);
@@ -256,7 +260,7 @@ async function hostSave(page: Page, n: number) {
 // The opened document: the host may replace its file with these bytes (or, under another name
 // than the opened one, store them next to it and replace that file on later saves).
 function expectDocument(save: HostSave, name: string) {
-  expect(save).toMatchObject({ kind: 'document', openId: 1, name });
+  expect(save).toMatchObject({ kind: 'document', openId: 1, follows: null, name });
 }
 
 // Anything else (exports, other documents): the host stores it as a new file.
@@ -430,6 +434,15 @@ test('saved-as: a save under another name or type than the opened file is the do
     const other = await hostSave(page, 2);
     expectExport(other.save, 'Untitled-1.designcraft');
     expect(designcraftPackage(other.bytes).text, 'the new document, not the opened one').not.toContain(MARKER);
+    expectNoDownloads(downloads);
+  });
+
+  // The blank of the "+ New" entry in Files (craftsuite_layer/blanks.mjs): it saves under the
+  // opened name and keeps its creation time, by which the adapter tells it from a new document.
+  await scenario(context, 'the + New blank (blank.designcraft) opens, and its first save is the document', async (page, downloads) => {
+    const app = await openInHost(page, 'blanks/blank.designcraft');
+    await press(page, app, 'Control+s');
+    expectDocument((await hostSave(page, 1)).save, 'blank.designcraft');
     expectNoDownloads(downloads);
   });
 });

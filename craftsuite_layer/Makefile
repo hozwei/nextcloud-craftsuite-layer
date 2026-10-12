@@ -50,7 +50,7 @@ SIGN_CERT ?=
 
 # What Nextcloud loads at runtime. Folders that do not exist (yet) are skipped. Expanded when
 # used (=, not :=), so js/ counts once the js target has built it.
-runtime_dirs = $(wildcard appinfo lib img templates js css l10n)
+runtime_dirs = $(wildcard appinfo lib img templates js css l10n assets)
 runtime_files := CHANGELOG.md $(wildcard CHANGELOG.*.md)
 license := $(wildcard ../LICENSE)
 

@@ -9,15 +9,16 @@
 	max-width: 960px;
 }
 
-/* App name, address and the language the app starts in; the hint goes under the last two. */
+/* App name, address, the language the app starts in and what a click opens; the hint goes under
+   the last three. */
 .craftsuite-admin__row {
 	display: grid;
-	grid-template-columns: 140px minmax(0, 1fr) 220px;
+	grid-template-columns: 140px minmax(0, 1fr) 200px 140px;
 	align-items: center;
 	column-gap: 12px;
 }
 
-.craftsuite-admin__row input,
+.craftsuite-admin__row input[type=url],
 .craftsuite-admin__row select {
 	width: 100%;
 }
@@ -32,8 +33,21 @@
 	padding-inline-start: 4px;
 }
 
+.craftsuite-admin__default {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+}
+
+.craftsuite-admin__default input {
+	inline-size: 16px;
+	block-size: 16px;
+	margin: 0;
+	accent-color: var(--color-primary-element);
+}
+
 .craftsuite-admin__hint {
-	grid-column: 2 / span 2;
+	grid-column: 2 / span 3;
 	color: var(--color-text-maxcontrast);
 }
 

@@ -17,7 +17,8 @@
 //              drawing (Ctrl+N) or the sample (ui.sample) saved under that name is a new file; a
 //              drawing the user brings in that saves under the opened name (dropped as
 //              'craftsuite-probe.dxf', or picked with File > Open as 'craftsuite-probe' followed
-//              by U+0085) makes that name's saves new files
+//              by U+0085) makes that name's saves new files; the blank of the "+ New" entry in
+//              Files (blanks/blank.dxf) opens, and its first save, without an edit, is the document
 //   language   the host's language (lang=uk) under the browser locale en-US: ready reports 'uk',
 //              the app frame's navigator.languages starts with 'uk', and the menu bar is the one a
 //              start under the browser locale uk-UA shows, not the one of a start without lang
@@ -277,13 +278,15 @@ async function openFromDisk(page: Page, app: Frame, name: string, bytes: Buffer)
 }
 
 // Loads the test host with a fixture and waits until the translator has handed it to the app.
-// `bytes` serves those bytes under `name` instead of a file in fixtures/cadcraft/.
+// `bytes` serves those bytes under `name` instead of a file in fixtures/cadcraft/. 'blanks/<file>'
+// opens a blank of the Nextcloud app's "+ New" entries (craftsuite_layer/assets/) as '<file>'.
 async function openInHost(page: Page, name: string, query = '', bytes?: Buffer) {
   if (bytes) {
     await page.route(`${HOST}files/cadcraft/${encodeURIComponent(name)}`,
       (route) => route.fulfill({ body: bytes, contentType: 'application/octet-stream' }));
   }
-  await page.goto(`${HOST}?target=cadcraft&name=${encodeURIComponent(`cadcraft/${name}`)}${query}`);
+  const file = name.startsWith('blanks/') ? name : `cadcraft/${name}`;
+  await page.goto(`${HOST}?target=cadcraft&name=${encodeURIComponent(file)}${query}`);
   await untilHost(page, 'the translator delivered the file (or reported an error)',
     (h) => h.state === 'delivered' || h.errors.length > 0, 90_000);
   expect((await hostRecord(page)).errors, 'translator errors while opening').toEqual([]);
@@ -438,8 +441,8 @@ test('contract: an allowed host opens the file and stores every save, nothing is
   });
 });
 
-test('saved-as: saves that must not replace the opened file become new files', async ({ context }) => {
-  // Six scenarios, each loading the app in a page of its own: on a busy machine (two browsers of
+test('saved-as: saves that must not replace the opened file become new files; the + New blank\'s first save replaces it', async ({ context }) => {
+  // Seven scenarios, each loading the app in a page of its own: on a busy machine (two browsers of
   // the run and the other projects' tests) they need more than the default two minutes.
   test.slow();
 
@@ -514,6 +517,15 @@ test('saved-as: saves that must not replace the opened file become new files', a
       expectNoDownloads(downloads);
     });
   }
+
+  // The blank of the "+ New" entry in Files: a new drawing as CADCraft 0.5.0 writes it, which Save
+  // writes again without losses. Should a release not open it, Ctrl+S saves Drawing1, a new file.
+  await scenario(context, 'the + New blank opens and its first save replaces it', async (page, downloads) => {
+    const app = await openInHost(page, 'blanks/blank.dxf');
+    await press(page, app, 'Control+s');
+    expectDocument((await hostSave(page, 1)).save, 'blank.dxf');
+    expectNoDownloads(downloads);
+  });
 });
 
 // CADCraft takes the host's language through navigator.languages, which it reads once as it starts

@@ -26,13 +26,13 @@ The app is not in the Nextcloud App Store. Each
 `craftsuite_layer-<version>.tar.gz`, with the checksums in `SHA256SUMS`. Both are plain
 downloads from
 `https://github.com/hozwei/nextcloud-craftsuite-layer/releases/download/v<version>/<asset>`.
-For version 0.3.0:
+For version 0.4.0:
 
 ```sh
-v=0.3.0
+v=0.4.0
 base=https://github.com/hozwei/nextcloud-craftsuite-layer/releases/download/v$v
 curl -fL --remote-name-all "$base/craftsuite_layer-$v.tar.gz" "$base/SHA256SUMS"
-sha256sum -c --ignore-missing SHA256SUMS      # craftsuite_layer-0.3.0.tar.gz: OK
+sha256sum -c --ignore-missing SHA256SUMS      # craftsuite_layer-0.4.0.tar.gz: OK
 ```
 
 `--ignore-missing` skips the line of the hosting bundle, which `SHA256SUMS` lists too. The
@@ -61,13 +61,15 @@ make -C craftsuite_layer appstore     # craftsuite_layer/build/artifacts/craftsu
 
 Each Craft app needs the address it is hosted at. An app without an address has no entry in
 Files. Only administrators set the addresses, on the settings page or with `occ`. They can also
-set the language each Craft app starts in.
+set the language each Craft app starts in, and make a Craft app the default app for all its file
+types.
 
-**Settings page.** Administration settings > Craft apps has one field per Craft app, with the
-file types it opens, and next to it the language the app starts in. Saving checks every field and
-saves nothing if one cannot be used; an empty address removes it. Saving needs a recent password
-confirmation. A stored address or language that can no longer be used (for example after
-Nextcloud got a new trusted domain) is shown with the reason.
+**Settings page.** Administration settings > Craft apps has one field per Craft app, and next to
+it the language the app starts in and whether it is the default app ("On a click"). The line
+under each says which file types the app opens and which of them a click in Files opens in it.
+Saving checks every field and saves nothing if one cannot be used; an empty address removes it.
+Saving needs a recent password confirmation. A stored address or language that can no longer be
+used (for example after Nextcloud got a new trusted domain) is shown with the reason.
 
 **Only for some groups.** To offer the Craft apps to some users only (for example those the Craft
 hosting lets sign in), enable the app for their groups: `occ app:enable -g <group> [-g <group>]
@@ -86,8 +88,11 @@ occ config:app:delete craftsuite_layer designcraft_url      # no DesignCraft ent
 ```
 
 `occ` does not check the address. An address that cannot be used leaves its app without an entry
-in Files, and the editor page says why. The app declares one key per app in Nextcloud's config
-lexicon: a key it does not know, such as a typo, is not stored, and Nextcloud logs a warning.
+in Files, and the editor page says why. The app declares its keys in Nextcloud's config lexicon:
+`<app>_url` for every app, `<app>_language` and `<app>_default_app` for the apps that have these
+settings (see below), and `file_types`, where the app notes the file types it added
+([File type icons](#file-type-icons)). A key it does not know, such as a typo, is not stored, and
+Nextcloud logs a warning.
 
 **The language an app starts in.** The keys are `<app>_language`, for the apps that can be
 started in a chosen language. The value is empty (the default: the app decides, as it does
@@ -119,6 +124,47 @@ languages, and where an app keeps a language the user picked in it (PdfCraft, Ph
 CADCraft), that choice stays; the app pages in [apps/](apps/) have the details. The editor page
 hands the language to the translator in the frame's address ([protocol.md](protocol.md#host-settings)),
 so it needs translator 0.3.0 or later in the hosting; an older one ignores it.
+
+**The default app.** Without it, a click in Files opens a Craft app only for the types no other
+app in Nextcloud opens (see [Files](#files)): a `.docx` stays with Nextcloud Office, ONLYOFFICE or
+Euro-Office, a PDF with the PDF viewer, a PNG with the Viewer. Made the default app, a Craft app
+takes the click on all its types. The settings page has a tick for the apps with such types
+(PdfCraft, PhotoCraft, VectorCraft, WordCraft, GridCraft, DeckCraft, LightCraft); the others show
+"Always", since only Craft apps open their types. The keys are `<app>_default_app`:
+
+```sh
+occ config:app:set craftsuite_layer wordcraft_default_app --value=true   # a .docx opens in WordCraft
+occ config:app:delete craftsuite_layer wordcraft_default_app             # as before again
+```
+
+- **The app it replaces stays in the file's action menu.** The Viewer's "View" stays there and
+  keeps working; Nextcloud Office (Collabora) opens Office files through it. ONLYOFFICE and
+  Euro-Office leave their entry out for the types they are set to open by default, so the
+  Nextcloud app adds it under their own name and icon for as long as a Craft app takes their
+  click; it opens the office app as their own entries do. Euro-Office calls its own entries "Open
+  in Nextcloud Office", so this entry reads like that for Euro-Office too.
+- **Two exceptions.** A type another Craft app opens as its own stays with that app while it has
+  an address: a `.dxf` opens in CADCraft even when VectorCraft is the default app. Where two
+  default apps open the same type, the click goes to the one listed first on the settings page
+  (the order of `CraftApps::APPS`, unless `CraftApps::PREFERRED` names an app for the type):
+  PdfCraft before VectorCraft for a PDF, PhotoCraft before LightCraft for a JPEG, PNG, TIFF or
+  WebP.
+- **Where it applies:** Files in the browser, for the users the app is enabled for: a click in the
+  list or grid, and links Files opens by itself (search results, notifications), which ask first
+  ([the editor page](#the-editor-page)). In Recent and Search, Files first goes to the file's
+  folder, as it does for every app. Desktop and mobile clients and other apps that show files
+  (Talk, Mail, Deck) keep their own way of opening them, and public share pages have no Craft
+  entries.
+- **WordCraft** saves a Word file from another program as a copy next to it
+  ([apps/wordcraft.md](apps/wordcraft.md)); as the default app for `.docx`, that happens with
+  every such file opened by a click.
+- **How:** Files runs the first default file action by its order. The click entry has order −20:
+  before the Viewer (0), ONLYOFFICE (−2) and Euro-Office (−1), after Files' own "go to the folder"
+  in Recent and Search (−1000). An app whose default action comes before −20 still takes the
+  click. The Viewer writes `openfile=true` into Files' address when it opens a file, and Files
+  then runs the default action, so the click entry does nothing while the Viewer shows a file.
+  The entry for ONLYOFFICE or Euro-Office runs their action as their own menu entries do, not as
+  the default action, which would write `openfile=true` too and so run the click entry.
 
 **Rules for the address.** It must use `https` (plain `http` only on `localhost`, `127.x.x.x` or
 `[::1]`, for development) and have no user name, password, `?query` or `#fragment`. Several Craft
@@ -162,9 +208,9 @@ release asks for another major ([development.md](development.md#continuous-integ
 
 For each Craft app with a usable address, Files offers "Open in PdfCraft" (and likewise for the
 other apps) in the action menu of a file the app opens. For some types it is also what a click
-on the file does.
+on the file does; as the default app (see [Configuring](#configuring)), for all of them.
 
-| App | Entry in the action menu for | Also on a click on the file |
+| App | Entry in the action menu for | Also on a click on the file (unless it is the default app) |
 |---|---|---|
 | PdfCraft | `pdf` | none |
 | PhotoCraft | `psd`, `psb`, `pcraft`, `tga`, `png`, `jpg`, `jpeg`, `webp`, `gif`, `bmp`, `tif`, `tiff`, `ico`, `heic`, `heif` | `psd`, `psb`, `pcraft`, `tga` |
@@ -184,15 +230,17 @@ SoundCraft has no entry: its web build can neither open nor save files.
   extensions it does not know, such as `.designcraft`, `.vectorcraft` and `.idml`. The app adds
   types for them (see [File type icons](#file-type-icons)), but where it cannot, and for files not
   scanned since, the type says nothing; the extension always does.
-- **A click only where no common Nextcloud app opens the type.** A PDF stays with the PDF
-  viewer, a PNG or SVG with the Viewer; their entries are in the action menu. The PDF viewer also
-  opens `.ai` (Illustrator files are PDF-compatible), so `.ai` is in the menu only. Office files
-  stay with Nextcloud Office or ONLYOFFICE where they are installed (and `.csv` with Text), so
-  WordCraft and GridCraft are in the menu only. A file can show several entries, such as "Open in
-  PdfCraft" and "Open in VectorCraft" for a PDF, or PhotoCraft and LightCraft for a JPEG.
+- **A click only where no common Nextcloud app opens the type**, unless the app is the default
+  app. A PDF stays with the PDF viewer, a PNG or SVG with the Viewer; their entries are in the
+  action menu. The PDF viewer also opens `.ai` (Illustrator files are PDF-compatible), so `.ai`
+  is in the menu only. Office files stay with Nextcloud Office, ONLYOFFICE or Euro-Office where
+  they are installed (and `.csv` with Text), so WordCraft and GridCraft are in the menu only, and
+  DeckCraft for PowerPoint files. A file can show several entries, such as "Open in PdfCraft" and
+  "Open in VectorCraft" for a PDF, or PhotoCraft and LightCraft for a JPEG.
 - **One app per click.** Where two apps have the same type as their click type (CADCraft and
   VectorCraft for `.dxf`), the click goes to CADCraft when both have an address, and to the one
-  with an address otherwise; the other keeps its menu entry.
+  with an address otherwise; the other keeps its menu entry. A type that is an app's own goes to
+  that app before any default app; among default apps, the first in the table wins.
 - **What each list contains** follows from what the app opens from a drop and saves back well;
   the reasons per type, and the types left out on purpose, are on the app pages:
   [PdfCraft](apps/pdfcraft.md), [PhotoCraft](apps/photocraft.md#file-types),
@@ -298,6 +346,76 @@ or a PSD where the administrator enabled Nextcloud's Photoshop previews) shows t
 The icons are the Craft apps' own (MIT OR Apache-2.0; the app ships them under MIT, with the
 notices in `img/types/LICENSE-MIT.txt`), shown unchanged except for the crop their own packaging
 uses for small sizes.
+
+### New files
+
+The "+ New" menu of Files has an entry for each Craft app with an address, for the app's own
+format. The entry's name is also the name Files proposes for the file:
+
+| Entry | Creates | The blank document |
+|---|---|---|
+| New PhotoCraft image | `.psd` | 1920 × 1080 px, 72 ppi, RGB, 8 bit, white: PhotoCraft's File > New with its defaults |
+| New VectorCraft drawing | `.vectorcraft` | one artboard of 612 × 792 pt (Letter), CMYK, VectorCraft's default swatches and graphic styles |
+| New DesignCraft document | `.designcraft` | Letter, one page, facing pages, one column, margins 3p0 |
+| New DeckCraft presentation | `.deckcraft` | one title slide, 960 × 540 pt (16:9), DeckCraft's default theme: its New Presentation |
+| New CADCraft drawing | `.dxf` | an empty drawing in inches, as CADCraft's File > New Drawing (Ctrl+N) writes it |
+| New FilmCraft project | `.fcproj` | an empty project, without media or sequence, named like the file |
+| New EffectCraft project | `.ecproj` | an empty project (8 bpc, timecode, 48 kHz): EffectCraft's New Project |
+| New WordCraft document | `.docx`, only as the default app | one empty page with 1" margins |
+| New GridCraft spreadsheet | `.xlsx`, only as the default app | one empty sheet, `Sheet1` |
+| New PdfCraft document | `.pdf`, only as the default app | one empty page |
+
+LightCraft has no entry: it develops photos, it does not make new ones.
+
+- **The new file opens in the app.** Files opens a new file with its click action, which is the
+  Craft app's for these formats. WordCraft, GridCraft and PdfCraft have an entry only as default
+  apps (see [Configuring](#configuring)): otherwise a click opens a `.docx` or `.xlsx` in
+  Nextcloud Office, ONLYOFFICE or Euro-Office, which have "New" entries of their own, and a PDF in
+  the PDF viewer. Files opens the file with the click on Create, which counts as the user's for a
+  few seconds; when making the file takes longer, the editor page asks first, as for a link.
+- **Each blank is what the app makes for a new document**, checked with its tested version: the
+  app opens it and saves it back into the same file. The files are in the app's `assets/`, made by
+  `craftsuite_layer/blanks.mjs`. WordCraft's, GridCraft's and PdfCraft's are on Letter pages for a
+  user whose locale is in a region that uses Letter (the United States, Canada, Mexico and others)
+  or is Nextcloud's plain `en` (American English), and on A4 pages otherwise. The locale is the
+  one Nextcloud formats the user's pages with: the one they chose in their personal settings,
+  else the server's `default_locale`, else their language. So a German user who chose no locale
+  gets A4. The other blanks have the app's own default size. WordCraft's, VectorCraft's,
+  DesignCraft's and DeckCraft's get the time they are made as their creation time: these apps
+  keep it (it shows in their document information), and their adapters (`translators/<app>.js`)
+  tell the document by it from a new one saved under the same name. FilmCraft's project gets the
+  file's name, which FilmCraft's Save As and its adapter use.
+- **Templates.** Files offers templates of the type in a picker; a file made from one is a copy
+  of it. The picker lists the user's own templates, from their Templates folder (made with
+  "+ New > Create templates folder" in Nextcloud 34 and 35), and those other apps provide for the
+  type: Euro-Office registers its global templates, which then appear under New WordCraft
+  document and New GridCraft spreadsheet. Nextcloud finds the user's templates by MIME type, so
+  a template of a format Nextcloud does not know by itself (`.vectorcraft`, `.designcraft`,
+  `.deckcraft`, `.dxf`, `.fcproj`, `.ecproj`) is listed only where the app registered that type
+  (see [File type icons](#file-type-icons)) and the template file has it: scanned after that, or
+  retyped by the app then. A Word file used as a template is another program's file to
+  WordCraft, which saves it as a copy next to it ([apps/wordcraft.md](apps/wordcraft.md)).
+- **Office suites.** Euro-Office, ONLYOFFICE and Nextcloud Office write their own blank into every
+  new file of their formats, whichever entry made it. While a Craft app is the default app for a
+  format, the Nextcloud app writes the Craft app's blank after them, also into a file made with an
+  office suite's entry: the file opens in the Craft app anyway, which saves its own blank back in
+  place and another program's as a copy.
+- **Where.** For the users the app is enabled for, in folders where they may create files; not on
+  public share pages.
+- **Nextcloud's Office app**, which Nextcloud 34 and 35 ship enabled, lists the entries in its
+  overview. Nextcloud 35 also adds them to the app menu of every page, from a list it keeps per
+  user for up to an hour: a changed address or default app shows there up to an hour later. A
+  file made in the Office app opens through `/f/<id>`, so the editor page asks first
+  ([The editor page](#the-editor-page)).
+- **When the blank cannot be written** (a share that allows creating but not changing files, a
+  full quota), Files says that the file could not be created. Where the user may delete the empty
+  file, it goes into their deleted files; in a folder where they may create files but neither
+  change nor delete them, it stays there, empty.
+
+The entries' icons are the Craft apps' own 48 px icons (`img/new/`), unchanged, and the blanks of
+VectorCraft, DesignCraft, GridCraft, CADCraft, FilmCraft and EffectCraft carry what these apps
+write for a new document. Both are MIT OR Apache-2.0; the app ships them under MIT, with the
+notices in `img/new/LICENSE-MIT.txt` and `assets/LICENSE-MIT.txt`.
 
 ## The editor page
 
@@ -424,12 +542,20 @@ is missing or cannot be used. A user who is not logged in gets Nextcloud's sign-
 - `src/editor.ts`: the host of the [translator protocol](protocol.md). It reads and writes the
   file through WebDAV as the logged-in user, so permissions, locks, quota and versions are
   Nextcloud's own.
-- `lib/Listener/LoadFilesScripts.php` and `src/files.ts`: the entries in Files (see
+- `lib/Listener/LoadFilesScripts.php` and `src/files.ts`: the entries in Files, with the click
+  entry of a default app and the menu entry for the app it replaces (see
   [architecture.md](architecture.md#files-integration)).
+- `lib/Service/NewFiles.php`, with the listeners `lib/Listener/RegisterNewFileCreators.php` and
+  `lib/Listener/FillNewFile.php`: the "+ New" entries, with their icons in `img/new/`, and the
+  blank document a new file gets, from `assets/`, which `blanks.mjs` makes.
+- `lib/Service/MimeIcons.php`, `lib/Service/FileTypes.php` (run by the repair steps in
+  `lib/Migration/`), `lib/Listener/AddMimeTypeAliases.php` and `src/aliases.ts`: the file type
+  icons, which are in `img/types/`.
 - `lib/Settings/`, `lib/Controller/SettingsController.php`, `templates/admin.php` and
-  `src/admin.ts`: the settings page. `lib/ConfigLexicon.php`: the `<app>_url` keys.
-- `lib/Service/CraftApps.php`: the Craft apps, their file types and the rules for their
-  addresses.
+  `src/admin.ts`: the settings page. `lib/ConfigLexicon.php`: the keys `<app>_url`,
+  `<app>_language`, `<app>_default_app` and `file_types`.
+- `lib/Service/CraftApps.php`: the Craft apps, their file types, the app a click opens each type
+  in, and the rules for their addresses.
 
 `make -C craftsuite_layer js` (part of `appstore`) or `npm run build` bundles `src/*.ts` with
 esbuild into `js/*.mjs`. The German texts are in `l10n/` (see
@@ -448,8 +574,8 @@ esbuild into `js/*.mjs`. The German texts are in `l10n/` (see
 - **No shared editing.** Two people editing the same file each save against the version they
   opened; the second save becomes a conflict copy.
 - **One address per Craft app** for the whole Nextcloud; users cannot choose another hosting.
-- **Only in Files in the browser.** Public share pages and Nextcloud's mobile and desktop clients
-  have no entries, and Files' **New** menu has no entry for a new Craft document.
+- **Only in Files in the browser**, and for the "+ New" entries in Nextcloud's Office app.
+  Public share pages and Nextcloud's mobile and desktop clients have no entries.
 - **PhotoCraft's copies of the opened document replace it.** Image > Duplicate, Split Channels
   and Crop and Straighten Photos create documents whose Save uses the opened document's name: a
   PSD carries nothing that tells them apart, so such a save replaces the opened file (or the

@@ -18,7 +18,9 @@
 //                 instead (typed over the suggestion), it is the document too, also on the second
 //                 Ctrl+S. Untitled-1.vectorcraft from the desktop app (stored title 'Untitled-1',
 //                 a creation time) saves as the document, and a new document (File > New) saved
-//                 under the same name is an export
+//                 under the same name is an export. The blank of the "+ New" entry in Files opens,
+//                 and its first save (Ctrl+S, Enter, no edit) arrives as the document
+//                 'blank.vectorcraft'
 //   startup       no WebGPU and no WebGL2: the host gets VectorCraft's own reason as an error of
 //                 startup instead of waiting
 //   language      the host's fr (in the frame's fragment): the adapter puts lang=fr into the
@@ -73,6 +75,7 @@ interface HostSave {
   id: number;
   kind: 'document' | 'export';
   openId: number | null;
+  follows: number | null;
   name: string;
   size: number;
   sha256: string;
@@ -465,7 +468,7 @@ test('contract: an allowed host opens the file and stores every save, nothing is
 });
 
 test('another name: a save of the document under another name than the opened one is still the document', async ({ context }) => {
-  // Four paths in a page each, each starting the app (a 56 MB module in 0.9.0) and saving up to
+  // Five paths in a page each, each starting the app (a 56 MB module in 0.9.0) and saving up to
   // three times. On a busy machine, with Chromium and WebKit side by side, this ran past the
   // default 120 s (WebKit took 78 s in a passing run), so it gets the slow budget, as the @ui
   // test does.
@@ -547,6 +550,15 @@ test('another name: a save of the document under another name than the opened on
     const other = await hostSave(page, 2);
     expectExport(other.save, 'Untitled-1.vectorcraft');
     expect(other.bytes.includes(MARKER), 'the new document, not the opened drawing').toBe(false);
+    expectNoDownloads(downloads);
+  });
+
+  await scenario(context, 'the + New blank opens and its first save replaces it', async (page, downloads) => {
+    // craftsuite_layer/assets/blank.vectorcraft, made by blanks.mjs: an empty stored title, so the
+    // Save As dialog suggests the file's own name, and a creation time, which Save keeps.
+    const app = await openInHost(page, '?target=vectorcraft&name=blanks/blank.vectorcraft');
+    await firstSave(page, app); // no edit: Save is enabled for a document without a path
+    expect((await hostSave(page, 1)).save).toMatchObject({ kind: 'document', openId: 1, follows: null, name: 'blank.vectorcraft' });
     expectNoDownloads(downloads);
   });
 });

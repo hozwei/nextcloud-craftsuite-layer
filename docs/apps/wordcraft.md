@@ -321,9 +321,11 @@ For the Nextcloud app's list:
 | `docx`, `docm`, `dotx`, `dotm` | the document; Save replaces a file WordCraft wrote, and saves a file of another program as a copy next to it | yes | no |
 | `doc`, `dot`, `odt`, `rtf` | the document; Save creates `<stem>.docx` next to the original, which stays as it is | yes | no |
 
-No default action: Nextcloud Office and ONLYOFFICE open these types on a click where they are
-installed, and a lossy editor should not take that click. WordCraft stays in the action menu, as
-PdfCraft does for PDF. Nextcloud knows MIME types for all of them but `dotm`, for which the
+No default action: Nextcloud Office, ONLYOFFICE and Euro-Office open these types on a click where
+they are installed, and a lossy editor should not take that click unasked. WordCraft stays in the
+action menu, as PdfCraft does for PDF. An administrator can make WordCraft the default app
+([nextcloud-app.md](../nextcloud-app.md#configuring)); then a click opens all these types in
+WordCraft, and every Word file of another program opened that way is saved as a copy next to it. Nextcloud knows MIME types for all of them but `dotm`, for which the
 Nextcloud app registers its Office type (`application/vnd.ms-word.template.macroEnabled.12`, see
 [nextcloud-app.md](../nextcloud-app.md#file-type-icons)), so that it shows Nextcloud's document
 icon like the others; the app matches by extension anyway, in any letter case.
@@ -345,7 +347,7 @@ contract tests; the canary runs them apart from the `@ui` test.
 | Test | What it checks |
 |---|---|
 | `contract` | An allowed host: the handshake with the served app version, then the open of a `.docx` WordCraft wrote. An edit saved with Ctrl+S arrives as the document under the opened name, with the edit and the opened creation time; Save As (F12) after another edit is the document again. A file opened from the disk (File > Open, Ctrl+O, of an RTF: `probe.docx`) and the save of a new document (Ctrl+N, `Document1.docx`) arrive as new files. Nothing becomes a browser download, also not after the deadlines for the host's confirmation and result. |
-| `saved-as` | An opened `.odt` and `.rtf` save as `probe.docx`, the document, twice. A `.docx` Word wrote: the first save is a new file under the opened name, the second replaces it (`follows` the first). `Document1.docx` with a creation time saves as the document, and a new document saved under the same name is a new file; `Document1.docx` without one is a new file. After a dropped recipient list, the opened document's save is a new file. A copy of the opened file (same name and creation time, other text) opened with File > Open, and in Chromium dropped from the desktop, saves as a new file. |
+| `saved-as` | An opened `.odt` and `.rtf` save as `probe.docx`, the document, twice. A `.docx` Word wrote: the first save is a new file under the opened name, the second replaces it (`follows` the first). `Document1.docx` with a creation time saves as the document, and a new document saved under the same name is a new file; `Document1.docx` without one is a new file. The blanks of the "+ New" entry in Files (`blank.docx` on A4 and `blank-letter.docx`, from `craftsuite_layer/assets/`, served by the test server) open, and their first saves are the document. After a dropped recipient list, the opened document's save is a new file. A copy of the opened file (same name and creation time, other text) opened with File > Open, and in Chromium dropped from the desktop, saves as a new file. |
 | `ui` (`@ui`) | File > Export with the pointer on an opened `.odt`: PDF and OpenDocument Text (under the opened name) arrive as new files, Word document as the document `probe.docx`. Mailings > Finish & Merge on an opened `Document1.docx` after Select Recipients > Use an Existing List…, whose picker is cancelled, and a dropped `people.txt`, which WordCraft loads as recipients: the merged document, saved as `Document1.docx` with the opened creation time, arrives as a new file. Mailings > Finish & Merge on an opened letter `invitation.docx` (titled `invitation`, with a simple `MERGEFIELD` field) after a recipient typed into Select Recipients > Type a New List…, so that no file comes in: the letter saved before the merge keeps its field and is the document, and the merged document, saved as `invitation.docx` with the opened creation time and the typed name in place of the field, arrives as a new file. |
 
 A test with several scenarios runs each in a page of its own and reports every scenario that

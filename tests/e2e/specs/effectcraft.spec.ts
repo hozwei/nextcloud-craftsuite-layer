@@ -10,13 +10,16 @@
 //              worker, memory storage), open of a .ecproj; an edit saved with Ctrl+S arrives as the
 //              document under the opened name, a project file with the edit, and so does a second
 //              one; Collect Files (a copy under the opened name, without savedBy), Save Frame As
-//              (Ctrl+Alt+S), a project file under the opened name written while the project has
-//              unsaved changes or saved to another folder (through window.effectcraft), Save As
+//              (Frame.png), a project file under the opened name written while the project has
+//              unsaved changes or saved to another folder (all three through window.effectcraft
+//              but Collect Files, which runs from the command palette), Save As
 //              (Ctrl+Shift+S) and the Save after it, and the save of a new project (Ctrl+Alt+N)
 //              arrive as new files; nothing becomes a download, also not after the deadlines for
 //              the host's confirmation and result
 //   saved-as   an opened 'Untitled Project.ecproj' saves as a new file (every new project saves
-//              under that name); a project a newer EffectCraft wrote (savedBy not its first member)
+//              under that name); the blank of the Nextcloud app's + New entry (EffectCraft's New
+//              Project, savedBy 0.8.0) opens, and its first save, without an edit, is the
+//              document; a project a newer EffectCraft wrote (savedBy not its first member)
 //              saves as a copy: a new file, which the next save, after an edit, replaces; so does
 //              its XML form under a .ecproj name (the first save), written as only the app's own
 //              lenient reader takes it; the XML form of this version saves as the document, as
@@ -268,13 +271,15 @@ async function dropFromDesktop(page: Page, app: Frame, file: string) {
 }
 
 // Loads the test host with a fixture and waits until the translator has handed it to the app.
-// `bytes` serves those bytes under `name` instead of a file in fixtures/effectcraft/.
+// `bytes` serves those bytes under `name` instead of a file in fixtures/effectcraft/. A name with a
+// folder (blanks/<name>: the Nextcloud app's blank documents) opens that file of the test server,
+// which the host sends under its base name.
 async function openInHost(page: Page, name: string, query = '', bytes?: Buffer) {
   if (bytes) {
     await page.route(`${HOST}files/effectcraft/${encodeURIComponent(name)}`,
       (route) => route.fulfill({ body: bytes, contentType: 'application/octet-stream' }));
   }
-  await page.goto(`${HOST}?target=effectcraft&name=${encodeURIComponent(`effectcraft/${name}`)}${query}`);
+  await page.goto(`${HOST}?target=effectcraft&name=${encodeURIComponent(name.includes('/') ? name : `effectcraft/${name}`)}${query}`);
   await untilHost(page, 'the translator delivered the file (or reported an error)',
     (h) => h.state === 'delivered' || h.errors.length > 0, 90_000);
   expect((await hostRecord(page)).errors, 'translator errors while opening').toEqual([]);
@@ -491,8 +496,12 @@ test('contract: an allowed host opens the file and stores every save, nothing is
     expect(copy.comps, 'the opened project').toHaveLength(3);
   });
 
-  await test.step('Save Frame As (Ctrl+Alt+S) arrives as a new file', async () => {
-    await press(page, app, 'Control+Alt+s');
+  await test.step('Save Frame As arrives as a new file', async () => {
+    // Composition > Save Frame As > File… (Ctrl+Alt+S) asks for a path, which the web build makes a
+    // download of Frame.png: here the command with that path, through window.effectcraft. Pressed
+    // right after the command palette of the step before, the shortcut opened the palette again on
+    // GitHub's runner, in a run and its retry, and the frame was never saved.
+    await runThroughApi(app, 'comp.saveFrameAs', { path: '/Frame.png' });
     const { save, bytes } = await hostSave(page, 4);
     expectExport(save, 'Frame.png');
     expect(bytes.subarray(0, 8).toString('latin1'), 'a PNG').toBe('\x89PNG\r\n\x1a\n');
@@ -545,7 +554,7 @@ test('contract: an allowed host opens the file and stores every save, nothing is
 });
 
 test('saved-as: new-project names, copies of other versions, files the user brings in', async ({ context, browserName }) => {
-  test.slow(); // seven scenarios, each loading the 60 MB app
+  test.slow(); // eight scenarios, each loading the 60 MB app
 
   // Every new project saves as 'Untitled Project.ecproj' without asking, and the format has no
   // document identity: the opened file's save cannot be told from a new project's.
@@ -555,6 +564,16 @@ test('saved-as: new-project names, copies of other versions, files the user brin
     const { save, bytes } = await hostSave(page, 1);
     expectExport(save, UNTITLED);
     expectSavedProject(bytes, 0);
+    expectNoDownloads(downloads);
+  });
+
+  // The blank of the Nextcloud app's + New entry as it is in craftsuite_layer/assets: EffectCraft's
+  // New Project with savedBy 0.8.0, which the host opens as 'blank.ecproj'.
+  await scenario(context, 'the + New blank opens and its first save replaces it', async (page, downloads) => {
+    const app = await openInHost(page, 'blanks/blank.ecproj');
+    await expect.poll(() => openProject(app), { message: 'the project EffectCraft has open' }).toEqual({ path: '/blank.ecproj', comps: [] });
+    await press(page, app, 'Control+s'); // EffectCraft saves without an edit
+    expectDocument((await hostSave(page, 1)).save, 'blank.ecproj');
     expectNoDownloads(downloads);
   });
 

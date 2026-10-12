@@ -20,6 +20,8 @@
 //              Copy of an opened
 //              '<name> copy.fcproj' is a new file, the next Ctrl+S the document; the first save of
 //              an older schema brings FilmCraft's backup of the original as a new file, then the
+//              document; the blank of the Nextcloud app's + New entry (an empty project storing
+//              'New FilmCraft project') opens, and its first Ctrl+S, without an edit, is the
 //              document; saves named like the projects FilmCraft makes ('FilmCraft Demo.fcproj',
 //              the Save As of an opened 'Untitled.fcproj' storing that name, and 'Untitled.fcproj',
 //              a new project saved under the opened name) are new files; an opened EDL is
@@ -327,14 +329,15 @@ async function withOpfs(app: Frame, run: () => Promise<void>) {
 // read it (as '/projects/<name>'), opened it a frame later and shows the project `shows` (by
 // default the name stored in the file; FilmCraft's own demo project shows before), anything else
 // once its import is registered ('/files/<name>'). `bytes` serves those bytes under `name` instead
-// of a file in fixtures/filmcraft/.
-async function openInHost(page: Page, name: string, options: { query?: string; bytes?: Buffer; shows?: string } = {}) {
+// of a file in fixtures/filmcraft/; `folder` opens a file of another folder of the test server
+// (blanks: the Nextcloud app's blank documents) and waits for no project to show.
+async function openInHost(page: Page, name: string, options: { query?: string; bytes?: Buffer; shows?: string; folder?: string } = {}) {
   if (options.bytes) {
     const body = options.bytes;
     await page.route(`${HOST}files/filmcraft/${encodeURIComponent(name)}`,
       (route) => route.fulfill({ body, contentType: 'application/octet-stream' }));
   }
-  await page.goto(`${HOST}?target=filmcraft&name=${encodeURIComponent(`filmcraft/${name}`)}${options.query ?? ''}`);
+  await page.goto(`${HOST}?target=filmcraft&name=${encodeURIComponent(`${options.folder ?? 'filmcraft'}/${name}`)}${options.query ?? ''}`);
   await untilHost(page, 'the translator delivered the file (or reported an error)',
     (h) => h.state === 'delivered' || h.errors.length > 0, 90_000);
   expect((await hostRecord(page)).errors, 'translator errors while opening').toEqual([]);
@@ -344,7 +347,7 @@ async function openInHost(page: Page, name: string, options: { query?: string; b
   await expect.poll(() => app.evaluate((read) => (window as AppWindow).filmcraft!.files().some((f) => f.path === read), read),
     { message: `FilmCraft read ${name}` }).toBe(true);
   await appFrames(app, 5);
-  const shows = options.shows ?? (project ? storedName(options.bytes ?? fixture(name)) : null);
+  const shows = options.shows ?? (project && !options.folder ? storedName(options.bytes ?? fixture(name)) : null);
   if (shows) await showsProject(page, app, shows);
   return app;
 }
@@ -599,7 +602,7 @@ test('contract: an allowed host opens the project and stores every save, nothing
 });
 
 test('saved-as: saves under other names, project files from elsewhere, and what FilmCraft keeps from earlier sessions', async ({ context, browserName }) => {
-  test.slow(); // eight page loads of the 43 MB app
+  test.slow(); // nine page loads of the 43 MB app
   await scenario(context, 'Export Selection as Project under the opened name is a new file; Save As (Ctrl+Shift+S) first writes <stored name>.fcproj, the document, and so does the next Ctrl+S', async (page, downloads) => {
     // Opened as '<stored name> Selection.fcproj', the name File > Export > Selection as
     // FilmCraft Project… gives its subset, which stores that stem as its name: only the missing
@@ -655,6 +658,20 @@ test('saved-as: saves under other names, project files from elsewhere, and what 
     const own = await hostSave(page, 2);
     expectDocument(own.save, 'old-schema.fcproj');
     expect(fcproj(own.bytes), 'the project in the current schema').toMatchObject({ schema_version: 15, project: { name: 'old-schema' } });
+    expectNoDownloads(downloads);
+  });
+
+  // The blank of the Nextcloud app's + New entry as it is in craftsuite_layer/assets: an empty
+  // project storing 'New FilmCraft project', which the server replaces with the new file's name.
+  // Its open is checked with project.inspect: FilmCraft can keep answering ui.elements with 'the
+  // timeline is still zooming' (seen in Chromium) when the demo project's zoom was under way, which
+  // the timeline of a project without a sequence never finishes.
+  await scenario(context, 'the + New blank opens and its first save replaces it', async (page, downloads) => {
+    const app = await openInHost(page, 'blank.fcproj', { folder: 'blanks' });
+    await expect.poll(() => app.evaluate(() => (window as AppWindow).filmcraft!.execute('project.inspect', {})),
+      { message: 'the open project (project.inspect)' }).toMatchObject({ name: 'New FilmCraft project', path: '/projects/blank.fcproj' });
+    await shortcut(page, app, 'Save', 'Control+s'); // FilmCraft saves without an edit
+    expectDocument((await hostSave(page, 1)).save, 'blank.fcproj');
     expectNoDownloads(downloads);
   });
 

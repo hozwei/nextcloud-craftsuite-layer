@@ -23,7 +23,7 @@ save files.
 
 | Component | Folder | Runs in | Status |
 |---|---|---|---|
-| Nextcloud app `craftsuite_layer` | `craftsuite_layer/` | Nextcloud, and in the browser in Files and the editor page | Files entries, editor page, settings page, German; Nextcloud 34 and 35 ([nextcloud-app.md](nextcloud-app.md)) |
+| Nextcloud app `craftsuite_layer` | `craftsuite_layer/` | Nextcloud, and in the browser in Files and the editor page | Files entries (also as the default app for all of an app's types), "+ New" entries with a blank document per app (`assets/`, made by `blanks.mjs`), file type icons, editor page, settings page, German; Nextcloud 34 and 35 ([nextcloud-app.md](nextcloud-app.md)) |
 | Translator core | `translators/core.js` | the Craft app's page | done, protocol version 1 |
 | Adapters, one per app | `translators/<app>.js` | the Craft app's page | one for each of the eleven apps ([translators/README.md](../translators/README.md)) |
 | Craft hosting | `hosting/` (template) | a static web server on its own origin, plus an updater | translator injector, nginx template, Compose example; no updater yet ([hosting.md](hosting.md)) |
@@ -59,12 +59,13 @@ serves does see the file it edits (see [security.md](security.md#trust-model)).
 ## Opening a file
 
 1. In Files, the user chooses "Open in PdfCraft" (or another Craft app), or clicks a file of a
-   type that only a Craft app opens (see [Files integration](#files-integration)). This opens
-   the editor page `/apps/craftsuite_layer/edit/<fileId>?app=<app>`, with the session's request
-   token when the user clicked. The server checks that the user may read and download the file
-   and that the app opens its type. Without a valid token (and unless the browser reports a typed
-   address, `Sec-Fetch-Site: none`), for example for a link another site opened, it only asks
-   whether to open the file, and goes on from step 2 when the user confirms.
+   type that only a Craft app opens, or of any type of a Craft app the administrator made the
+   default app (see [Files integration](#files-integration)); a file made with "+ New" opens the
+   same way. This opens the editor page `/apps/craftsuite_layer/edit/<fileId>?app=<app>`, with
+   the session's request token when the user clicked. The server checks that the user may read
+   and download the file and that the app opens its type. Without a valid token (and unless the
+   browser reports a typed address, `Sec-Fetch-Site: none`), for example for a link another site
+   opened, it only asks whether to open the file, and goes on from step 2 when the user confirms.
 2. The editor page frames the Craft URL from the server-side admin configuration. The URL is
    never taken from the page URL, or a crafted link could send the user's file anywhere. The
    page's Content-Security-Policy allows framing only that origin
@@ -143,16 +144,36 @@ The message details are in [protocol.md](protocol.md), the page's rules in
   address, it puts those apps with their extension lists into the page's initial state and adds
   `js/files.mjs` as an init script, which runs before Files renders its list.
 - `src/files.ts` registers two file actions per app with `registerFileAction` from
-  `@nextcloud/files`: one for the extensions the app opens on a click (`DefaultType.DEFAULT`),
-  one for the rest (action menu only). Files keeps its actions in a registry per major of
-  `@nextcloud/files` (`window._nc_files_scope.v4_0` for 4.x), shared by every copy of that major
-  on the page, so the copy bundled into `js/files.mjs` registers where Files reads. Nextcloud 34
-  and 35 ship 4.x.
+  `@nextcloud/files`: one for the extensions the app opens on a click (`DefaultType.DEFAULT`,
+  order −20, so that it comes before the Viewer's, ONLYOFFICE's and Euro-Office's default actions
+  where the administrator made the app the default app), one for the rest (action menu only,
+  order 10). The click entry does nothing while Nextcloud's Viewer shows a file
+  (`OCA.Viewer.file`): the Viewer writes `openfile=true` into Files' address when it opens a
+  file, and Files then runs the default action, which for a type a Craft app took over as the
+  default app is the click entry; so the Viewer's View keeps working. Where a click entry takes
+  the place of another app's hidden default action (`DefaultType.HIDDEN`, as ONLYOFFICE and
+  Euro-Office register theirs), one more action shows that one in the menu with its own name and
+  icon, and runs its `exec` with `isDefault: false`, as the connectors' own menu entries do: run
+  as the default, it would write `openfile=true` too, and Files would run the click entry. Files
+  keeps its actions in a registry per major of `@nextcloud/files`
+  (`window._nc_files_scope.v4_0` for 4.x), shared by every copy of that major on the page, so the
+  copy bundled into `js/files.mjs` registers where Files reads. Nextcloud 34 and 35 ship 4.x.
 - An action is offered for one file (not a folder), outside the trash, whose extension, in any
   letter case, is in the app's list and which may be downloaded: read permission, downloads not
   hidden, and no share attribute that turns downloads off. It opens the editor page with `?app=`.
 - The extension lists exist only in `lib/Service/CraftApps.php`. The Files entries, the settings
   page and the config lexicon take them from there.
+- The "+ New" entries: `lib/Listener/RegisterNewFileCreators.php` hands Nextcloud's
+  `RegisterTemplateCreatorEvent` (its template API) to `lib/Service/NewFiles.php`, which
+  registers a `TemplateFileCreator` per Craft app for the app's own format, and for the default
+  app's Office or PDF format, only where a click opens that format in the app. The entry's icon
+  is the app's 48 px PNG from `img/new/`, as a `data:` URI in an SVG. Nextcloud creates the file
+  empty; `lib/Listener/FillNewFile.php`, the app's listener of `FileCreatedFromTemplateEvent`,
+  registered to run after other apps' (priority −100), writes the blank document from `assets/`
+  (made by `blanks.mjs`; WordCraft's, GridCraft's and PdfCraft's on A4 or, by the user's locale,
+  on Letter), with the creation time or project name of the new file where the app keeps one.
+  Files then opens the file with `?openfile=true`, which runs the click entry; the entry takes
+  `openfile` out of the history entry before it leaves for the editor page.
 - The Craft icons for file types: `lib/Service/MimeIcons.php` takes the place of the server's
   `IMimeIconProvider` (registered in `Application::register()`), which answers Files' requests for
   the icon of a file without a preview, and returns the icon in `img/types/` of the Craft app that
@@ -203,6 +224,12 @@ What the layer relies on, and what happens if an upstream release changes it:
 | PhotoCraft, WordCraft, GridCraft, DeckCraft, CADCraft and FilmCraft read the user's own files through the `files` getters of `DataTransfer` and `<input type=file>` (or `drop` and `change` events), and WordCraft's Finish & Merge copies the opened document's title and creation time | telling a save of the opened file from that of a same-named file from elsewhere, or from merged letters | Such files go unnoticed again; one saved under the opened name could pass as the document (see each app's known gaps). |
 | Links use `window.open` (with `_self`) | keeping the editor in the frame; no `javascript:` or `data:` windows; no opener for pages of other origins | A link may replace the editor in the frame, or open with a handle on it. |
 | Files keeps its actions in the registry of `@nextcloud/files` 4.x | the Files entries | The entries are missing. The canary's `nextcloud-next` job warns before a Nextcloud release with another major ships. |
+| Files runs the first enabled default action by `order`, lowest first; the Viewer's has none (0), ONLYOFFICE's is −2, Euro-Office's −1 (11.0.6), Files' own open-in-files in Recent and Search −1000 | the default app setting: the click entry has −20 | An app whose default comes before −20 keeps the click; the test `default app` in `nextcloud-files.spec.ts` covers the Viewer and a hidden default at −1. |
+| Other apps' actions are `IFileAction` objects in the same registry, and Files never shows a `DefaultType.HIDDEN` default in the menu; ONLYOFFICE's and Euro-Office's `exec` opens their editor when called with `isDefault: false`, as their own menu entries call it | the menu entry for the app whose click a Craft app took over | Without it, ONLYOFFICE or Euro-Office is not in the menu of their types while a Craft app is the default app, or their entry there does not open them; the test `default app` checks the entry with an office app of its own. |
+| Nextcloud's Viewer sets `OCA.Viewer.file` while it shows a file, and writes `openfile=true` into Files' address when it opens one | the Viewer's View for a type a Craft app took over as the default app: the click entry does nothing while the Viewer shows a file | View on such a file opens the Craft app instead; the test `default app` (a PDF while PdfCraft is the default app) fails. |
+| Nextcloud's template API: `RegisterTemplateCreatorEvent`, `TemplateFileCreator` with a non-empty inline SVG icon (Files stops starting without one; Nextcloud 35's Office app shows it as a CSS background, so the PNG inside is a `data:` URI), `FileCreatedFromTemplateEvent` with the new file and no template for a blank one, and Files opening the new file with `?openfile=true` | the "+ New" entries | No entries, or empty new files the Craft app cannot open; the test `new files` in `nextcloud-files.spec.ts` fails. |
+| Euro-Office (11.0.6), ONLYOFFICE and Nextcloud Office write their own blank into every new file of their formats in `FileCreatedFromTemplateEvent`, at the default priority | a default app's new Office file | The Craft app's blank comes before theirs and is replaced: the file opens in the Craft app as another program's, and its first save is a copy. |
+| What each Craft app accepts as its own new document: the formats, defaults and markers in `blanks.mjs` (WordCraft's and GridCraft's `<Application>`, DeckCraft's generator, CADCraft's DXF, FilmCraft's schema 15, EffectCraft's `savedBy`) | the blank documents | A new file opens, but its saves become copies or new files, or it does not open; the spec of each app with a "+ New" entry opens its blank (WordCraft's, GridCraft's and PdfCraft's both the A4 and the Letter one) and fails first (also in the canary). |
 | A Files node's `id` is the file id as a string of digits (`fileid`, a number, is deprecated for 64-bit ids) | the editor URL of the Files entries | Without digits the entries are missing; the Files test fails. |
 | Received shares are mounted as `ISharedStorage` with `IShare::canDownload()` (Nextcloud 34), and Files reads the `share-attributes` WebDAV property | refusing files shared without permission to download, on the server and in Files | A file shared that way could reach the Craft app. The test `shares` in `nextcloud-files.spec.ts` checks both and fails. |
 | `window.OC.PasswordConfirmation`, Nextcloud's password dialog (deprecated since Nextcloud 28) | the password confirmation on the settings page | Saves skip the dialog; once the last confirmation is older than 30 minutes, the server answers 403 and the page asks to confirm the password. The settings test forces the dialog and fails. |
@@ -242,9 +269,9 @@ Pull request #2263 proposes `window.photocraft` and a `postMessage` API enabled 
 | What | Where | Current |
 |---|---|---|
 | Protocol | `version` in every message | 1 |
-| Translator | `LAYER_VERSION` in `translators/core.js`, reported as `layerVersion` in `hello` and `ready` | 0.3.0 |
-| Nextcloud app | `<version>` in `craftsuite_layer/appinfo/info.xml` | 0.3.0, Nextcloud 34 and 35 |
-| Release | the tag `v<version>` | v0.3.0 |
+| Translator | `LAYER_VERSION` in `translators/core.js`, reported as `layerVersion` in `hello` and `ready` | 0.4.0 |
+| Nextcloud app | `<version>` in `craftsuite_layer/appinfo/info.xml` | 0.4.0, Nextcloud 34 and 35 |
+| Release | the tag `v<version>` | v0.4.0 |
 | Tested app versions | `tests/e2e/craft-versions.json` | PdfCraft 0.6.0, PhotoCraft 0.7.0, VectorCraft 0.9.0, DesignCraft 0.6.0, WordCraft 0.5.0, GridCraft 0.5.0, DeckCraft 0.5.0, CADCraft 0.5.0, LightCraft 0.6.0, FilmCraft 0.6.0, EffectCraft 0.8.0 |
 
 The translator and the Nextcloud app share one version number, and a release carries both: the

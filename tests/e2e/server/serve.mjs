@@ -65,6 +65,14 @@ function within(root, rel) {
   return file === root || file.startsWith(root + path.sep) ? file : null;
 }
 
+// /files/<name>: a fixture, or with blanks/<name> a blank document of the Nextcloud app's "+ New"
+// entries (craftsuite_layer/assets), which the specs open as Files would.
+function fixture(rel) {
+  return rel.startsWith('blanks/')
+    ? within(path.join(repo, 'craftsuite_layer', 'assets'), rel.slice('blanks/'.length))
+    : within(path.join(e2e, 'fixtures'), rel);
+}
+
 async function sendFile(res, file, transform) {
   try {
     if (!file || !(await stat(file)).isFile()) throw new Error('not a file');
@@ -124,13 +132,13 @@ function hostSite(req, res, u) {
     res.end(body);
     return;
   }
-  if (u.pathname.startsWith('/files/')) return sendFile(res, within(path.join(e2e, 'fixtures'), u.pathname.slice(7)));
+  if (u.pathname.startsWith('/files/')) return sendFile(res, fixture(u.pathname.slice(7)));
   const rel = u.pathname === '/' ? 'index.html' : u.pathname.slice(1);
   return sendFile(res, within(path.join(e2e, 'host'), rel));
 }
 
 function appSite(req, res, u) {
-  if (u.pathname.startsWith('/files/')) return sendFile(res, within(path.join(e2e, 'fixtures'), u.pathname.slice(7)));
+  if (u.pathname.startsWith('/files/')) return sendFile(res, fixture(u.pathname.slice(7)));
   const m = u.pathname.match(/^\/([a-z0-9_-]+)\/(.*)$/);
   const apps = loadApps();
   const app = m && Object.hasOwn(apps, m[1]) ? apps[m[1]] : null;

@@ -14,9 +14,9 @@ use OCP\Settings\ISettings;
 use OCP\Util;
 
 /**
- * The form with one address per Craft app, and the language it starts in (templates/admin.php,
- * src/admin.ts). The page is rendered on the server; the script only names the languages,
- * submits the form to SettingsController and shows the result.
+ * The form with one address per Craft app, the language it starts in and whether it is the default
+ * app for all its types (templates/admin.php, src/admin.ts). The page is rendered on the server;
+ * the script only names the languages, submits the form to SettingsController and shows the result.
  */
 class Admin implements ISettings {
 	public function __construct(
@@ -32,11 +32,13 @@ class Admin implements ISettings {
 			$apps[$app] = [
 				'name' => $info['name'],
 				'url' => $url,
-				'extensions' => $info['extensions'],
 				'problem' => $url === '' ? null : $this->craftApps->problem($url),
 				'languages' => $info['languages'],
 				'language' => $language,
 				'languageProblem' => $this->craftApps->languageProblem($app, $language),
+				// null: only Craft apps open its types, a click always opens them in it.
+				'defaultApp' => CraftApps::sharedExtensions($app) === [] ? null : $this->craftApps->isDefaultApp($app),
+				'hint' => $this->craftApps->hint($app),
 			];
 		}
 		Util::addScript(Application::APP_ID, 'admin');

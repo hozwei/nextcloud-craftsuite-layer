@@ -34,11 +34,12 @@ npm test                     # lint, typecheck, translations, end-to-end tests
 | `npm run lint` | ESLint over the JavaScript (translators, test pages, test server, tools, the app's build scripts), the app's front end and the TypeScript tests in `tests/e2e/`. For the TypeScript it uses typescript-eslint with type information (`no-floating-promises`, `no-misused-promises`: a forgotten `await` is the most common cause of flaky browser tests), and for the tests the recommended rules of eslint-plugin-playwright. |
 | `npm run typecheck` | TypeScript check of `tests/e2e/` and of the app's front end |
 | `npm run l10n:check` | Every text the app shows has a translation in each language of `craftsuite_layer/l10n/` (German: `de` informal, `de_DE` formal), none is unused, placeholders match, and `l10n/*.js` matches `l10n/*.json` |
+| `npm run blanks:check` | The blank documents of the "+ New" entries in `craftsuite_layer/assets/` are byte for byte what `craftsuite_layer/blanks.mjs` makes, and their stand-ins (the creation time, FilmCraft's project name) are the ones `lib/Service/NewFiles.php` replaces; `npm run blanks:write` makes them again after a change there |
 | `npm run l10n:write` | Writes `l10n/*.js` from the edited `l10n/*.json` |
 | `npm run craft:fetch` | Downloads the tested version of each Craft app (`tests/e2e/craft-versions.json`) into `.craft-builds/` and verifies it |
 | `npm run craft:fetch-latest` | The same with the newest release of each app |
 | `npm run test:e2e` | All Playwright projects |
-| `npm test` | `lint`, `typecheck`, `l10n:check` and `test:e2e` |
+| `npm test` | `lint`, `typecheck`, `l10n:check`, `blanks:check` and `test:e2e` |
 | `make -C craftsuite_layer lint` | `php -l` on every PHP file, a `CHANGELOG.md` section for the version in `appinfo/info.xml`, and `info.xml` and the icons well-formed (with `xmllint`; with `INFO_XSD=<path>` also against the App Store schema) |
 | `make -C craftsuite_layer appstore` | The App Store archive, see the `Makefile` |
 
@@ -107,8 +108,10 @@ the port. The server serves three origins:
 | app | `http://127.0.0.2:<base+1>` | `/<app>/` for each fetched Craft build and `/stub/` for the stub app, with the translator injected into `index.html` as a Craft site would |
 | foreign | `http://127.0.0.1:<base+2>` | The same host page on an origin that is not allowed |
 
-Both the host and the app origin serve the fixtures under `/files/`. Run the server by hand with
-`node tests/e2e/server/serve.mjs` and open `http://127.0.0.1:8701/?target=stub`.
+Both the host and the app origin serve the fixtures under `/files/`, and under `/files/blanks/`
+the blank documents of the Nextcloud app's "+ New" entries (`craftsuite_layer/assets/`). Run the
+server by hand with `node tests/e2e/server/serve.mjs` and open
+`http://127.0.0.1:8701/?target=stub`.
 
 The test host frames a configured app and records everything in `window.__host` (`state`,
 `events`, `messages`, `saves`, `errors`, `opened`). Like a real host, it answers every `hello`
@@ -120,7 +123,7 @@ only pick a configured app and test behaviour:
 | Parameter | Effect |
 |---|---|
 | `target=<app>` or `stub` | Which configured app to frame (default `pdfcraft`) |
-| `name=<fixture>` | The file to open, a path under `tests/e2e/fixtures/` (default `craftsuite-probe.pdf`), sent under its base name |
+| `name=<fixture>` | The file to open, a path under `tests/e2e/fixtures/`, or `blanks/<name>` for a blank document in `craftsuite_layer/assets/` (default `craftsuite-probe.pdf`), sent under its base name |
 | `open=0` | Open nothing |
 | `appfile=1` | Let the app load the probe itself with `?file=` instead of sending it with `open` |
 | `ack=0` | Never confirm saves |
@@ -156,16 +159,17 @@ The project `nextcloud-chromium` runs three specs in a real Nextcloud with the a
 | Spec | What it checks |
 |---|---|
 | `nextcloud.spec.ts` | The editor page with PdfCraft: saves replace the opened file and Nextcloud keeps a version, two quick saves both reach Nextcloud, a reload of the app frame keeps the last save, exports become new files, after Sanitize the next Save continues the new file, a conflict becomes a copy that later saves follow, a missing ETag gives a copy too, a page another site opened asks first, the page explains files it cannot open, Close waits for a pending save, leaving asks |
-| `nextcloud-files.spec.ts` | The entries in Files ("Open in PdfCraft", PhotoCraft on a click for a PSD but not a PNG, DesignCraft for a `.designcraft`, a `.dxf` to CADCraft when it has an address and to VectorCraft otherwise), the settings page refusing unusable addresses (also one with a `?query`) and saving after Nextcloud's password dialog, shares to the second user (without download permission: no entry and 403; read-only: a save becomes a new file; no settings for non-admins), a `/f/<id>` link that another site opens getting the question first, and the German texts |
+| `nextcloud-files.spec.ts` | The entries in Files ("Open in PdfCraft", PhotoCraft on a click for a PSD but not a PNG, DesignCraft for a `.designcraft`, a `.dxf` to CADCraft when it has an address and to VectorCraft otherwise) and the Craft icons, the settings page refusing unusable addresses (also one with a `?query`), saving after Nextcloud's password dialog and the language an app starts in; `default app`: WordCraft and PdfCraft made the default app take the click on a `.docx` and a PDF, the settings page says what a click opens, the office app they replace (a hidden default of the test's own) gets a menu entry that opens it without leaving Files, the Viewer's View keeps the Viewer open for a PDF, and a PNG still opens in the Viewer; `new files`: the "+ New" entries (WordCraft's only as the default app) make files from the blanks that open in their app, with the time they were made as the creation time (DesignCraft, WordCraft, DeckCraft) and, for FilmCraft, the file's name as the project name, DeckCraft's and FilmCraft's under a name changed in Files' dialog; shares to the second user (without download permission: no entry and 403; read-only: a save becomes a new file; no settings for non-admins), a `/f/<id>` link that another site opens getting the question first, and the German texts |
 | `nextcloud-apps.spec.ts` | PhotoCraft, VectorCraft and DesignCraft saving the opened file as another type, and WordCraft saving a Word file another program wrote as a copy: the first save becomes a new file next to the original, later saves replace it, the original stays unchanged |
 
 It runs one test at a time: a test Nextcloud on SQLite answers parallel writes with `database is
 locked`. The tests log in with the given user, who must be an administrator, work in a folder of
 their own and check the results through WebDAV. A second user, `NEXTCLOUD_USER2`, must not be an
 administrator: the tests share files with that user and use the app without admin rights. The
-settings test in `nextcloud-files.spec.ts` changes `designcraft_url`, `vectorcraft_url` and
-`cadcraft_url` and saves the addresses of every app it found again when it ends (the other specs
-need them).
+tests in `nextcloud-files.spec.ts` that change settings (`designcraft_url`, `vectorcraft_url` and
+`cadcraft_url`, languages, default apps) note the addresses, languages and default apps as they
+found them, and an `afterEach` hook saves them again, also after a test that failed or timed out
+(the other specs need them).
 
 A test Nextcloud with Docker, for the default port base. It runs the App Store package, as
 users install it: `make appstore` stages it in `craftsuite_layer/build/stage/craftsuite_layer/`,
@@ -285,7 +289,7 @@ Workflows live in `.github/workflows/`:
 | Workflow, job | When | What |
 |---|---|---|
 | CI (`ci.yml`), `translators-and-tests` | pushes to `main`, pull requests, by hand | Lint, typecheck, the [hosting tests](#hosting-tests), and the end-to-end tests against the tested Craft versions |
-| CI, `nextcloud-app` | the same | `php -l` on PHP 8.2, 8.3, 8.4 and 8.5 (a deprecation fails too); on 8.2 also `appinfo/info.xml` against the App Store schema, `npm run l10n:check`, and the App Store package with the App Store's archive rules |
+| CI, `nextcloud-app` | the same | `php -l` on PHP 8.2, 8.3, 8.4 and 8.5 (a deprecation fails too); on 8.2 also `appinfo/info.xml` against the App Store schema, `npm run l10n:check`, `npm run blanks:check`, and the App Store package with the App Store's archive rules |
 | CI, `nextcloud-e2e` | the same | The project `nextcloud-chromium` in a Nextcloud started from the official images `nextcloud:34.0.4-apache` and `nextcloud:35.0.1-apache` (both on PHP 8.5), on SQLite, see [Testing in Nextcloud](#testing-in-nextcloud) |
 | Canary (`canary.yml`), `canary` | daily, by hand | Fetches the newest release of each Craft app and runs `translator-chromium` and every `<app>-<browser>` project against it: first the contract tests, then the `@ui` and `@language` tests, then the `NON_BLOCKING` projects |
 | Canary, `nextcloud-next` | the same | Reads `package.json` and `version.php` of Nextcloud's development branch (raw files, no API). Fails when `package.json` no longer asks for `@nextcloud/files` 4.x, the major whose action registry the Files entries use, and warns when the branch's major version is above the `max-version` in `appinfo/info.xml`. Nothing else of the server is checked. |
@@ -309,7 +313,11 @@ failed and is listed in the summary, so that a release that changes the timing g
   the test environment changed. The summary advises holding a new release back, and the run opens
   an issue labelled `canary` (or comments on the open one); the next passing run closes it. This
   happens before sites that wait a day take the release (see
-  [hosting.md](hosting.md#updates)).
+  [hosting.md](hosting.md#updates)). When a spec's check of the "+ New" blank fails (it opens
+  `blanks/blank.<ext>`, and for WordCraft, GridCraft and PdfCraft also
+  `blanks/blank-letter.<ext>`), the release changed what it takes as its own new document:
+  `craftsuite_layer/blanks.mjs` needs the release's format, not the translator; until then the
+  entry makes files the app saves as copies or does not open.
 - **Only `@ui` or `@language` tests fail.** The run passes, and an issue labelled `canary-ui`
   tracks the failure until the tests pass again. With a new release, the summary names the specs
   whose `AT` pointer positions need updating, and those whose language test fails: the release
@@ -327,8 +335,9 @@ failed and is listed in the summary, so that a release that changes the timing g
   reminder: that release needs a row in the `nextcloud-e2e` matrix and a wider range before it
   ships.
 - **No run.** GitHub may skip a scheduled run, and turns the schedule off after 60 days without
-  activity in the repository; then no issue opens or closes. The first scheduled run, due on
-  12 October 2026, never started, and the canary first ran by hand that day. When the Actions
+  activity in the repository; then no issue opens or closes. The first scheduled run, due at
+  04:23 UTC on 12 October 2026, did not start then: the canary first ran by hand that day, and
+  the first scheduled run started at 12:12 UTC. When the Actions
   tab shows no run for a day (the Canary badge shows only the latest result, not when it ran),
   start one there (Run workflow, branch `main`), and turn the schedule back on if GitHub turned it
   off. Sites that update from the
@@ -389,25 +398,39 @@ download them; only the check that the canary has run uses it ([hosting.md](host
    `npm run craft:fetch`, the test server serves it at `/<app>/` with the adapter of the same
    name.
 4. Add `tests/e2e/specs/<app>.spec.ts`, a few scenario tests, one `@ui` test and, if the app can
-   start in a chosen language, one `@language` test (see [Writing tests](#writing-tests)), and the app to `apps` in `tests/e2e/playwright.config.ts`,
-   which defines the projects `<app>-chromium` and `<app>-webkit`; the canary picks up projects
-   by that name. List `<app>-webkit` in `NON_BLOCKING` in both workflows until it has passed on
-   a GitHub runner.
+   start in a chosen language, one `@language` test (see [Writing tests](#writing-tests)), and the
+   app to `apps` in `tests/e2e/playwright.config.ts`, which defines the projects `<app>-chromium`
+   and `<app>-webkit`; the canary picks up projects by that name. List `<app>-webkit` in
+   `NON_BLOCKING` in both workflows until it has passed on a GitHub runner.
 5. Add the app to `CraftApps::APPS` in `craftsuite_layer/lib/Service/CraftApps.php`: its name, the
    extensions it opens, those it opens on a click in Files, and `languages`, the BCP 47 tags of its
    adapter's `LANGUAGES` table (`[]` if its web build reads no language). The settings field, the
-   `<app>_url` and `<app>_language` keys and the Files entries follow from that list. For its
-   icon in Files, add its file types to `MimeIcons::ICONS` (and to `FileTypes::MAPPINGS` where
-   Nextcloud has no type for them), its icon to `img/types/` with `MimeIcons::FILES`, and its
-   copyright to `REUSE.toml` and `img/types/LICENSE-MIT.txt`. If another app already opens a
-   click type of the new one, decide which gets the click (`PREFERRED`). CI's Nextcloud job sets
-   an address for every app in `craft-versions.json`; add the app to the Docker example under
-   [Testing in Nextcloud](#testing-in-nextcloud) too.
-6. The hosting tests run on every fetched build (`hosting/tests/inject-translator.test.sh`). If the
+   `<app>_url`, `<app>_language` and `<app>_default_app` keys and the Files entries follow from
+   that list. For its icon in Files, add its file types to `MimeIcons::ICONS` (and to
+   `FileTypes::MAPPINGS` where Nextcloud has no type for them), its icon to `img/types/` with
+   `MimeIcons::FILES`, and its copyright to `REUSE.toml` and `img/types/LICENSE-MIT.txt`. If
+   another app already opens a click type of the new one, decide which gets the click
+   (`PREFERRED`). CI's Nextcloud job sets an address for every app in `craft-versions.json`; add
+   the app to the Docker example under [Testing in Nextcloud](#testing-in-nextcloud) too, and to
+   `APPS` in `tests/e2e/specs/nextcloud-files.spec.ts`, and to its `LANGUAGE_APPS` and
+   `DEFAULT_APPS` where the app has these settings: the tests compare them with the settings page.
+6. If the app makes new documents, give it a "+ New" entry: its format in `NewFiles::FORMATS`
+   (the extension, the MIME type the user's templates must have, the aspect ratio of their
+   previews) and the entry's name in `NewFiles::label()`, with its German texts (see
+   [Conventions](#conventions)). Add its blank to `blanks.mjs` (an A4 and a Letter one, listed in
+   `NewFiles::PAPER`, where the page size matters) and write it with `npm run blanks:write`; where
+   the app keeps a creation time or a name its adapter tells documents by, the blank gets a
+   stand-in that `NewFiles::stamped()` replaces. A blank with parts of the app's own saves needs
+   their copyright in `REUSE.toml` and `assets/LICENSE-MIT.txt`. The entry's icon is the app's
+   48 px icon (`assets/app-icon/hicolor/48x48/apps/` in its repository) as `img/new/<app>.png`,
+   with its copyright in `REUSE.toml` and `img/new/LICENSE-MIT.txt`. Add a scenario to
+   `<app>.spec.ts` that opens the blank (`name=blanks/blank.<ext>`) and checks that its first save
+   is the document.
+7. The hosting tests run on every fetched build (`hosting/tests/inject-translator.test.sh`). If the
    app's page never dispatches `TrunkApplicationStarted`, loads large files after `load`, has file
    names without a content hash or ships a service worker, say so in `docs/hosting.md` and
    `hosting/README.md` (startup timeout, caching, `sw.js`).
-7. New fixtures need an entry in `REUSE.toml` (upstream content under upstream's license), and a
+8. New fixtures need an entry in `REUSE.toml` (upstream content under upstream's license), and a
    row in the fixtures table above. Name the app wherever all apps are listed: the README, the
    documentation index, `docs/architecture.md`, `docs/nextcloud-app.md`, `translators/README.md`,
    `craftsuite_layer/appinfo/info.xml` and both changelogs.

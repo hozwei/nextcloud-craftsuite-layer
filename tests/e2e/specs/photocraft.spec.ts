@@ -15,7 +15,8 @@
 //                 that the user brings in (File > Open; in Chromium also a drop from the desktop)
 //                 is never the document. An opened Untitled-1.png, named like a new document, is
 //                 never saved back: its save and that of a new document (File > New), both
-//                 'Untitled-1.psd', are new files
+//                 'Untitled-1.psd', are new files. The blank of the "+ New" entry in Files opens,
+//                 and its first Ctrl+S (no edit) arrives as the document 'blank.psd'
 //   startup      a preset storage (IndexedDB) that never answers delays PhotoCraft's drop target
 //                 by 10 s: the host gets no error, and the file opens once the app takes drops
 //   language      the host's de: ready reports de, PhotoCraft's stored preference and the
@@ -68,6 +69,7 @@ interface HostSave {
   id: number;
   kind: 'document' | 'export';
   openId: number | null;
+  follows: number | null;
   name: string;
   size: number;
   sha256: string;
@@ -545,6 +547,15 @@ test('another type: an opened PNG is saved as <stem>.psd, the document; a same-n
     expectPsd(bytes, { width: 40, height: 40 });
     expectNoDownloads(downloads);
   }));
+
+  // craftsuite_layer/assets/blank.psd, made by blanks.mjs: PhotoCraft's own new document, so only
+  // its name tells its save from a new document's.
+  await scenario(context, 'the + New blank opens and its first save replaces it', async (page, downloads) => {
+    const app = await openInHost(page, 'blanks/blank.psd');
+    await press(page, app, KEY.save); // no edit needed: a dropped file has no path, so Save always saves
+    expect((await hostSave(page, 1)).save).toMatchObject({ kind: 'document', openId: 1, follows: null, name: 'blank.psd' });
+    expectNoDownloads(downloads);
+  });
 });
 
 test('startup: a preset storage that never answers delays the drop target, the host gets no error', async ({ page }) => {

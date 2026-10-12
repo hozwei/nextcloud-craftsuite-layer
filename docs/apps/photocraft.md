@@ -199,7 +199,9 @@ PhotoCraft for `psd`, `psb`, `pcraft`, `tga`, `png`, `jpg`, `jpeg`, `webp`, `gif
 `tiff`, `ico`, `heic` and `heif`, and makes it the default action in Files only for `psd`, `psb`,
 `pcraft` and `tga`, which no common Nextcloud app opens; the Viewer opens `png`, `jpeg`, `gif`,
 `bmp`, `webp` and `ico`, and `heic`, `heif` and `tiff` when their preview providers are enabled.
-The app matches by extension, so types without a Nextcloud MIME type of their own (`psb`,
+An administrator can make PhotoCraft the default app ([nextcloud-app.md](../nextcloud-app.md#configuring)):
+then a click opens all these pictures in PhotoCraft instead of the Viewer, also the `jpg`, `png`,
+`tif` and `webp` that LightCraft offers. The app matches by extension, so types without a Nextcloud MIME type of their own (`psb`,
 `pcraft`: `application/octet-stream`) need no mapping for that; for the PhotoCraft icon in Files
 it registers `application/x-photoshop` for `psb` and `application/x-photocraft` for `pcraft`
 ([nextcloud-app.md](../nextcloud-app.md#file-type-icons)). Left out on purpose: `pdn` (every save
@@ -362,7 +364,7 @@ contract tests; the canary runs them apart from the `language` test (tagged `@la
 | Test | What it checks |
 |---|---|
 | `contract` | An allowed host, `probe.psd` opened: the handshake with the served app version, then the open. An edit (Invert) saved with Ctrl+S arrives as the document `probe.psd`, a PSD with the edit; a second edit (Desaturate) saved with Save As is the document again. Quick Export as PNG arrives as an export `probe.png`. Nothing becomes a browser download, also not after the deadlines for the host's confirmation and result. |
-| `another type` | `probe.png` opened: Ctrl+S arrives as the document `probe.psd` with the open's `openId`, and so does the second Ctrl+S; Quick Export as PNG, under the opened file's own name, is an export. A different `probe.psd` opened with File > Open, and in Chromium one dropped from the desktop, saves as an export. `Untitled-1.png` opened (the PNG fixture under that name): its own save and that of a new document (File > New, Enter), both `Untitled-1.psd`, arrive as exports. |
+| `another type` | `probe.png` opened: Ctrl+S arrives as the document `probe.psd` with the open's `openId`, and so does the second Ctrl+S; Quick Export as PNG, under the opened file's own name, is an export. A different `probe.psd` opened with File > Open, and in Chromium one dropped from the desktop, saves as an export. `Untitled-1.png` opened (the PNG fixture under that name): its own save and that of a new document (File > New, Enter), both `Untitled-1.psd`, arrive as exports. The blank of the "+ New" entry in Files (`craftsuite_layer/assets/blank.psd`) opens, and its first Ctrl+S, without an edit, arrives as the document `blank.psd` (no `follows`) and not as a browser download. |
 | `startup` | An IndexedDB that never answers: PhotoCraft takes drops only after 10 s, and the host gets no error, then `ready` and `delivered`. |
 | `language` | The host's `de` (`lang=de`): `ready` reports `de`, the stored `interface.language` and the adapter's mark are `de`, and the palette runs `Öffnen` (File > Open in German), which opens the file picker. Then, with no PhotoCraft running, `fr` is stored as the user's own choice, and PhotoCraft starts again with the host's `de`: `ready` reports `null`, `fr` stays, and the palette runs `Ouvrir` (File > Open in French). |
 | `ui` (`@ui`) | The paths that need pointer clicks: File > Save in the menu bar saves the document; the Export button of the Export As dialog exports `probe.png`; the first name on About > Contributors (a link, with target `_blank` since 0.7.0) opens a new window and the editor stays. |

@@ -2,9 +2,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
 // Admin settings: sends the form (templates/admin.php) to SettingsController and shows the result.
-// The server checks every address and language and saves nothing if one is not acceptable. It
-// requires a recent password confirmation; Nextcloud's own dialog asks for it when needed. The
-// languages an app can start in come as tags ('pt-BR'); each is shown by its own name.
+// The server checks every address, language and default app and saves nothing if one is not
+// acceptable; after a save it says per app what a click in Files opens now. It requires a recent
+// password confirmation; Nextcloud's own dialog asks for it when needed. The languages an app can
+// start in come as tags ('pt-BR'); each is shown by its own name.
 
 import { generateUrl } from '@nextcloud/router';
 import { t } from './l10n.ts';
@@ -32,18 +33,28 @@ function confirmPassword(): Promise<void> {
   return new Promise((resolve, reject) => pc.requirePasswordConfirmation(resolve, {}, () => reject(new Error('cancelled'))));
 }
 
-// The hint under an app's row shows the problem with its address, else the one with its language.
-function showHint(input: HTMLInputElement, error: string | null, languageError: string | null): void {
+interface Problems {
+  error: string | null;
+  languageError: string | null;
+  defaultAppError: string | null;
+}
+
+// The hint under an app's row shows the problem with its address, else the one with its language
+// or its default app setting, else what the app opens (and a click opens in it).
+function showHint(input: HTMLInputElement, { error, languageError, defaultAppError }: Problems, text?: string): void {
   const hint = document.getElementById(`${input.id}-hint`);
   if (!hint) return;
-  hint.textContent = error ?? languageError ?? hint.dataset.hint ?? '';
-  hint.classList.toggle('craftsuite-admin__hint--error', (error ?? languageError) !== null);
+  if (text !== undefined) hint.dataset.hint = text;
+  const problem = error ?? languageError ?? defaultAppError;
+  hint.textContent = problem ?? hint.dataset.hint ?? '';
+  hint.classList.toggle('craftsuite-admin__hint--error', problem !== null);
   const mark = (field: Element | null, bad: boolean) => {
     if (bad) field?.setAttribute('aria-invalid', 'true');
     else field?.removeAttribute('aria-invalid');
   };
   mark(input, error !== null);
   mark(document.getElementById(`${input.id}-language`), languageError !== null);
+  mark(document.getElementById(`${input.id}-default`), defaultAppError !== null);
 }
 
 async function save(event: SubmitEvent): Promise<void> {
@@ -51,6 +62,7 @@ async function save(event: SubmitEvent): Promise<void> {
   if (!form || !status) return;
   const inputs = [...form.querySelectorAll<HTMLInputElement>('input[name]')];
   const selects = [...form.querySelectorAll<HTMLSelectElement>('select[data-app]')];
+  const checks = [...form.querySelectorAll<HTMLInputElement>('input[type=checkbox][data-app]')];
   const button = form.querySelector<HTMLButtonElement>('button[type=submit]');
   if (button) button.disabled = true;
   status.textContent = t('craftsuite_layer', 'Saving …');
@@ -63,12 +75,20 @@ async function save(event: SubmitEvent): Promise<void> {
       body: JSON.stringify({
         urls: Object.fromEntries(inputs.map((input) => [input.name, input.value.trim()])),
         languages: Object.fromEntries(selects.map((select) => [select.dataset.app ?? '', select.value])),
+        defaultApps: Object.fromEntries(checks.map((check) => [check.dataset.app ?? '', check.checked])),
       }),
     });
     const body = (await res.json().catch(() => ({}))) as {
-      errors?: Record<string, string>; languageErrors?: Record<string, string>; message?: string;
+      errors?: Record<string, string>; languageErrors?: Record<string, string>; defaultAppErrors?: Record<string, string>;
+      hints?: Record<string, string>; message?: string;
     };
-    for (const input of inputs) showHint(input, body.errors?.[input.name] ?? null, body.languageErrors?.[input.name] ?? null);
+    for (const input of inputs) {
+      showHint(input, {
+        error: body.errors?.[input.name] ?? null,
+        languageError: body.languageErrors?.[input.name] ?? null,
+        defaultAppError: body.defaultAppErrors?.[input.name] ?? null,
+      }, body.hints?.[input.name]);
+    }
     status.textContent = res.ok ? t('craftsuite_layer', 'Saved')
       : body.errors ? t('craftsuite_layer', 'Nothing was saved. Correct the marked fields.')
         : res.status === 403 ? t('craftsuite_layer', 'Nothing was saved: confirm your password and try again.')

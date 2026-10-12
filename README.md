@@ -35,8 +35,12 @@ frame and the file loaded. What the user saves in the app goes back into Nextclo
   session) reaches the user as the browser download the app would have made without this layer.
 
 A click on a file opens the Craft app only for types no common Nextcloud app opens. A PDF, PNG
-or SVG keeps its Nextcloud viewer on a click, and Office files keep Nextcloud Office or
-ONLYOFFICE; the Craft app is in their action menu.
+or SVG keeps its Nextcloud viewer on a click, and Office files keep Nextcloud Office, ONLYOFFICE
+or Euro-Office; the Craft app is in their action menu. An administrator can make a Craft app the
+default app for all its types: then a click opens a `.docx` in WordCraft, for example, and the
+other app moves to the action menu ([docs/nextcloud-app.md](docs/nextcloud-app.md#configuring)).
+The "+ New" menu of Files makes new files for the Craft apps, such as a PSD for PhotoCraft, and
+opens them in the app ([docs/nextcloud-app.md](docs/nextcloud-app.md#new-files)).
 
 | App | Tested version | In the action menu for | Also on a click on the file |
 |---|---|---|---|
@@ -96,7 +100,7 @@ The app is not in the Nextcloud App Store. Each
 | `SHA256SUMS` | The checksums of both |
 
 ```sh
-v=0.3.0
+v=0.4.0
 base=https://github.com/hozwei/nextcloud-craftsuite-layer/releases/download/v$v
 curl -fL --remote-name-all "$base/craftsuite_layer-$v.tar.gz" \
   "$base/craftsuite-layer-hosting-$v.tar.gz" "$base/SHA256SUMS"

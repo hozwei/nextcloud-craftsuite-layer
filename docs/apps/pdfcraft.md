@@ -228,7 +228,7 @@ choice made in either place, apply to both.
 far, so neither CI nor the canary lets it decide a run until it has passed on a GitHub runner
 (see [development.md](../development.md#continuous-integration)).
 
-The spec has six tests, and its header lists them with their scenarios. The first four are the
+The spec has seven tests, and its header lists them with their scenarios. The first five are the
 contract tests; the canary runs them apart from the `language` test (tagged `@language`) and the
 `@ui` test.
 
@@ -238,6 +238,7 @@ contract tests; the canary runs them apart from the `language` test (tagged `@la
 | `fallbacks` | A host that never confirms: the save becomes a download after the confirmation timeout. A host that reports a failed store: the save is downloaded at once, with the edit. |
 | `inactive` | At top level, and under a host on an origin that is not allowed (which sends forged `init` and `open` messages), the translator stays inactive and Save is an ordinary download. |
 | `startup` | The `.wasm` module cannot load: the host gets one error, of `startup`, saying `the app failed to load: ...`, and no `ready`. |
+| `blank` | The blanks of the "+ New" entry in Files (`craftsuite_layer/assets/blank.pdf` on A4 and `blank-letter.pdf`) open, and their first save (Ctrl+S, no edit) arrives as the document under the opened name (no `follows`); nothing becomes a browser download. |
 | `language` | The host's language `de`: `ready` names it, PdfCraft's preferences hold `de` with the adapter's mark, and the command palette finds the German `Öffnen…` (Open…), which opens the file chooser (in English nothing matches). Then a language the user picked in the app (`fr`, stored while no PdfCraft runs) stays: the next start with `de` leaves it, and `ready` names no language. |
 | `ui` (`@ui`) | The paths that need pointer clicks: the toolbar Save button saves the document; an Action Wizard result under the document's own name arrives as an export; the attachment `../../Team/Budget 2026.pdf` arrives as `Budget 2026.pdf`; the link to a contributor in About > Contributors opens a new window and the editor stays. |
 

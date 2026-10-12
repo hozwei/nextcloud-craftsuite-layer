@@ -248,6 +248,11 @@ jobs:
         if: matrix.package
         run: npm run l10n:check
 
+      # The blank documents of the "+ New" entries are what craftsuite_layer/blanks.mjs makes.
+      - name: Check the blank documents
+        if: matrix.package
+        run: npm run blanks:check
+
       - name: Build the App Store package
         id: package
         if: matrix.package

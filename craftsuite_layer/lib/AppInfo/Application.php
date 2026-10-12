@@ -11,7 +11,9 @@ namespace OCA\CraftsuiteLayer\AppInfo;
 
 use OCA\CraftsuiteLayer\ConfigLexicon;
 use OCA\CraftsuiteLayer\Listener\AddMimeTypeAliases;
+use OCA\CraftsuiteLayer\Listener\FillNewFile;
 use OCA\CraftsuiteLayer\Listener\LoadFilesScripts;
+use OCA\CraftsuiteLayer\Listener\RegisterNewFileCreators;
 use OCA\CraftsuiteLayer\Service\MimeIcons;
 use OCA\Files\Event\LoadAdditionalScriptsEvent;
 use OCP\AppFramework\App;
@@ -19,6 +21,8 @@ use OCP\AppFramework\Bootstrap\IBootContext;
 use OCP\AppFramework\Bootstrap\IBootstrap;
 use OCP\AppFramework\Bootstrap\IRegistrationContext;
 use OCP\AppFramework\Http\Events\BeforeTemplateRenderedEvent;
+use OCP\Files\Template\FileCreatedFromTemplateEvent;
+use OCP\Files\Template\RegisterTemplateCreatorEvent;
 
 /**
  * Entry point of the app. Nextcloud finds this class through <namespace> in appinfo/info.xml
@@ -41,6 +45,10 @@ class Application extends App implements IBootstrap {
 		// the pages that pick icons in the browser (lib/Service/MimeIcons.php, FileTypes.php).
 		MimeIcons::register($this->getContainer());
 		$context->registerEventListener(BeforeTemplateRenderedEvent::class, AddMimeTypeAliases::class);
+		// The Craft apps' entries in the "+ New" menu of Files, and the blank document a new file
+		// gets (lib/Service/NewFiles.php).
+		$context->registerEventListener(RegisterTemplateCreatorEvent::class, RegisterNewFileCreators::class);
+		$context->registerEventListener(FileCreatedFromTemplateEvent::class, FillNewFile::class, FillNewFile::PRIORITY);
 	}
 
 	public function boot(IBootContext $context): void {

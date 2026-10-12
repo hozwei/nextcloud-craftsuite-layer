@@ -15,9 +15,11 @@
 //              saved as a copy: the first save is a new file, the next one replaces that file;
 //              Document1.docx with a creation time saves as the document, and a new document
 //              saved under the same name is a new file; Document1.docx without one is never saved
-//              back; after a recipient list arrives (a .csv drop), a save under the opened name is
-//              a new file; so is the save of a copy of the opened file that the user opens with
-//              File > Open, and (Chromium) drops from the desktop
+//              back; the blanks of the "+ New" entry in Files (blanks/blank.docx on A4, and
+//              blank-letter.docx) open, and their first saves are the document; after a recipient
+//              list arrives (a .csv drop), a save
+//              under the opened name is a new file; so is the save of a copy of the opened file
+//              that the user opens with File > Open, and (Chromium) drops from the desktop
 //   ui (@ui)   File > Export with the pointer, on an opened .odt: PDF and OpenDocument Text (under
 //              the opened name) arrive as new files, Word document as the document; Mailings >
 //              Finish & Merge on an opened Document1.docx, with recipients from a .txt dropped
@@ -318,13 +320,15 @@ async function typeNewList(page: Page, app: Frame, firstName: string) {
 }
 
 // Loads the test host with a fixture and waits until the translator has handed it to the app.
-// `bytes` serves those bytes under `name` instead of a file in fixtures/wordcraft/.
+// `bytes` serves those bytes under `name` instead of a file in fixtures/wordcraft/. A name under
+// blanks/ is a blank of the "+ New" entries in Files (craftsuite_layer/assets/).
 async function openInHost(page: Page, name: string, query = '', bytes?: Buffer) {
   if (bytes) {
     await page.route(`${HOST}files/wordcraft/${encodeURIComponent(name)}`,
       (route) => route.fulfill({ body: bytes, contentType: 'application/octet-stream' }));
   }
-  await page.goto(`${HOST}?target=wordcraft&name=${encodeURIComponent(`wordcraft/${name}`)}${query}`);
+  const file = name.startsWith('blanks/') ? name : `wordcraft/${name}`;
+  await page.goto(`${HOST}?target=wordcraft&name=${encodeURIComponent(file)}${query}`);
   await untilHost(page, 'the translator delivered the file (or reported an error)',
     (h) => h.state === 'delivered' || h.errors.length > 0, 90_000);
   expect((await hostRecord(page)).errors, 'translator errors while opening').toEqual([]);
@@ -522,7 +526,7 @@ test('contract: an allowed host opens the file and stores every save, nothing is
 });
 
 test('saved-as: interchange formats, copies, new documents and files from elsewhere', async ({ context, browserName }) => {
-  test.slow(); // eight scenarios, each loading the 36 MB app
+  test.slow(); // ten scenarios, each loading the 36 MB app
 
   // WordCraft saves every opened file that is not a Word package as '<stem>.docx' and keeps that
   // name for later saves (ui-egui/src/lib.rs default_save_name).
@@ -587,6 +591,17 @@ test('saved-as: interchange formats, copies, new documents and files from elsewh
     expectSaved(bytes);
     expectNoDownloads(downloads);
   });
+
+  // The blank of the "+ New" entry in Files (craftsuite_layer/blanks.mjs): WordCraft's own .docx
+  // with a creation time and no title, so it saves under the opened name, as the document.
+  for (const name of ['blank.docx', 'blank-letter.docx']) {
+    await scenario(context, `the + New blank ${name} opens, and its first save is the document`, async (page, downloads) => {
+      const app = await openInHost(page, `blanks/${name}`);
+      await press(page, app, 'Control+s');
+      expectDocument((await hostSave(page, 1)).save, name);
+      expectNoDownloads(downloads);
+    });
+  }
 
   await scenario(context, 'after a recipient list arrives, a save under the opened name is a new file', async (page, downloads) => {
     // From then on Finish & Merge can make a document that saves under the opened name with the

@@ -70,7 +70,7 @@ class EditorController extends Controller {
 		}
 		// The app comes from the Files entry the user chose (?app=); without it, the app that opens
 		// this type of file. Either way only an app the admin configured, and only for its types.
-		$app = $app !== '' ? $app : (CraftApps::forFileName($node->getName(), $this->craftApps->configured()) ?? '');
+		$app = $app !== '' ? $app : (CraftApps::forFileName($node->getName(), $this->craftApps->configured(), $this->craftApps->defaultApps()) ?? '');
 		if (!CraftApps::opens($app, $node->getName())) {
 			return $this->error($this->l->t('No Craft app opens this type of file.'), Http::STATUS_BAD_REQUEST);
 		}

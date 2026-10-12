@@ -16,12 +16,14 @@
 //              time, and so does the next save; 'Deck.v2.PPSX' saves as 'Deck.v2.deckcraft'. A
 //              .deckcraft written by a newer DeckCraft, and a PowerPoint file named .deckcraft,
 //              save as a copy: the first save is a new file, the next one replaces that file.
-//              Presentation2.deckcraft from PowerPoint (a creation time) saves as the document,
-//              while a new presentation (Ctrl+N) and the sample deck (Next Window) saved meanwhile
-//              are new files. Presentation2.deckcraft and 'Northern Lights.deckcraft' without a
-//              creation time are never saved back. A PowerPoint file the adapter did not see
-//              arrive, and a presentation with the opened name that the user opens with Open
-//              (Ctrl+O; in Chromium also one dropped from the desktop), save as new files
+//              The blank of the "+ New" entry in Files (blanks/blank.deckcraft) opens, and its
+//              first save, without an edit, is the document. Presentation2.deckcraft from
+//              PowerPoint (a creation time) saves as the document, while a new presentation
+//              (Ctrl+N) and the sample deck (Next Window) saved meanwhile are new files.
+//              Presentation2.deckcraft and 'Northern Lights.deckcraft' without a creation time
+//              are never saved back. A PowerPoint file the adapter did not see arrive, and a
+//              presentation with the opened name that the user opens with Open (Ctrl+O; in
+//              Chromium also one dropped from the desktop), save as new files
 //   ui (@ui)   with the pointer, on an opened .pptx: a slide from the New Slide menu, then the
 //              title bar's Save button saves the document; the PowerPoint choice of the Export
 //              dialog, under the opened name, arrives as a new file
@@ -277,13 +279,15 @@ async function dropUnseen(page: Page, app: Frame, name: string, bytes: Buffer) {
 }
 
 // Loads the test host with a fixture and waits until the translator has handed it to the app.
-// `bytes` serves those bytes under `name` instead of a file in fixtures/deckcraft/.
+// `bytes` serves those bytes under `name` instead of a file in fixtures/deckcraft/. 'blanks/<file>'
+// opens a blank of the Nextcloud app's "+ New" entries (craftsuite_layer/assets/) as '<file>'.
 async function openInHost(page: Page, name: string, query = '', bytes?: Buffer) {
   if (bytes) {
     await page.route(`${HOST}files/deckcraft/${encodeURIComponent(name)}`,
       (route) => route.fulfill({ body: bytes, contentType: 'application/octet-stream' }));
   }
-  await page.goto(`${HOST}?target=deckcraft&name=${encodeURIComponent(`deckcraft/${name}`)}${query}`);
+  const file = name.startsWith('blanks/') ? name : `deckcraft/${name}`;
+  await page.goto(`${HOST}?target=deckcraft&name=${encodeURIComponent(file)}${query}`);
   await untilHost(page, 'the translator delivered the file (or reported an error)',
     (h) => h.state === 'delivered' || h.errors.length > 0, 90_000);
   expect((await hostRecord(page)).errors, 'translator errors while opening').toEqual([]);
@@ -474,7 +478,7 @@ test('contract: an allowed host opens the file and stores every save, nothing is
 });
 
 test('saved-as: saves under another name, copies, new presentations and files from the user', async ({ context, browserName }) => {
-  // Nine scenarios in a page each (eight outside Chromium).
+  // Ten scenarios in a page each (nine outside Chromium).
   test.slow();
 
   await scenario(context, 'an opened .pptx saves as <stem>.deckcraft, the document, and so does the next save', async (page, downloads) => {
@@ -536,6 +540,15 @@ test('saved-as: saves under another name, copies, new presentations and files fr
       expectNoDownloads(downloads);
     });
   }
+
+  // The blank of the "+ New" entry in Files: a native file from DeckCraft 0.5.0 with a creation
+  // time, which Save keeps. Should a release not open it, Ctrl+S saves the sample deck, a new file.
+  await scenario(context, 'the + New blank opens and its first save replaces it', async (page, downloads) => {
+    const app = await openInHost(page, 'blanks/blank.deckcraft');
+    await press(page, app, 'Control+s');
+    expectDocument((await hostSave(page, 1)).save, 'blank.deckcraft');
+    expectNoDownloads(downloads);
+  });
 
   await scenario(context, 'Presentation2.deckcraft from PowerPoint saves as the document; a new presentation and the sample deck saved meanwhile are new files', async (page, downloads) => {
     // The opened file and a new presentation are both titled 'Presentation2' and save as

@@ -13,6 +13,25 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-10-12
+
+### Added
+
+- Nextcloud app: a Craft app can be made the default app for all its file types, so that a click
+  in Files opens a `.docx` in WordCraft instead of Nextcloud Office, ONLYOFFICE or Euro-Office,
+  for example; see [`craftsuite_layer/CHANGELOG.md`](craftsuite_layer/CHANGELOG.md) and
+  docs/nextcloud-app.md, Configuring. A test with an office app's hidden default action covers it.
+- Nextcloud app: "+ New" entries for the Craft apps' own formats, with a blank document per app in
+  `craftsuite_layer/assets/`, made by `craftsuite_layer/blanks.mjs` (`npm run blanks:check` in CI);
+  each app's spec but LightCraft's opens its blank (WordCraft's, GridCraft's and PdfCraft's on A4
+  and Letter) and checks that the first save replaces it.
+
+### Changed
+
+- Translators: version 0.4.0 (released together with the Nextcloud app), with no other change.
+- The EffectCraft contract test runs Save Frame As through `window.effectcraft`: on GitHub's runner
+  its shortcut, pressed right after the command palette, opened the palette again (CI of 0.3.0).
+
 ## [0.3.0] - 2026-10-12
 
 ### Added
@@ -220,7 +239,8 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Documentation: an index (`docs/README.md`), architecture, protocol, security, hosting,
   development, the Nextcloud app, and one page per Craft app.
 
-[Unreleased]: https://github.com/hozwei/nextcloud-craftsuite-layer/compare/v0.3.0...main
+[Unreleased]: https://github.com/hozwei/nextcloud-craftsuite-layer/compare/v0.4.0...main
+[0.4.0]: https://github.com/hozwei/nextcloud-craftsuite-layer/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/hozwei/nextcloud-craftsuite-layer/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/hozwei/nextcloud-craftsuite-layer/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/hozwei/nextcloud-craftsuite-layer/releases/tag/v0.1.0

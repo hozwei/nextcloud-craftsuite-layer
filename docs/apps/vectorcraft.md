@@ -349,9 +349,13 @@ shares with `.ps`), `svgz` (`image/svg+xml-compressed`), `wmf` (`image/wmf`) and
 
 "Default" means a click in Files opens VectorCraft; it is meant only for types that no common
 Nextcloud app opens. `ai` stays a plain "open with": in Nextcloud 34 and 35 the PDF viewer
-(`files_pdfviewer`) opens `application/illustrator`, and Files gives the click to the Viewer's
-action before the layer's. `emf` and `wmf` stay a plain "open with": they are mostly pictures from
-office documents, and whether an office integration claims them was not checked.
+(`files_pdfviewer`) opens `application/illustrator` on a click, so VectorCraft takes `.ai` only
+as the default app. `emf` and `wmf` stay a plain "open with": they are mostly pictures from
+office documents, and whether an office integration claims them was not checked. An
+administrator can make VectorCraft the default app
+([nextcloud-app.md](../nextcloud-app.md#configuring)): then a click opens all the types offered in
+VectorCraft, also `ai`, `svg`, `emf`, `wmf` and `pdf`; a PDF still goes to PdfCraft when that is
+the default app too, and a `.dxf` to CADCraft while it has an address.
 
 ## Hosting notes
 
@@ -393,7 +397,7 @@ three are the contract tests; the canary runs them apart from the `language` tes
 | Test | What it checks |
 |---|---|
 | `contract` | An allowed host: the handshake with the served app version, then the open, which the host sends the moment `ready` arrives; that the file really opened shows in the save, which holds the opened drawing. An edit saved with Ctrl+S and Enter in the Save As dialog arrives as the document; a second Ctrl+S saves without asking, as the document again. Save as PDF arrives as an export. Nothing becomes a browser download, also not after the deadlines for the host's confirmation and result. |
-| `another name` | An SVG saves as `probe.vectorcraft`, the document, twice, while Export As SVG under the opened name stays an export. A renamed native file saves under its stored title, as the document; saved under its opened name instead (typed over the suggestion in the Save As dialog), it is the document too, also on the second Ctrl+S. `Untitled-1.vectorcraft` as the desktop app writes it (stored title `Untitled-1`, a creation time; made from the native fixture in the spec) saves as the document, keeping its creation time, and a new document (File > New) saved under the same name arrives as an export. |
+| `another name` | An SVG saves as `probe.vectorcraft`, the document, twice, while Export As SVG under the opened name stays an export. A renamed native file saves under its stored title, as the document; saved under its opened name instead (typed over the suggestion in the Save As dialog), it is the document too, also on the second Ctrl+S. `Untitled-1.vectorcraft` as the desktop app writes it (stored title `Untitled-1`, a creation time; made from the native fixture in the spec) saves as the document, keeping its creation time, and a new document (File > New) saved under the same name arrives as an export. The blank of the "+ New" entry in Files (`craftsuite_layer/assets/blank.vectorcraft`: an empty stored title, so the Save As dialog suggests the file's name, and a creation time) opens, and its first save (Ctrl+S and Enter, without an edit) arrives as the document `blank.vectorcraft` (no `follows`) and not as a browser download. |
 | `startup` | Without WebGPU and WebGL2: the host gets one error, of `startup`, with VectorCraft's own message, and no `ready`. |
 | `language` | The host's `fr`, in the frame's fragment, with the browser at `en-US`: `ready` reports `fr`, the frame's address has `lang=fr` and no fragment, and the loading text, recorded in the frame as it changes, was `Chargement de VectorCraft…`. The other tests run without a host language: the `startup` test expects VectorCraft's English message, and the `@ui` positions were measured in English. |
 | `ui` (`@ui`) | The paths that need pointer clicks: File > Save and OK in the Save As dialog save the document; File > Export > Export As SVG and OK in SVG Options give an export; the link to a contributor in About > Contributors opens a new window and the editor stays. |

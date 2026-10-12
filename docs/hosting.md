@@ -257,10 +257,10 @@ updater should:
    in its own language instead of the one the Nextcloud app asks for, until the adapter is fixed;
    files still open and save. Both are tracked by an issue labelled `canary-ui`.
 
-   No open issue is not enough on its own: GitHub starts scheduled runs late when it is busy,
-   sometimes skips one (the first scheduled run of this repository, due on 12 October 2026,
-   never started), and turns the schedule off after 60 days without activity in the
-   repository. Treat a release as tested only when a canary run started after it was published
+   No open issue is not enough on its own: GitHub starts scheduled runs late when it is busy
+   (the first scheduled run of this repository, due at 04:23 UTC on 12 October 2026, started at
+   12:12 UTC), sometimes skips one, and turns the schedule off after 60 days without activity in
+   the repository. Treat a release as tested only when a canary run started after it was published
    and ended with `success` or `failure` (a `cancelled` run, a timeout for example, tested
    nothing): the newest completed run of `canary.yml` on `main`, with `run_started_at` and
    `conclusion`, comes from

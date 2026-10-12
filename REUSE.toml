@@ -75,6 +75,90 @@ SPDX-FileCopyrightText = [
 ]
 SPDX-License-Identifier = "MIT OR Apache-2.0"
 
+# The blank documents of the "+ New" entries, written by craftsuite_layer/blanks.mjs: the PSD, PDF,
+# Word and DeckCraft ones from our own code; the others carry what the Craft app writes for a new
+# document (VectorCraft's swatches and graphic styles, DesignCraft's document, GridCraft's styles,
+# CADCraft's DXF, FilmCraft's and EffectCraft's new project), taken from the apps' own saves.
+[[annotations]]
+path = [
+  "craftsuite_layer/assets/blank.psd",
+  "craftsuite_layer/assets/blank*.pdf",
+  "craftsuite_layer/assets/blank*.docx",
+  "craftsuite_layer/assets/blank.deckcraft",
+]
+precedence = "override"
+SPDX-FileCopyrightText = "2026 The nextcloud-craftsuite-layer contributors"
+SPDX-License-Identifier = "AGPL-3.0-or-later"
+
+# The MIT notices of the blanks' parts that come from the apps, shipped with them in the app
+# package (written by craftsuite_layer/blanks.mjs).
+[[annotations]]
+path = "craftsuite_layer/assets/LICENSE-MIT.txt"
+precedence = "override"
+SPDX-FileCopyrightText = [
+  "2026 ArtCraft Team and the VectorCraft contributors",
+  "2026 ArtCraft Team and the DesignCraft contributors",
+  "2026 ArtCraft Team and the GridCraft contributors",
+  "2026 ArtCraft Team and the CADCraft contributors",
+  "2026 ArtCraft Team and the FilmCraft contributors",
+  "2026 ArtCraft Team and the EffectCraft contributors",
+]
+SPDX-License-Identifier = "MIT"
+
+[[annotations]]
+path = "craftsuite_layer/assets/blank.vectorcraft"
+precedence = "override"
+SPDX-FileCopyrightText = [
+  "2026 ArtCraft Team and the VectorCraft contributors",
+  "2026 The nextcloud-craftsuite-layer contributors",
+]
+SPDX-License-Identifier = "MIT OR Apache-2.0"
+
+[[annotations]]
+path = "craftsuite_layer/assets/blank.designcraft"
+precedence = "override"
+SPDX-FileCopyrightText = [
+  "2026 ArtCraft Team and the DesignCraft contributors",
+  "2026 The nextcloud-craftsuite-layer contributors",
+]
+SPDX-License-Identifier = "MIT OR Apache-2.0"
+
+[[annotations]]
+path = "craftsuite_layer/assets/blank*.xlsx"
+precedence = "override"
+SPDX-FileCopyrightText = [
+  "2026 ArtCraft Team and the GridCraft contributors",
+  "2026 The nextcloud-craftsuite-layer contributors",
+]
+SPDX-License-Identifier = "MIT OR Apache-2.0"
+
+[[annotations]]
+path = "craftsuite_layer/assets/blank.dxf"
+precedence = "override"
+SPDX-FileCopyrightText = [
+  "2026 ArtCraft Team and the CADCraft contributors",
+  "2026 The nextcloud-craftsuite-layer contributors",
+]
+SPDX-License-Identifier = "MIT OR Apache-2.0"
+
+[[annotations]]
+path = "craftsuite_layer/assets/blank.fcproj"
+precedence = "override"
+SPDX-FileCopyrightText = [
+  "2026 ArtCraft Team and the FilmCraft contributors",
+  "2026 The nextcloud-craftsuite-layer contributors",
+]
+SPDX-License-Identifier = "MIT OR Apache-2.0"
+
+[[annotations]]
+path = "craftsuite_layer/assets/blank.ecproj"
+precedence = "override"
+SPDX-FileCopyrightText = [
+  "2026 ArtCraft Team and the EffectCraft contributors",
+  "2026 The nextcloud-craftsuite-layer contributors",
+]
+SPDX-License-Identifier = "MIT OR Apache-2.0"
+
 # Written by craftsuite_layer/l10n.mjs from l10n/*.json, in the format Nextcloud's translationtool
 # writes (no room for a header).
 [[annotations]]
@@ -148,6 +232,86 @@ SPDX-FileCopyrightText = [
   "2026 ArtCraft Team and the DeckCraft contributors",
   "2026 ArtCraft Team and the CADCraft contributors",
   "2026 ArtCraft Team and the LightCraft contributors",
+  "2026 ArtCraft Team and the FilmCraft contributors",
+  "2026 ArtCraft Team and the EffectCraft contributors",
+]
+SPDX-License-Identifier = "MIT"
+
+# The icons of the Craft apps' entries in the "+ New" menu of Files: the apps' own 48 px hicolor
+# icons at the tested tag (assets/app-icon/hicolor/48x48/apps/ai.storyteller.<app>.png), unchanged.
+[[annotations]]
+path = "craftsuite_layer/img/new/pdfcraft.png"
+precedence = "override"
+SPDX-FileCopyrightText = "2026 ArtCraft Team and the PdfCraft contributors"
+SPDX-License-Identifier = "MIT OR Apache-2.0"
+
+[[annotations]]
+path = "craftsuite_layer/img/new/photocraft.png"
+precedence = "override"
+SPDX-FileCopyrightText = "2026 ArtCraft Team and the PhotoCraft contributors"
+SPDX-License-Identifier = "MIT OR Apache-2.0"
+
+[[annotations]]
+path = "craftsuite_layer/img/new/vectorcraft.png"
+precedence = "override"
+SPDX-FileCopyrightText = "2026 ArtCraft Team and the VectorCraft contributors"
+SPDX-License-Identifier = "MIT OR Apache-2.0"
+
+[[annotations]]
+path = "craftsuite_layer/img/new/designcraft.png"
+precedence = "override"
+SPDX-FileCopyrightText = "2026 ArtCraft Team and the DesignCraft contributors"
+SPDX-License-Identifier = "MIT OR Apache-2.0"
+
+[[annotations]]
+path = "craftsuite_layer/img/new/wordcraft.png"
+precedence = "override"
+SPDX-FileCopyrightText = "2026 ArtCraft Team and the WordCraft contributors"
+SPDX-License-Identifier = "MIT OR Apache-2.0"
+
+[[annotations]]
+path = "craftsuite_layer/img/new/gridcraft.png"
+precedence = "override"
+SPDX-FileCopyrightText = "2026 ArtCraft Team and the GridCraft contributors"
+SPDX-License-Identifier = "MIT OR Apache-2.0"
+
+[[annotations]]
+path = "craftsuite_layer/img/new/deckcraft.png"
+precedence = "override"
+SPDX-FileCopyrightText = "2026 ArtCraft Team and the DeckCraft contributors"
+SPDX-License-Identifier = "MIT OR Apache-2.0"
+
+[[annotations]]
+path = "craftsuite_layer/img/new/cadcraft.png"
+precedence = "override"
+SPDX-FileCopyrightText = "2026 ArtCraft Team and the CADCraft contributors"
+SPDX-License-Identifier = "MIT OR Apache-2.0"
+
+[[annotations]]
+path = "craftsuite_layer/img/new/filmcraft.png"
+precedence = "override"
+SPDX-FileCopyrightText = "2026 ArtCraft Team and the FilmCraft contributors"
+SPDX-License-Identifier = "MIT OR Apache-2.0"
+
+[[annotations]]
+path = "craftsuite_layer/img/new/effectcraft.png"
+precedence = "override"
+SPDX-FileCopyrightText = "2026 ArtCraft Team and the EffectCraft contributors"
+SPDX-License-Identifier = "MIT OR Apache-2.0"
+
+# The MIT notices of the icons above, shipped with them in the app package.
+[[annotations]]
+path = "craftsuite_layer/img/new/LICENSE-MIT.txt"
+precedence = "override"
+SPDX-FileCopyrightText = [
+  "2026 ArtCraft Team and the PdfCraft contributors",
+  "2026 ArtCraft Team and the PhotoCraft contributors",
+  "2026 ArtCraft Team and the VectorCraft contributors",
+  "2026 ArtCraft Team and the DesignCraft contributors",
+  "2026 ArtCraft Team and the WordCraft contributors",
+  "2026 ArtCraft Team and the GridCraft contributors",
+  "2026 ArtCraft Team and the DeckCraft contributors",
+  "2026 ArtCraft Team and the CADCraft contributors",
   "2026 ArtCraft Team and the FilmCraft contributors",
   "2026 ArtCraft Team and the EffectCraft contributors",
 ]

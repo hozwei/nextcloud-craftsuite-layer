@@ -302,8 +302,10 @@ For the Nextcloud app's list:
 | `csv` | a sheet named after the file; Save creates `<stem>.xlsx` next to it (the web build cannot write CSV) | yes | no |
 
 Match the extension in any letter case. Nextcloud 34 and 35 know MIME types for all four, but
-the app matches by extension anyway. No default: Nextcloud Office and ONLYOFFICE open these types
-on a click where they are installed, and without them Nextcloud Text opens `.csv`.
+the app matches by extension anyway. No default: Nextcloud Office, ONLYOFFICE and Euro-Office open
+these types on a click where they are installed, and without them Nextcloud Text opens `.csv`. An
+administrator can make GridCraft the default app ([nextcloud-app.md](../nextcloud-app.md#configuring));
+then a click opens all four in GridCraft, with the saves as in the table.
 
 Not offered: `xlsb` (a data import like ODS; it could be added the same way), the templates
 `xltx` and `xltm`, `tsv`, `txt` and `json` (too generic), and `xls` (GridCraft cannot open it).
@@ -322,7 +324,7 @@ contract tests; the canary runs them apart from the `language` test (tagged `@la
 | Test | What it checks |
 |---|---|
 | `contract` | An allowed host: the handshake with the served app version, then the open of an `.xlsx` GridCraft wrote. An edit saved with Ctrl+S arrives as the document under the opened name, with the edit; Save As (Ctrl+Shift+S) after another edit is the document again. The save of a new workbook (Ctrl+N, `Book1.xlsx`) arrives as a new file. Nothing becomes a browser download, also not after the deadlines for the host's confirmation and result. |
-| `saved-as` | `from-excel.xlsx`, and a GridCraft file with a customXml part added under an upper-case name (`CHANGED-ELSEWHERE.XLSX`, saved as `CHANGED-ELSEWHERE.xlsx`), are never replaced: the first save is a `document` that follows its own id, the next a `document` that follows the first (a copy). `macros.xlsm`, `data.ods` and `data.csv` save as `macros.xlsx`, `data (imported).xlsx` and `data.xlsx`, the document, twice. GridCraft's sales sample saves back unchanged as the document. An opened `Book1.xlsx` is never saved back, and neither is a new workbook's save under that name. A different `craftsuite-probe.xlsx` the user opens with File > Open (in Chromium also one dropped from the desktop) is never the document. |
+| `saved-as` | `from-excel.xlsx`, and a GridCraft file with a customXml part added under an upper-case name (`CHANGED-ELSEWHERE.XLSX`, saved as `CHANGED-ELSEWHERE.xlsx`), are never replaced: the first save is a `document` that follows its own id, the next a `document` that follows the first (a copy). `macros.xlsm`, `data.ods` and `data.csv` save as `macros.xlsx`, `data (imported).xlsx` and `data.xlsx`, the document, twice. GridCraft's sales sample saves back unchanged as the document. An opened `Book1.xlsx` is never saved back, and neither is a new workbook's save under that name. The blanks of the "+ New" entry in Files (`blank.xlsx` on A4 and `blank-letter.xlsx`, from `craftsuite_layer/assets/`, served by the test server) open, and their first saves are the document. A different `craftsuite-probe.xlsx` the user opens with File > Open (in Chromium also one dropped from the desktop) is never the document. |
 | `language` | The host's language under the browser locale `en-US`: with `lang=ru`, `ready` reports `ru` and the app frame's `navigator.language` is `ru`. GridCraft draws its labels into the canvas, so the rest is a picture: the ribbon's tab row is, byte for byte, the one a start without `lang` under the browser locale `ru-RU` shows (in a browser context of its own), and not the one of an English start. |
 | `ui` (`@ui`) | With the pointer: File > Save saves the document; Search Commands (the magnifier in the title bar), `file.exportPdf`, downloads `craftsuite-probe.pdf`, a new file. |
 

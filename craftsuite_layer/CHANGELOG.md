@@ -14,6 +14,38 @@ Each GitHub release takes its text from the section whose heading matches the ve
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-10-12
+
+### Added
+
+- The default app: a Craft app whose file types other apps open too (PdfCraft, PhotoCraft,
+  VectorCraft, WordCraft, GridCraft, DeckCraft, LightCraft) can be made the default app for all
+  its types, with a tick on the settings page ("On a click") or `occ config:app:set
+  craftsuite_layer <app>_default_app --value=true`. A click in Files then opens them in the Craft
+  app, before the Viewer, Nextcloud Office, ONLYOFFICE and Euro-Office. The app it replaces stays
+  in the file's menu; ONLYOFFICE and Euro-Office leave theirs out while they are set to open the
+  type, so the app adds it under their name. A type that is a Craft app's own stays with it. The
+  settings page says for each app which types a click opens in it.
+- Entries in the "+ New" menu of Files, one per Craft app with an address for its own format: New
+  PhotoCraft image (`.psd`), New VectorCraft drawing, New DesignCraft document, New DeckCraft
+  presentation, New CADCraft drawing (`.dxf`), New FilmCraft project and New EffectCraft project;
+  New WordCraft document (`.docx`), New GridCraft spreadsheet (`.xlsx`) and New PdfCraft document
+  (`.pdf`) only for a default app. The file gets the app's blank document (`assets/`: what the app
+  makes for a new document, checked with its tested version) and opens in the app. WordCraft's,
+  GridCraft's and PdfCraft's are on A4 pages, or on Letter where the user's Nextcloud locale is in
+  a region that uses Letter (or is Nextcloud's plain English). The user's own templates of the
+  type are offered as in other apps.
+
+### Changed
+
+- A Craft app's click entry now comes before the Viewer's View and Rename in a file's action menu
+  (order −20 instead of 10).
+
+### Fixed
+
+- Back from the editor page no longer opens the file again when Files had opened it by itself (a
+  link to the file, now also a new file): the entry takes `openfile` out of Files' address first.
+
 ## [0.3.0] - 2026-10-12
 
 ### Added

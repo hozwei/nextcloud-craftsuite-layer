@@ -32,6 +32,10 @@ use OCP\L10N\IFactory;
  * does without the layer, 'user' takes the user's Nextcloud language, anything else must be one of
  * the app's 'languages'. The editor page hands it to the translator in the frame's address
  * (docs/protocol.md), whose adapter applies it.
+ *
+ * An app with types that other apps in Nextcloud open too (a PDF, a PNG, a Word file) can be made
+ * the default app for all its types (<app>_default_app): a click in Files then opens them in the
+ * Craft app instead of the Viewer, Nextcloud Office, ONLYOFFICE or Euro-Office (clickApp()).
  */
 class CraftApps {
 	/**
@@ -91,9 +95,9 @@ class CraftApps {
 	];
 
 	/**
-	 * Extension => the app that opens it on a click when several configured apps have it as their
-	 * default. Without an entry the first of them in APPS wins. An app that is not configured
-	 * never takes the click away from one that is.
+	 * Extension => the app that opens it on a click when several configured apps claim it (as
+	 * their own type, or as default apps). Without an entry the first of them in APPS wins. An app
+	 * that is not configured never takes the click away from one that is.
 	 */
 	private const PREFERRED = ['dxf' => 'cadcraft'];
 
@@ -113,6 +117,53 @@ class CraftApps {
 
 	public static function languageKey(string $app): string {
 		return $app . '_language';
+	}
+
+	public static function defaultAppKey(string $app): string {
+		return $app . '_default_app';
+	}
+
+	/**
+	 * The types $app opens that are not its own ('default'): other apps in Nextcloud open them,
+	 * and a click goes to those unless the administrator made $app the default app. Empty for
+	 * apps whose types only Craft apps open; they have no such setting.
+	 *
+	 * @return list<string>
+	 */
+	public static function sharedExtensions(string $app): array {
+		return array_values(array_diff(self::APPS[$app]['extensions'] ?? [], self::APPS[$app]['default'] ?? []));
+	}
+
+	/** Whether the administrator made $app the default app for all its types. */
+	public function isDefaultApp(string $app): bool {
+		return self::sharedExtensions($app) !== []
+			&& $this->appConfig->getValueBool(Application::APP_ID, self::defaultAppKey($app), false);
+	}
+
+	/**
+	 * The apps the administrator made the default app for all their types, configured or not.
+	 *
+	 * @return list<string>
+	 */
+	public function defaultApps(): array {
+		return array_values(array_filter(array_keys(self::APPS), fn (string $app) => $this->isDefaultApp($app)));
+	}
+
+	/**
+	 * The line under an app on the settings page: the types it opens, and which of them a click in
+	 * Files opens in it with the current addresses and default apps.
+	 */
+	public function hint(string $app): string {
+		$dotted = fn (array $extensions) => implode(', ', array_map(fn (string $ext) => '.' . $ext, $extensions));
+		$all = self::APPS[$app]['extensions'] ?? [];
+		$clicks = self::clickExtensions($app, $this->configured(), $this->defaultApps());
+		if ($clicks === []) {
+			return $this->l->t('Opens: %s. On a click: none.', [$dotted($all)]);
+		}
+		if ($clicks === $all) {
+			return $this->l->t('Opens: %s. On a click: all.', [$dotted($all)]);
+		}
+		return $this->l->t('Opens: %1$s. On a click: %2$s.', [$dotted($all), $dotted($clicks)]);
 	}
 
 	/** The stored start language of the app ('', 'user' or a tag), as typed. */
@@ -169,28 +220,40 @@ class CraftApps {
 	}
 
 	/**
-	 * The app among $apps that opens files with extension $ext on a click in Files, or null.
+	 * The app among $apps that opens files with extension $ext on a click in Files, or null: an
+	 * app whose own type it is ('default'), else one of $defaultApps (made the default app for all
+	 * their types) that opens it at all. A Craft app's own type stays with it whatever the others'
+	 * setting. Among several apps, PREFERRED decides, else the first in $apps (callers pass them in
+	 * APPS order): a PDF goes to PdfCraft before VectorCraft, a PNG to PhotoCraft before LightCraft.
 	 *
 	 * @param list<string> $apps
+	 * @param list<string> $defaultApps
 	 */
-	public static function clickApp(string $ext, array $apps): ?string {
-		$claims = array_values(array_filter($apps, fn (string $app) => isset(self::APPS[$app]) && in_array($ext, self::APPS[$app]['default'], true)));
-		if ($claims === []) {
-			return null;
+	public static function clickApp(string $ext, array $apps, array $defaultApps = []): ?string {
+		$apps = array_values(array_filter($apps, fn (string $app) => isset(self::APPS[$app])));
+		foreach ([
+			fn (string $app) => in_array($ext, self::APPS[$app]['default'], true),
+			fn (string $app) => in_array($app, $defaultApps, true) && in_array($ext, self::APPS[$app]['extensions'], true),
+		] as $claims) {
+			$claimants = array_values(array_filter($apps, $claims));
+			if ($claimants !== []) {
+				$preferred = self::PREFERRED[$ext] ?? null;
+				return $preferred !== null && in_array($preferred, $claimants, true) ? $preferred : $claimants[0];
+			}
 		}
-		$preferred = self::PREFERRED[$ext] ?? null;
-		return $preferred !== null && in_array($preferred, $claims, true) ? $preferred : $claims[0];
+		return null;
 	}
 
 	/**
-	 * The extensions $app opens on a click in Files when $apps are configured: its defaults that
-	 * no other app among $apps takes (clickApp()).
+	 * The extensions $app opens on a click in Files when $apps are configured and $defaultApps
+	 * are the default apps for all their types: those of its types that clickApp() gives it.
 	 *
 	 * @param list<string> $apps
+	 * @param list<string> $defaultApps
 	 * @return list<string>
 	 */
-	public static function clickExtensions(string $app, array $apps): array {
-		return array_values(array_filter(self::APPS[$app]['default'] ?? [], fn (string $ext) => self::clickApp($ext, $apps) === $app));
+	public static function clickExtensions(string $app, array $apps, array $defaultApps = []): array {
+		return array_values(array_filter(self::APPS[$app]['extensions'] ?? [], fn (string $ext) => self::clickApp($ext, $apps, $defaultApps) === $app));
 	}
 
 	/**
@@ -199,11 +262,12 @@ class CraftApps {
 	 * opens it, the same among all apps, so that the editor can say which app is missing.
 	 *
 	 * @param list<string> $configured
+	 * @param list<string> $defaultApps the default apps for all their types (defaultApps())
 	 */
-	public static function forFileName(string $name, array $configured): ?string {
+	public static function forFileName(string $name, array $configured, array $defaultApps = []): ?string {
 		$ext = self::extension($name);
 		foreach ([$configured, array_keys(self::APPS)] as $apps) {
-			$app = self::clickApp($ext, $apps);
+			$app = self::clickApp($ext, $apps, $defaultApps);
 			if ($app !== null) {
 				return $app;
 			}

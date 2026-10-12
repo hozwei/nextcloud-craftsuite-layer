@@ -1,8 +1,8 @@
 // SPDX-FileCopyrightText: 2026 The nextcloud-craftsuite-layer contributors
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// The translator inside the real PdfCraft web build. See docs/apps/pdfcraft.md. Six tests; a test
-// with several scenarios runs each in its own page and reports every scenario that fails.
+// The translator inside the real PdfCraft web build. See docs/apps/pdfcraft.md. Seven tests; a
+// test with several scenarios runs each in its own page and reports every scenario that fails.
 //
 //   contract   allowed host: handshake with the served app version, open; edits saved with Ctrl+S
 //              arrive as the document (a second save extends the stored bytes), an export as a new
@@ -17,6 +17,8 @@
 //              foreign host: no handshake, forged init/open ignored, Save is a download
 //   startup    the app cannot load: the translator notices and tells the host instead of leaving
 //              it waiting
+//   blank      the blanks of the "+ New" entry in Files (A4 and Letter) open, and their first
+//              save (Ctrl+S, no edit) arrives as the document; nothing becomes a download
 //   language   the host's language de: ready names it, PdfCraft's preferences hold it with the
 //              adapter's mark, and the palette finds the German 'Öffnen…' (Open…), which opens the
 //              file chooser; a language the user picked in the app (fr, stored while no PdfCraft
@@ -475,6 +477,20 @@ test('startup: an app that cannot load reports it to the host', async ({ page })
   const types = await messageTypes(page);
   expect.soft(types, 'message types the host got').not.toContain('ready');
   expect.soft(types, 'message types the host got').not.toContain('delivered');
+});
+
+test('blank: the + New blanks open and their first save replaces them', async ({ page }) => {
+  // craftsuite_layer/assets/blank.pdf (A4) and blank-letter.pdf, made by blanks.mjs. PdfCraft
+  // saves without an edit, and an update of the blank (not a rewrite) is the document.
+  const downloads = trackDownloads(page);
+  for (const name of ['blank.pdf', 'blank-letter.pdf']) {
+    await test.step(name, async () => {
+      const app = await openInHost(page, `?name=blanks/${name}`);
+      await press(page, app, 'Control+s');
+      expect((await hostSave(page, 1)).save).toMatchObject({ kind: 'document', openId: 1, follows: null, name });
+    });
+  }
+  expectNoDownloads(downloads);
 });
 
 test('language: the host\'s language starts PdfCraft in it, a language picked in the app stays', { tag: '@language' }, async ({ page, context }) => {
