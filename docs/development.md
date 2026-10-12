@@ -348,7 +348,10 @@ root (the test tooling, and the libraries and esbuild that build the app's front
 Composer file of the Nextcloud app and the pinned actions, each release at least seven days old.
 Major updates come one by one. Majors of `@nextcloud/files` are ignored: the bundled major must
 be the one the supported servers ship, so it moves by hand, together with the range in
-`appinfo/info.xml` and the `nextcloud-e2e` matrix. The Nextcloud image tags in that matrix are
+`appinfo/info.xml` and the `nextcloud-e2e` matrix. Majors of `@types/node` are ignored too: they
+describe the Node.js the tooling runs on (24, `engines` in `package.json` and the workflows'
+`node-version`), so they move by hand, together with it. New TypeScript majors and minors move by
+hand, together with typescript-eslint, which supports only a range of TypeScript versions. The Nextcloud image tags in that matrix are
 moved by hand as well. `SCHEMA_COMMIT` is not covered and is moved by hand.
 
 ## Releasing

@@ -30,6 +30,11 @@ updates:
       # new TypeScript minor moves by hand together with typescript-eslint; patches still come.
       - dependency-name: 'typescript'
         update-types: ['version-update:semver-major', 'version-update:semver-minor']
+      # @types/node describes the Node.js the tooling runs on: 24, as in package.json's engines and
+      # the workflows' node-version. A newer major would let TypeScript accept APIs Node.js 24 lacks,
+      # so it moves by hand, together with those.
+      - dependency-name: '@types/node'
+        update-types: ['version-update:semver-major']
 
   - package-ecosystem: composer
     directory: /craftsuite_layer

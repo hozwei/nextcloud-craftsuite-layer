@@ -10,3 +10,4 @@ blob-report/
 /craftsuite_layer/vendor/
 /craftsuite_layer/build/
 *.log
+/.claude/

@@ -13,6 +13,11 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Changed
+
+- Dependabot no longer proposes majors of `@types/node`: the types follow the Node.js the tooling
+  runs on (24), so they move by hand together with it.
+
 ## [0.4.0] - 2026-10-12
 
 ### Added
