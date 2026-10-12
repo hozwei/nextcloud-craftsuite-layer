@@ -13,6 +13,62 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-10-12
+
+### Added
+
+- Seven more Craft apps, each with an adapter checked against its source and web build, a page
+  in `docs/apps/` and a spec with three scenario tests in Chromium and WebKit:
+  - WordCraft (`translators/wordcraft.js`, WordCraft 0.5.0): a save of a Word file WordCraft
+    wrote (`docProps/app.xml`) replaces it; a save of one another program wrote is a copy (see
+    below). An opened `.odt`, `.rtf`, `.doc` or `.dot` saves as `<stem>.docx` next to it. The
+    creation time in `docProps/core.xml` tells new documents (`Document1.docx`) apart. Once a
+    recipient list from a file reaches WordCraft, or the opened template's merge fields are
+    gone, saves under the opened name become new files: Finish & Merge copies the opened
+    document's title and creation time.
+  - GridCraft (`translators/gridcraft.js`, GridCraft 0.5.0) for `.xlsx`, `.xlsm`, `.ods` and
+    `.csv`: an `.xlsx` GridCraft wrote saves in place, one from another program as a copy;
+    `.xlsm`, `.ods` and `.csv` save as `<stem>.xlsx` (`<stem> (imported).xlsx` for ODS) next to
+    the original. New workbooks, samples and same-named files the user brings in become new
+    files.
+  - DeckCraft (`translators/deckcraft.js`, DeckCraft 0.5.0): an opened `.deckcraft` saves in
+    place, an opened `.pptx`, `.potx` or `.ppsx` as a new `<stem>.deckcraft` next to it. A
+    `.deckcraft` from a newer DeckCraft, or a PowerPoint file under a `.deckcraft` name, saves as
+    a copy. Exports (Export PowerPoint under the opened name too), new presentations, the sample
+    deck and presentations from the user's disk become new files.
+  - CADCraft (`translators/cadcraft.js`, CADCraft 0.5.0) for `.dxf`: a DXF that CADCraft 0.5.0
+    wrote, checked against its writer's vocabulary, saves in place; any other DXF as a copy.
+    New drawings (`Drawing<N>.dxf`), the sample (`Bracket.dxf`) and same-named drawings the user
+    brings in become new files.
+  - LightCraft (`translators/lightcraft.js`, LightCraft 0.6.0): open a photo, develop it, export
+    a new file next to it; nothing ever replaces a file. The adapter runs LightCraft in memory
+    mode (`store=memory&workers=0`) and opens nothing unless LightCraft confirms it, so photos
+    are not kept in the browser; the edits are gone when the editor closes.
+  - FilmCraft (`translators/filmcraft.js`, FilmCraft 0.6.0) for `.fcproj` projects: Save saves
+    back, Save As before the first Save stores `<project name>.fcproj` next to it. `ready` waits
+    until FilmCraft's graphics run (it dispatches no `TrunkApplicationStarted`), and the adapter
+    starts it with `fresh`, so earlier sessions kept in the browser do not come back.
+  - EffectCraft (`translators/effectcraft.js`, EffectCraft 0.8.0) for `.ecproj` projects: the
+    adapter starts it with `empty`, `nosw` and `storage=memory` and refuses to start unless the
+    app confirms them; a project a newer EffectCraft wrote saves as a copy; `Untitled
+    Project.ecproj`, Collect Files' copy and same-named files the user brings in become new
+    files.
+
+  SoundCraft is not supported: its web build can neither open nor save files.
+- Copies (`translators/core.js`, protocol version 1 unchanged): an adapter's `classify` may
+  return `copy` for a save of the opened file that must not replace it because the app saves it
+  with losses. The first such save is sent as an `export` (a new file next to the original), the
+  later ones of the same open as `document` with `follows` set to the first, so the host
+  replaces that copy ([docs/protocol.md](docs/protocol.md#copies)).
+- `hosting/inject-translator.sh` replaces a service worker a build ships as `sw.js` (EffectCraft
+  does) with one that serves nothing, deletes the app's caches and unregisters itself; the
+  original is kept for `--remove`.
+- `hosting/inject-translator.sh --startup-timeout MS` writes `data-startup-timeout` on the
+  `core.js` tag as part of its block: `--check` compares it, and a run without the option removes
+  it. Use 180000 for LightCraft and EffectCraft, whose downloads do not hold back the page's
+  `load` event ([docs/hosting.md](docs/hosting.md#startup-timeout)). Values other than a whole
+  number from 1 to 2147483647 exit with code 2.
+
 ### Changed
 
 - Tested with the newest releases: PdfCraft 0.6.0, PhotoCraft 0.7.0, VectorCraft 0.9.0 and
@@ -26,6 +82,24 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - docs: PdfCraft 0.6.0 has a same-origin bridge enabled by `?host=parent`; under a Nextcloud on
   another origin it would drop every save, so the app address must not carry it. PhotoCraft
   0.7.0 and VectorCraft 0.9.0 open their contributor links in a new tab themselves.
+- The Nextcloud app refuses Craft app addresses with a query: several apps read their query as
+  switches, such as PdfCraft 0.6.0's `?host=parent`, which would drop every save under a
+  Nextcloud on another origin. Adapters set the switches their app needs themselves.
+- When two configured apps open the same type on a click (CADCraft and VectorCraft for `.dxf`),
+  only one gets it: CADCraft when both have an address, otherwise the one that has one.
+- The WebKit projects of the seven new apps are in `NON_BLOCKING` in CI and the canary until
+  they pass on a GitHub runner.
+- nginx template: `immutable` only for `*.js` and `*.wasm` whose names carry Trunk's content hash
+  (`-[0-9a-f]{8,16}(_bg)?\.(js|wasm)$`), `no-cache` for everything else. Before, every `*.js` and
+  `*.wasm` was cached for a year, including EffectCraft's `sw.js` and the unhashed files of
+  FilmCraft, LightCraft and EffectCraft, so an update under the same path would have left
+  browsers with their old glue and `.wasm` next to a new `index.html`. `.otf` is served as
+  `font/otf` and compressed.
+- docs/hosting.md: which files to serve (LightCraft's release zip holds Cargo build leftovers,
+  `build/`, `deps/`, `.fingerprint/` and others, that must not be served), startup timeouts, the
+  cache rule, app addresses without a query, and `Clear-Site-Data` for FilmCraft as an option
+  with its trade-off.
+- The hosting tests run on the fetched builds of all eleven apps.
 
 ## [0.1.0] - 2026-10-11
 
@@ -110,5 +184,6 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Documentation: an index (`docs/README.md`), architecture, protocol, security, hosting,
   development, the Nextcloud app, and one page per Craft app.
 
-[Unreleased]: https://github.com/hozwei/nextcloud-craftsuite-layer/compare/v0.1.0...main
+[Unreleased]: https://github.com/hozwei/nextcloud-craftsuite-layer/compare/v0.2.0...main
+[0.2.0]: https://github.com/hozwei/nextcloud-craftsuite-layer/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/hozwei/nextcloud-craftsuite-layer/releases/tag/v0.1.0

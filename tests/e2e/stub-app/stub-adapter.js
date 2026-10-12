@@ -8,6 +8,9 @@
 //   adapter-drop=<ms>  dropTargetTimeout
 //   identity=1         identity(bytes): the text of the last '/StubId (<text>)' in the bytes, or
 //                      null without one (so the probe and the other test files have none)
+//   copy=<name>        a save under <name>, of a file opened as <name>, that still holds the text
+//                      'from another program' is a 'copy' (a file the app would save with losses:
+//                      the first save becomes a new file, later ones replace it); others are exports
 'use strict';
 
 (() => {
@@ -17,6 +20,9 @@
     app: 'stub',
     async classify(save, entry, util) {
       if (save.name !== entry.name) return 'export';
+      if (params.has('copy') && entry.name === params.get('copy')) {
+        return new TextDecoder('latin1').decode(save.bytes).includes('from another program') ? 'copy' : 'export';
+      }
       return (await util.extendsOpened(save.bytes, entry)) ? 'document' : 'export';
     },
   };

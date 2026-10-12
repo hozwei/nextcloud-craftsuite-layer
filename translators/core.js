@@ -19,7 +19,7 @@
 (() => {
   'use strict';
 
-  const LAYER_VERSION = '0.1.0';
+  const LAYER_VERSION = '0.2.0';
   const PROTOCOL = 'craftsuite-layer';
   const PROTOCOL_VERSION = 1;
 
@@ -180,8 +180,15 @@
   // name -> [{id, openId, length, hash}]. Each is the start of a lineage of its own: the saves
   // that extend it continue it, whichever document of the app they come from.
   const postedExports = new Map();
+  // Copies, for adapters that classify a save of the opened file as 'copy' (the opened file must
+  // stay as it is, such as a file of another program that the app saves with losses): open id ->
+  // id of the first such save, not given up on. Every copy is sent as the document with 'follows':
+  // the first follows its own id, which the host has no file for, so it stores a new file next to
+  // the original and keeps it for the lineage; the later ones follow the first and replace it.
+  const copies = new Map();
   const forgetExport = (id) => {
     for (const [name, list] of postedExports) postedExports.set(name, list.filter((e) => e.id !== id));
+    for (const [openId, first] of copies) if (first === id) copies.delete(openId);
   };
   const nativeClick = HTMLElement.prototype.click;
   const nativeDownload = (name, blob) => {
@@ -216,19 +223,28 @@
     const bytes = new Uint8Array(await blob.arrayBuffer());
     const entry = opened.get(name) || [...opened.values()].find((e) => e.savedName === name) || null;
     let kind = 'export';
+    let copy = false;
     const identity = entry ? await identityOf(bytes) : null;
     const otherDocument = Boolean(entry && entry.identity && identity && identity !== entry.identity);
     if (entry && !otherDocument) {
-      kind = (await adapter.classify({ name, bytes }, entry, util)) === 'document' ? 'document' : 'export';
+      const verdict = await adapter.classify({ name, bytes }, entry, util);
+      if (verdict === 'document') kind = 'document';
+      else copy = verdict === 'copy';
     }
     const hash = kind === 'document' || (entry && adapter.continuesExports) ? await sha256(bytes) : null;
-    return { bytes, entry, kind, follows: null, identity, otherDocument, hash };
+    return { bytes, entry, kind, copy, follows: null, identity, otherDocument, hash };
   };
   // Run in the chain, right before posting, so that it sees every export posted before it, also
   // one the host is still storing.
-  const continueExport = async (name, prepared) => {
-    const { bytes, entry, kind, otherDocument } = prepared;
-    if (kind !== 'export' || !entry || otherDocument || !adapter.continuesExports) return prepared;
+  const continueExport = async (id, name, prepared) => {
+    const { bytes, entry, kind, copy, otherDocument } = prepared;
+    if (kind !== 'export' || !entry || otherDocument) return prepared;
+    if (copy) {
+      prepared.kind = 'document';
+      prepared.follows = copies.has(entry.id) ? copies.get(entry.id) : id;
+      return prepared;
+    }
+    if (!adapter.continuesExports) return prepared;
     for (const previous of [...(postedExports.get(name) || [])].reverse()) {
       if (previous.openId === entry.id && (await util.extendsOpened(bytes, previous))) {
         prepared.kind = 'document';
@@ -242,9 +258,10 @@
     const pending = pendingSaves.get(id);
     if (!pending) return; // already failed over
     pending.posted = true;
-    const { bytes, entry, kind, follows, identity, hash } = prepared;
+    const { bytes, entry, kind, copy, follows, identity, hash } = prepared;
     // A continued export stays its own lineage: it does not become the opened file's reference.
     if (kind === 'document' && follows === null) pending.stored = { id: entry.id, name, savedName: name, length: bytes.length, hash, identity: identity || entry.identity };
+    if (copy && follows === id) copies.set(entry.id, id);
     if (kind === 'export' && entry && adapter.continuesExports) {
       postedExports.set(name, [...(postedExports.get(name) || []), { id, openId: entry.id, length: bytes.length, hash }].slice(-10));
     }
@@ -274,7 +291,7 @@
       })]).finally(() => clearTimeout(deadline));
       prepared.catch(() => undefined); // handled in the chain below
       const fail = (err) => failSave(id, String(err && err.message || err));
-      saveChain = saveChain.then(() => prepared).then((p) => continueExport(name, p)).then((p) => {
+      saveChain = saveChain.then(() => prepared).then((p) => continueExport(id, name, p)).then((p) => {
         postSave(id, name, p);
         p.bytes = null; // posted (transferred): keep nothing alive that an adapter keyed on it
       }).catch(fail);

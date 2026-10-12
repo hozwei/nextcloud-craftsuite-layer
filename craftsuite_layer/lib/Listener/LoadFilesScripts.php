@@ -34,12 +34,15 @@ class LoadFilesScripts implements IEventListener {
 			return;
 		}
 		$apps = [];
-		foreach ($this->craftApps->configured() as $app) {
+		$configured = $this->craftApps->configured();
+		foreach ($configured as $app) {
 			$apps[] = [
 				'id' => $app,
 				'name' => CraftApps::APPS[$app]['name'],
 				'extensions' => CraftApps::APPS[$app]['extensions'],
-				'default' => CraftApps::APPS[$app]['default'],
+				// One app per extension: where two configured apps have the same default, only
+				// one of them gets it (CraftApps::clickApp()).
+				'default' => CraftApps::clickExtensions($app, $configured),
 			];
 		}
 		if ($apps === []) {

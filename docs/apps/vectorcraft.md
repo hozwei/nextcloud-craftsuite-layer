@@ -283,7 +283,7 @@ arrive as `application/octet-stream`, so the app matches by extension.
 | `ai` | `application/illustrator` | PDF-compatible or PostScript `.ai`; saves go to `.vectorcraft` | open with (not the default: Nextcloud's PDF viewer, shipped and enabled by default, registers `application/illustrator` and takes the click) |
 | `eps` | `application/postscript` | imported | open with, default |
 | `svgz` | none | imported | open with, default |
-| `dxf` | none | DXF Import Options first | open with, default |
+| `dxf` | none | DXF Import Options first | open with, default (CADCraft takes the click when it has an address too, see [nextcloud-app.md](../nextcloud-app.md#files)) |
 | `emf`, `wmf` | `image/emf`, none | imported | open with |
 | `svg` | `image/svg+xml` | imported | open with (Nextcloud's viewer shows SVG) |
 | `pdf` | `application/pdf` | imported, pages picked in a dialog when there are several | open with (the PDF viewer stays the default; PdfCraft has an entry too) |

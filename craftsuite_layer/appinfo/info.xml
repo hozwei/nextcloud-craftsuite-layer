@@ -10,13 +10,13 @@
   xsi:noNamespaceSchemaLocation="https://apps.nextcloud.com/schema/apps/info.xsd">
   <id>craftsuite_layer</id>
   <name>Craft Suite Layer</name>
-  <summary>Open your files in storytold's Craft web apps (PdfCraft, PhotoCraft, VectorCraft, DesignCraft) and save the results back</summary>
-  <description>Craft Suite Layer lets Nextcloud open files in storytold's Craft web apps PdfCraft, PhotoCraft, VectorCraft and DesignCraft, and save the results back. The Craft apps stay unmodified and can keep updating from their upstream releases: they run on their own origin, and a small translator script added to each app's page connects it to Nextcloud.
+  <summary>Open your files in storytold's Craft web apps, from PdfCraft to WordCraft, and save the results back</summary>
+  <description>Craft Suite Layer lets Nextcloud open files in storytold's Craft web apps PdfCraft, PhotoCraft, VectorCraft, DesignCraft, WordCraft, GridCraft, DeckCraft, CADCraft, LightCraft, FilmCraft and EffectCraft, and save the results back. The Craft apps stay unmodified and can keep updating from their upstream releases: they run on their own origin, and a small translator script added to each app's page connects it to Nextcloud.
 
-**Status:** early. Files offers "Open in PdfCraft" and the like for each Craft app an administrator set up under Administration settings > Craft apps. Saves come back into Nextcloud: a save of the opened file replaces it and keeps its versions, a save in the app's own format (a PNG saved as PSD) becomes a new file next to the original, exports become new files, and a file changed elsewhere gets a conflict copy. English and German.
+**Status:** early. Files offers "Open in PdfCraft" and the like for each Craft app an administrator set up under Administration settings > Craft apps. Saves come back into Nextcloud: a save of the opened file replaces it and keeps its versions, a save in the app's own format (a PNG saved as PSD) becomes a new file next to the original, a save the app cannot make without losses (a Word file from another program in WordCraft) becomes a copy next to it, exports become new files, and a file changed elsewhere gets a conflict copy. English and German.
 
 Needs the Craft apps hosted with the translator. Source code, hosting template and documentation: https://github.com/hozwei/nextcloud-craftsuite-layer</description>
-  <version>0.1.0</version>
+  <version>0.2.0</version>
   <licence>AGPL-3.0-or-later</licence>
   <author>The nextcloud-craftsuite-layer contributors</author>
   <namespace>CraftsuiteLayer</namespace>

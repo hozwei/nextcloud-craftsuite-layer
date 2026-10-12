@@ -11,10 +11,13 @@
 //   link          a link to a PSD that another site opens in a popup (/f/<id>: Files then opens
 //                 the file by itself, without a click of the user) gets the question first
 //   default       with DesignCraft configured, a click on a .designcraft file opens DesignCraft
-//                 (Nextcloud knows no MIME type for it: matching is by extension)
+//                 (Nextcloud knows no MIME type for it: matching is by extension); a click on a
+//                 .dxf, which VectorCraft and CADCraft both open by default, opens CADCraft while
+//                 both are configured and VectorCraft once CADCraft's address is empty
 //   settings      the admin page refuses unusable addresses (http, a Nextcloud host, a host a
-//                 Content-Security-Policy cannot name) with a reason per field and saves nothing;
-//                 a usable one is saved after Nextcloud's password dialog
+//                 Content-Security-Policy cannot name, an address with a ?query) with a reason per
+//                 field and saves nothing; usable ones are saved, also after Nextcloud's password
+//                 dialog
 //   shares        for a second user, no administrator: a file shared without permission to
 //                 download has no entry and the editor page refuses it; a read-only share opens,
 //                 and a save becomes a new file in the user's folder, the original unchanged; the
@@ -23,8 +26,9 @@
 //
 // Same environment as nextcloud.spec.ts (NEXTCLOUD_URL, NEXTCLOUD_USER, NEXTCLOUD_PASSWORD: an
 // administrator; pdfcraft_url and photocraft_url point to the test server), and NEXTCLOUD_USER2,
-// NEXTCLOUD_PASSWORD2 for the second user. The settings test changes designcraft_url and
-// vectorcraft_url and then saves the addresses it found again, which the other specs need.
+// NEXTCLOUD_PASSWORD2 for the second user. The settings test changes designcraft_url,
+// vectorcraft_url and cadcraft_url and then saves the addresses of all apps as it found them again,
+// which the other specs need.
 
 import { readFileSync } from 'node:fs';
 import { test, expect, type Page } from '@playwright/test';
@@ -36,9 +40,11 @@ import {
 const PROBE = readFileSync(new URL('../fixtures/craftsuite-probe.pdf', import.meta.url));
 const PNG = readFileSync(new URL('../fixtures/photocraft/probe.png', import.meta.url));
 const PSD = readFileSync(new URL('../fixtures/photocraft/probe.psd', import.meta.url));
+const DXF = readFileSync(new URL('../fixtures/cadcraft/craftsuite-probe.dxf', import.meta.url));
 // The test server's app origin (tests/e2e/server/serve.mjs): 127.0.0.2:<base+1>.
 const CRAFT = `http://127.0.0.2:${Number(process.env.CRAFTSUITE_PORT_BASE || 8701) + 1}`;
-const APPS = ['pdfcraft', 'photocraft', 'vectorcraft', 'designcraft'];
+// Every app on the settings page, in its order (CraftApps::APPS): the settings test restores them all.
+const APPS = ['pdfcraft', 'photocraft', 'vectorcraft', 'designcraft', 'wordcraft', 'gridcraft', 'deckcraft', 'cadcraft', 'lightcraft', 'filmcraft', 'effectcraft'];
 const SETTINGS = `${NC}/index.php/settings/admin/craftsuite_layer`;
 
 test.setTimeout(180_000);
@@ -173,34 +179,58 @@ test('link: a PSD that another site opens with a link asks before it opens', asy
   await expect(appView(popup), 'no app frame').toHaveCount(0);
 });
 
-test('default and settings: unusable addresses are refused, a .designcraft opens on a click', async ({ page, request }) => {
-  const folder = await newFolder(request, { 'layout.designcraft': Buffer.from('{}') });
+test('default and settings: unusable addresses are refused, a .designcraft and a .dxf open on a click', async ({ page, request }) => {
+  const folder = await newFolder(request, { 'layout.designcraft': Buffer.from('{}'), 'drawing.dxf': DXF });
   await login(page);
   trackDialogs(page); // nothing may keep the page from going to the folder at the end
   await page.goto(SETTINGS);
   const hint = (app: string) => page.locator(`#craftsuite-layer-${app}-hint`);
+  const fields = await page.locator('#craftsuite-layer-admin input[name]').evaluateAll((inputs) => inputs.map((i) => (i as HTMLInputElement).name));
+  expect(fields, 'the apps on the settings page (APPS restores them all)').toEqual(APPS);
   const values: Record<string, string> = {};
   for (const app of APPS) values[app] = await page.locator(`#craftsuite-layer-${app}`).inputValue();
   found = values;
+  const at = (app: string) => `${CRAFT}/${app}/`;
 
-  // A host with characters a Content-Security-Policy cannot carry is refused too.
+  // A click on a file in Files, and the editor page it opens.
+  const click = async (name: string, app: string) => {
+    await test.step(`a click on ${name} opens ${app}`, async () => {
+      await openFolder(page, folder);
+      await row(page, name).locator('[data-cy-files-list-row-name-link]').click();
+      await page.waitForURL(new RegExp(`/apps/craftsuite_layer/edit/\\d+\\?app=${app}$`));
+    });
+  };
+
+  // A host with characters a Content-Security-Policy cannot carry is refused too, and so is a
+  // query: Craft apps read it as switches (PdfCraft's ?host=parent drops saves under another origin).
   const vectorcraft = `${new URL(NC).protocol}//${new URL(NC).hostname}:1/vectorcraft/`;
-  expect(await saveSettings(page, { designcraft: 'http://craft.example.com/designcraft/', vectorcraft, photocraft: 'https://craft.example.com;x/photocraft/' }), 'refused').toBe(400);
+  expect(await saveSettings(page, {
+    designcraft: 'http://craft.example.com/designcraft/', vectorcraft, photocraft: 'https://craft.example.com;x/photocraft/',
+    pdfcraft: 'https://craft.example.com/pdfcraft/?host=parent',
+  }), 'refused').toBe(400);
   await expect(hint('designcraft')).toHaveText(/https:\/\//);
   await expect(hint('vectorcraft')).toHaveText(/another host name than Nextcloud/);
   await expect(hint('photocraft')).toHaveText(/host name is not valid/);
+  await expect(hint('pdfcraft')).toHaveText('Use an https:// address without user name, password, ?query or #fragment (http:// only on localhost).');
   await expect(page.locator('.craftsuite-admin__status')).toHaveText(/Nothing was saved/);
 
+  await test.step('with CADCraft\'s address empty, VectorCraft takes the click on a .dxf', async () => {
+    expect(await saveSettings(page, { pdfcraft: values.pdfcraft, photocraft: values.photocraft, designcraft: at('designcraft'), vectorcraft: at('vectorcraft'), cadcraft: '' }), 'saved').toBe(200);
+    await expect(page.locator('.craftsuite-admin__status')).toHaveText('Saved');
+    await click('drawing.dxf', 'vectorcraft');
+  });
+
   await test.step('a confirmation that is due: Nextcloud\'s password dialog asks first', async () => {
+    await page.goto(SETTINGS);
     // As if the last login or confirmation were long ago (Nextcloud's own client-side record).
     await page.evaluate(() => { (window as unknown as { nc_lastLogin: number }).nc_lastLogin = 0; });
-    expect(await saveSettings(page, { designcraft: `${CRAFT}/designcraft/`, vectorcraft: '', photocraft: values.photocraft }, ADMIN.password), 'saved').toBe(200);
+    expect(await saveSettings(page, { cadcraft: at('cadcraft') }, ADMIN.password), 'saved').toBe(200);
     await expect(page.locator('.craftsuite-admin__status')).toHaveText('Saved');
   });
 
-  await openFolder(page, folder);
-  await row(page, 'layout.designcraft').locator('[data-cy-files-list-row-name-link]').click();
-  await page.waitForURL(/\/apps\/craftsuite_layer\/edit\/\d+\?app=designcraft$/);
+  // CADCraft is preferred for a .dxf when both are configured (CraftApps::PREFERRED).
+  await click('drawing.dxf', 'cadcraft');
+  await click('layout.designcraft', 'designcraft');
 });
 
 test('shares: no download permission, no Craft app; a read-only file is saved as a new one', async ({ page, request, playwright }) => {

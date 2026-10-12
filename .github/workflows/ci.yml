@@ -31,7 +31,8 @@ jobs:
     # Pinned rather than ubuntu-latest: `playwright install --with-deps` supports a fixed set of
     # Ubuntu releases, so the image moves on purpose, not when GitHub flips the label.
     runs-on: ubuntu-24.04
-    timeout-minutes: 30
+    # Eleven Craft apps: the blocking tests take about 15 minutes, the non-blocking ones up to 25.
+    timeout-minutes: 60
     steps:
       - name: Check out
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -95,7 +96,7 @@ jobs:
       - name: Select test projects
         id: projects
         env:
-          NON_BLOCKING: pdfcraft-webkit photocraft-webkit vectorcraft-webkit designcraft-webkit
+          NON_BLOCKING: pdfcraft-webkit photocraft-webkit vectorcraft-webkit designcraft-webkit wordcraft-webkit gridcraft-webkit deckcraft-webkit cadcraft-webkit lightcraft-webkit filmcraft-webkit effectcraft-webkit
         run: |
           npx playwright test -c tests/e2e/playwright.config.ts --list --reporter=json > "$RUNNER_TEMP/projects.json"
           node - "$RUNNER_TEMP/projects.json" <<'JS'
@@ -129,7 +130,7 @@ jobs:
         id: non-blocking
         if: ${{ !cancelled() && steps.fetch.outcome == 'success' && steps.projects.outputs.non-blocking != '' }}
         continue-on-error: true
-        timeout-minutes: 10
+        timeout-minutes: 25
         env:
           PROJECTS: ${{ steps.projects.outputs.non-blocking }}
           PLAYWRIGHT_HTML_OUTPUT_DIR: playwright-report/non-blocking
@@ -293,8 +294,8 @@ jobs:
           overwrite: true
 
   # The app in a real Nextcloud with the real Craft builds: the editor page with PdfCraft
-  # (tests/e2e/specs/nextcloud.spec.ts) and with PhotoCraft, VectorCraft and DesignCraft, which
-  # save the opened file under another name or type (nextcloud-apps.spec.ts); the Files entries,
+  # (tests/e2e/specs/nextcloud.spec.ts) and with apps that save the opened file under another name
+  # or type, or as a copy next to it (nextcloud-apps.spec.ts); the Files entries,
   # the settings page, shares to a second user and the German texts (nextcloud-files.spec.ts).
   # Once per Nextcloud release in info.xml's range: the Files entry relies on Files' action
   # registry, which belongs to the server's @nextcloud/files major. Nextcloud runs the App Store
@@ -362,7 +363,7 @@ jobs:
         run: npm run craft:fetch
 
       # The image installs Nextcloud on its first start; status.php says when it is done. Every
-      # Craft app's address points to the test server, which serves all four under /<app>/.
+      # Craft app's address points to the test server, which serves every app under /<app>/.
       - name: Set up the app in Nextcloud
         timeout-minutes: 10
         run: |
@@ -371,7 +372,7 @@ jobs:
           occ app:enable craftsuite_layer
           occ app:disable firstrunwizard || true
           docker exec -e OC_PASS="$NEXTCLOUD_PASSWORD2" -u www-data nextcloud php occ user:add --password-from-env "$NEXTCLOUD_USER2"
-          for app in pdfcraft photocraft vectorcraft designcraft; do
+          for app in $(node -p "Object.keys(require('./tests/e2e/craft-versions.json').apps).join(' ')"); do
             occ config:app:set craftsuite_layer "${app}_url" --value="http://127.0.0.2:$((CRAFTSUITE_PORT_BASE + 1))/$app/"
           done
 

@@ -5,3 +5,5 @@
 * text=auto eol=lf
 *.pdf binary
 *.png binary
+# DXF fixtures are CRLF text that the CADCraft adapter checks byte for byte.
+*.dxf -text

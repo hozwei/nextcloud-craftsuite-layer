@@ -14,6 +14,34 @@ Each GitHub release takes its text from the section whose heading matches the ve
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-10-12
+
+### Added
+
+- Entries in Files for seven more Craft apps, matched by file extension in any letter case:
+  - WordCraft: .docx, .docm, .dotx, .dotm, .doc, .dot, .odt, .rtf
+  - GridCraft: .xlsx, .xlsm, .ods, .csv
+  - DeckCraft: .deckcraft, .pptx, .potx, .ppsx (a click opens .deckcraft)
+  - CADCraft: .dxf (a click opens it)
+  - LightCraft: .dng, .cr2, .cr3, .nef, .nrw, .arw, .raf, .orf, .rw2, .rwl, .pef, .srw, .jpg,
+    .jpeg, .png, .tif, .tiff, .webp (a click opens the camera raw types)
+  - FilmCraft: .fcproj (a click opens it)
+  - EffectCraft: .ecproj (a click opens it)
+
+  Office files stay with Nextcloud Office or ONLYOFFICE on a click. The settings page has a field
+  for each new app.
+- The editor page stores the copies some apps make of a file they cannot save without losses (a
+  Word file from another program in WordCraft): the first save becomes a new file next to the
+  original, later saves of the same editor session replace it, and the original stays as it is.
+
+### Changed
+
+- A Craft app address with a query (`?…`) is refused, on the settings page and when a file
+  opens: several apps read their query as switches.
+- One app per click: where two configured apps open the same type on a click (CADCraft and
+  VectorCraft for .dxf), CADCraft gets it when both have an address, otherwise the one that has
+  one. An editor link without `?app=` chooses among the configured apps.
+
 ## [0.1.0] - 2026-10-11
 
 ### Added

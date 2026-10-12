@@ -53,15 +53,24 @@ O=https://cloud.example.com
 # --- Real builds ------------------------------------------------------------------------------
 builds=$repo/.craft-builds
 if [ -f "$builds/selected.json" ]; then
-  for app in pdfcraft photocraft vectorcraft designcraft; do
+  skipped=
+  for app in pdfcraft photocraft vectorcraft designcraft wordcraft gridcraft deckcraft cadcraft \
+    lightcraft filmcraft effectcraft; do
     ver=$(sed -n "s/.*\"$app\": *\"\([^\"]*\)\".*/\1/p" "$builds/selected.json")
     src=$builds/$app/$ver/$app-web-$ver
-    if [ -z "$ver" ] || [ ! -f "$src/index.html" ] || [ ! -f "$repo/translators/$app.js" ]; then continue; fi
+    if [ -z "$ver" ] || [ ! -f "$src/index.html" ] || [ ! -f "$repo/translators/$app.js" ]; then
+      skipped="$skipped $app"
+      continue
+    fi
     d=$work/$app-web-$ver
     mkdir "$d" && cp "$src/index.html" "$d/" && cp "$src/index.html" "$work/$app.orig"
+    # A service worker at the build's root (EffectCraft's sw.js) is replaced, see below.
+    sw=0
+    if [ -f "$src/sw.js" ]; then sw=1 && cp "$src/sw.js" "$d/" && cp "$src/sw.js" "$work/$app.sw"; fi
     run 1 "$app: --check before" --check -o "$O" "$d"
     run 0 "$app: inject" -o "$O" "$d"
     check "$app: one line added" '[ "$(diff "$work/$app.orig" "$d/index.html" | grep -c "^[<>]")" = 1 ]'
+    [ "$sw" = 0 ] || check "$app: sw.js replaced, the original kept" '! grep -q fetch "$d/sw.js" && grep -q "registration.unregister()" "$d/sw.js" && cmp -s "$work/$app.sw" "$d/craftsuite-layer/sw.js.orig"'
     check "$app: tags right after <head>" 'grep -A1 -i -m1 "<head[ >]" "$d/index.html" | tail -n 1 | grep -q "^ *<script src=\"./craftsuite-layer/core.js?v=[0-9a-f][0-9a-f-]*\" data-allowed-origins=\"$O\" data-app-version=\"$ver\"></script><script src=\"./craftsuite-layer/$app.js?v=[0-9a-f][0-9a-f-]*\"></script>$"'
     check "$app: translator files" 'cmp -s "$repo/translators/core.js" "$d/craftsuite-layer/core.js" && cmp -s "$repo/translators/$app.js" "$d/craftsuite-layer/$app.js"'
     cp "$d/index.html" "$work/$app.injected"
@@ -73,7 +82,10 @@ if [ -f "$builds/selected.json" ]; then
     run 1 "$app: --check with the old origins" --check -o "$O" "$d"
     run 0 "$app: --remove" --remove "$d"
     check "$app: --remove restores the upstream file" 'cmp -s "$work/$app.orig" "$d/index.html"'
+    [ "$sw" = 0 ] || check "$app: --remove restores the upstream sw.js" 'cmp -s "$work/$app.sw" "$d/sw.js" && [ ! -e "$d/craftsuite-layer/sw.js.orig" ]'
+    [ "$sw" = 1 ] || check "$app: no sw.js added" '[ ! -e "$d/sw.js" ]'
   done
+  [ -z "$skipped" ] || echo "note: no fetched build or no adapter, not tested on a real build:$skipped"
 else
   echo "note: no fetched Craft builds (npm run craft:fetch); testing made-up files only"
 fi
@@ -124,6 +136,8 @@ run 2 "unknown option" -o "$O" --nope "$d"
 run 2 "option without value" "$d" -o
 run 2 "invalid app id" -o "$O" --app 'a;b' "$d"
 run 2 "invalid version" -o "$O" --app-version '1"' "$d"
+run 2 "--startup-timeout without a value" -o "$O" --startup-timeout
+check "... says so" 'grep -q "needs a value" "$work/err"'
 mk plain '<html><head></head></html>'
 run 2 "no app id from the folder name" -o "$O" "$work/plain"
 run 2 "no version from the folder name" -o "$O" --app pdfcraft "$work/plain"
@@ -206,6 +220,87 @@ if [ "$(id -u)" != 0 ]; then
   chmod a-w "$work/pdfcraft-web-8.0.0"
   run 5 "read-only folder" -o "$O" "$work/pdfcraft-web-8.0.0"
 fi
+
+# --- Startup timeout --------------------------------------------------------------------------
+# --startup-timeout writes data-startup-timeout on the core.js tag. It is part of the block: a run
+# without it, or with another value, writes the block again.
+mk pdfcraft-web-10.0.0 '<html><head>
+</head></html>
+'
+s=$work/pdfcraft-web-10.0.0
+cp "$s/index.html" "$work/st.orig"
+run 0 "--startup-timeout: inject" -o "$O" --startup-timeout 180000 "$s"
+check "... written on the core.js tag" 'grep -q "^<script src=\"./craftsuite-layer/core.js?v=[0-9a-f-]*\" data-allowed-origins=\"$O\" data-app-version=\"10.0.0\" data-startup-timeout=\"180000\"></script><script src=\"./craftsuite-layer/pdfcraft.js?v=[0-9a-f-]*\"></script>\$" "$s/index.html"'
+check "... says so" 'grep -q "startup timeout: 180000 ms" "$work/out"'
+cp "$s/index.html" "$work/st.injected"
+run 0 "--startup-timeout: again" -o "$O" --startup-timeout=180000 "$s"
+check "... changes nothing" 'grep -q "already up to date" "$work/out" && cmp -s "$work/st.injected" "$s/index.html"'
+run 0 "--startup-timeout: --check with the same value" --check -o "$O" --startup-timeout 180000 "$s"
+run 1 "--startup-timeout: --check with another value" --check -o "$O" --startup-timeout 120000 "$s"
+check "... index.html is not up to date" 'grep -q "index.html is not up to date" "$work/out"'
+run 1 "--startup-timeout: --check without it" --check -o "$O" "$s"
+check "... changes nothing" 'cmp -s "$work/st.injected" "$s/index.html"'
+run 0 "--startup-timeout: another value, with a leading zero" -o "$O" --startup-timeout 0120000 "$s"
+check "... replaced, still one block, without the zero" '[ "$(grep -c craftsuite-layer/ "$s/index.html")" = 1 ] && grep -q "data-app-version=\"10.0.0\" data-startup-timeout=\"120000\"></script>" "$s/index.html"'
+run 0 "--startup-timeout: a run without it" -o "$O" "$s"
+check "... removes the attribute" '! grep -q data-startup-timeout "$s/index.html" && grep -q "data-app-version=\"10.0.0\"></script>" "$s/index.html"'
+run 0 "--startup-timeout: the largest value" -o "$O" --startup-timeout 2147483647 "$s"
+cp "$s/index.html" "$work/st.largest"
+for bad in '' 0 000 -1 +5 1.5 1e5 ' 180000' 180000ms 2147483648 09999999999 99999999999999999999 x; do
+  run 2 "--startup-timeout rejects '$bad'" -o "$O" --startup-timeout "$bad" "$s"
+done
+check "... with a message, leaving index.html alone" 'grep -q "invalid startup timeout" "$work/err" && cmp -s "$work/st.largest" "$s/index.html"'
+run 0 "--startup-timeout: --remove" --remove "$s"
+check "... restores the file" 'cmp -s "$work/st.orig" "$s/index.html"'
+
+# --- Service worker ---------------------------------------------------------------------------
+# A sw.js at the build's root (as EffectCraft ships one) would serve index.html and the translator
+# from its cache: it is replaced by one without a fetch handler that removes itself.
+mk pdfcraft-web-9.0.0 '<html><head>
+</head></html>
+'
+w=$work/pdfcraft-web-9.0.0
+echo 'self.addEventListener("fetch", (e) => e.respondWith(caches.match(e.request)));' >"$w/sw.js"
+cp "$w/sw.js" "$work/sw.1"
+chmod 640 "$w/sw.js"
+gzip -9 -c "$w/sw.js" >"$w/sw.js.gz"
+echo old >"$w/sw.js.br"
+run 1 "sw.js: --check before" --check -o "$O" "$w"
+check "... names the service worker" 'grep -q "sw.js is the app.s own service worker" "$work/out"'
+run 0 "sw.js: inject" -o "$O" "$w"
+check "... replaced: no fetch handler; deletes the app's caches, claims the pages, unregisters" '! grep -q fetch "$w/sw.js" && grep -q "caches.delete" "$w/sw.js" && grep -qF "n.startsWith('"'"'pdfcraft-'"'"')" "$w/sw.js" && grep -q "clients.claim()" "$w/sw.js" && grep -q "registration.unregister()" "$w/sw.js"'
+check "... says so" 'grep -q "replaced the app.s service worker" "$work/out"'
+check "... keeps the original, with its mode" 'cmp -s "$work/sw.1" "$w/craftsuite-layer/sw.js.orig" && [ "$(ls -l "$w/craftsuite-layer/sw.js.orig" | cut -c1-10)" = "-rw-r-----" ]'
+check "... readable, sw.js.gz written again, sw.js.br removed" '[ "$(ls -l "$w/sw.js" | cut -c1-10)" = "-rw-r--r--" ] && gzip -dc "$w/sw.js.gz" | cmp -s - "$w/sw.js" && [ ! -e "$w/sw.js.br" ]'
+cp "$w/sw.js" "$work/sw.ours"
+run 0 "sw.js: again" -o "$O" "$w"
+check "... changes nothing" 'grep -q "already up to date" "$work/out" && cmp -s "$work/sw.ours" "$w/sw.js" && cmp -s "$work/sw.1" "$w/craftsuite-layer/sw.js.orig"'
+run 0 "sw.js: --check after" --check -o "$O" "$w"
+echo '// changed by hand' >>"$w/sw.js"
+run 1 "sw.js: --check sees a changed replacement" --check -o "$O" "$w"
+check "... says so" 'grep -q "sw.js is not up to date" "$work/out"'
+run 0 "sw.js: a changed replacement" -o "$O" "$w"
+check "... written again, the original kept" 'cmp -s "$work/sw.ours" "$w/sw.js" && cmp -s "$work/sw.1" "$w/craftsuite-layer/sw.js.orig"'
+echo 'self.addEventListener("fetch", () => {}); // 2' >"$w/sw.js"
+cp "$w/sw.js" "$work/sw.2"
+run 1 "sw.js: --check sees a new upstream sw.js" --check -o "$O" "$w"
+run 0 "sw.js: a new upstream sw.js" -o "$O" "$w"
+check "... replaced, the new one kept" 'cmp -s "$work/sw.ours" "$w/sw.js" && cmp -s "$work/sw.2" "$w/craftsuite-layer/sw.js.orig"'
+run 0 "sw.js: --remove" --remove "$w"
+check "... puts back the original" 'cmp -s "$work/sw.2" "$w/sw.js" && [ ! -e "$w/craftsuite-layer/sw.js.orig" ] && gzip -dc "$w/sw.js.gz" | cmp -s - "$w/sw.js" && grep -q "put back the app.s service worker" "$work/out"'
+run 0 "sw.js: --remove again" --remove "$w"
+check "... changes nothing" 'cmp -s "$work/sw.2" "$w/sw.js" && ! grep -q "put back" "$work/out"'
+run 0 "sw.js: inject after --remove" -o "$O" "$w"
+rm "$w/craftsuite-layer/sw.js.orig"
+run 0 "sw.js: --remove without the original" --remove "$w"
+check "... warns, and leaves the replacement" 'grep -q "no .*sw.js.orig to put back" "$work/err" && cmp -s "$work/sw.ours" "$w/sw.js"'
+mk pdfcraft-web-9.1.0 '<html><head></head></html>'
+ln -s "$work/sw.1" "$work/pdfcraft-web-9.1.0/sw.js"
+run 3 "sw.js is a symbolic link" -o "$O" "$work/pdfcraft-web-9.1.0"
+mk pdfcraft-web-9.2.0 '<html><head></head></html>'
+mkdir "$work/pdfcraft-web-9.2.0/sw.js"
+run 3 "sw.js is a folder" -o "$O" "$work/pdfcraft-web-9.2.0"
+check "no temporary files left after the service worker" '[ -z "$(find "$work" -name "*.craftsuite-*")" ]'
 
 printf '%s: %d checks passed, %d failed\n' "$sut" "$pass" "$fail"
 [ "$fail" = 0 ]

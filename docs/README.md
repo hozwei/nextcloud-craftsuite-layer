@@ -26,6 +26,17 @@ What the project is and how it works in short: [README](../README.md). Changes p
 - [VectorCraft](apps/vectorcraft.md): the first Save's dialog, saves as `.vectorcraft`, the file
   types it opens.
 - [DesignCraft](apps/designcraft.md): saves as `<title>.designcraft`, IDML, and its known gaps.
+- [WordCraft](apps/wordcraft.md): Word files saved in place or, from other programs, as a copy;
+  ODT and RTF saved as `<stem>.docx`; mail merge.
+- [GridCraft](apps/gridcraft.md): Excel files saved in place or as a copy; CSV and XLSM saved
+  as `<stem>.xlsx`, ODS as `<stem> (imported).xlsx`.
+- [DeckCraft](apps/deckcraft.md): saves as `<title>.deckcraft`, PowerPoint files, the sample deck.
+- [CADCraft](apps/cadcraft.md): DXF saved in place or, from other programs, as a copy; no DWG.
+- [LightCraft](apps/lightcraft.md): develop and export only, nothing kept in the browser.
+- [FilmCraft](apps/filmcraft.md): project files, media that stay outside them.
+- [EffectCraft](apps/effectcraft.md): project files, its service worker and URL switches.
+
+SoundCraft is not supported: its web build can neither open nor save files.
 
 ## For developers
 

@@ -16,6 +16,13 @@ and turns the app's downloads into save messages. The messages are described in
 | `photocraft.js` | The adapter for PhotoCraft. See [docs/apps/photocraft.md](../docs/apps/photocraft.md). |
 | `vectorcraft.js` | The adapter for VectorCraft. See [docs/apps/vectorcraft.md](../docs/apps/vectorcraft.md). |
 | `designcraft.js` | The adapter for DesignCraft. See [docs/apps/designcraft.md](../docs/apps/designcraft.md). |
+| `wordcraft.js` | The adapter for WordCraft. See [docs/apps/wordcraft.md](../docs/apps/wordcraft.md). |
+| `gridcraft.js` | The adapter for GridCraft. See [docs/apps/gridcraft.md](../docs/apps/gridcraft.md). |
+| `deckcraft.js` | The adapter for DeckCraft. See [docs/apps/deckcraft.md](../docs/apps/deckcraft.md). |
+| `cadcraft.js` | The adapter for CADCraft. See [docs/apps/cadcraft.md](../docs/apps/cadcraft.md). |
+| `lightcraft.js` | The adapter for LightCraft. See [docs/apps/lightcraft.md](../docs/apps/lightcraft.md). |
+| `filmcraft.js` | The adapter for FilmCraft. See [docs/apps/filmcraft.md](../docs/apps/filmcraft.md). |
+| `effectcraft.js` | The adapter for EffectCraft. See [docs/apps/effectcraft.md](../docs/apps/effectcraft.md). |
 
 ## Loading
 
@@ -90,11 +97,11 @@ An adapter is a classic script loaded right after `core.js`. It registers once:
 | Member | Required | Meaning |
 |---|---|---|
 | `app` | yes | App id, a string. Sent as `app` in every message. |
-| `classify(save, entry, util)` | yes | `save` is `{name, bytes}` (`bytes` a `Uint8Array`), `entry` the record of the opened file the name belongs to: `{id, name, savedName, length, hash, identity}` (`id` the host's open id, `name` the opened name, `savedName` the name the app saves it under, `hash` the SHA-256 of the bytes last stored, `identity` see `identity` below). May return a promise. Only the result `'document'` counts. |
+| `classify(save, entry, util)` | yes | `save` is `{name, bytes}` (`bytes` a `Uint8Array`), `entry` the record of the opened file the name belongs to: `{id, name, savedName, length, hash, identity}` (`id` the host's open id, `name` the opened name, `savedName` the name the app saves it under, `hash` the SHA-256 of the bytes last stored, `identity` see `identity` below). May return a promise. `'document'`: a save of that file, which may replace it. `'copy'`: a save of that file that must not replace it (the app saves it with losses); the first becomes a new file, and the later ones of the same open replace that file (see [docs/protocol.md](../docs/protocol.md#copies)). Anything else is `'export'`. |
 | `dropTarget(registered)` | no | Returns the element that receives the simulated drop. `registered` is the element on which the app registered its first `drop` listener; if that was not an element (such as `window` or `document`), the first `<canvas>`, else `<body>`. |
-| `started(registered)` | no | For an app whose first `drop` listener comes before it can take files (VectorCraft): a promise that resolves once the app can take files. The core sends `ready` only then; a rejection becomes a startup error with the rejection's message. |
+| `started(registered)` | no | A promise that resolves once the app can take files: for an app whose first `drop` listener comes before that (VectorCraft), whose page never dispatches `TrunkApplicationStarted` (FilmCraft: the core's timers that start with that event, for the drop target and for `ready`, never run; only `data-startup-timeout` from `load` applies, until the app's drop listener), or that must be in a certain mode first (LightCraft: nothing kept in the browser). The core sends `ready` only then; a rejection becomes a startup error with the rejection's message. |
 | `savedName(name, bytes)` | no | The name the app gives the opened file when it saves it, if not `name` (PhotoCraft saves an opened `photo.png` as `photo.psd`). `bytes` is the opened file as a `Uint8Array`; may return a promise. Saves under that name reach `classify` with the opened file's record. |
-| `identity(bytes)` | no | For apps that give new documents the same names (`Untitled-1`): a string that tells documents apart, read from a file's bytes (`Uint8Array`), such as a creation stamp the app writes once and keeps; `null` if the bytes have none. May return a promise; a rejection, like anything but a non-empty string, counts as `null`. The core reads it from the opened file and from each stored `document` save (keeping the previous one if a save has none). A save whose identity and the file's are both known and differ is `export` without calling `classify`. |
+| `identity(bytes)` | no | For apps that give new documents the same names (`Untitled-1`): a string that tells documents apart, read from a file's bytes (`Uint8Array`), such as a creation stamp the app writes once and keeps; `null` if the bytes have none. May return a promise; a rejection, like anything but a non-empty string, counts as `null`. The core reads it from the opened file and from each stored `document` save (keeping the previous one if a save has none). A save whose identity and the file's are both known and differ is `export` without calling `classify`. An adapter may also use it as a mark of the opened file rather than a document id (EffectCraft marks a file a newer EffectCraft wrote). |
 | `continuesExports` | no | `true` for an app that goes on editing from the bytes of a save that came out as `export` under the opened file's name (PdfCraft's Save rewrites the whole file after redaction or Sanitize, then appends to it). A later save that `classify` calls `export` but whose bytes extend such an export becomes `document` (unless the host did not store that export: `ok: false`, or no answer in time), with `follows` naming that export (see [docs/protocol.md](../docs/protocol.md#continued-exports)). |
 | `dropTargetTimeout` | no | Milliseconds the app may take after its start to register its drop target, if more than the default 3000. A valid `data-drop-target-timeout` of the hosting takes precedence; an invalid or empty one does not. |
 
@@ -109,6 +116,13 @@ Rules for adapters:
 
 - Classify by what the app reliably does, and check it against the app's source and the
   end-to-end tests. When in doubt, return `'export'`: an export never overwrites a file.
+- Return `'copy'`, not `'document'`, for a save of the opened file that loses what the app does
+  not model, such as a file another program wrote in an interchange format.
+- If the app needs switches in its address to behave safely in a frame (LightCraft's
+  `store=memory`, EffectCraft's `empty`, `nosw` and `storage=memory`), the adapter adds them with
+  `history.replaceState` as it loads, before the app's module reads `location.search`, and only
+  when the core is active. The Nextcloud app refuses app addresses with a query, so the adapter's
+  switches are the only ones. Check in `started()` that they took effect where the app tells.
 - Document the app's browser-facing behaviour in `docs/apps/<app>.md`, including known gaps.
 - Add the app to `tests/e2e/craft-versions.json`, a spec under `tests/e2e/specs/` with a few
   scenario tests (see [docs/development.md](../docs/development.md#writing-tests)), and a
@@ -119,5 +133,5 @@ Rules for adapters:
 
 ## Version
 
-`core.js` reports its version (`layerVersion`, currently `0.1.0`) in `hello` and `ready`, and
+`core.js` reports its version (`layerVersion`, currently `0.2.0`) in `hello` and `ready`, and
 speaks protocol version 1.

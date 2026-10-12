@@ -45,7 +45,7 @@
     "The host name is not valid. Use letters, digits, hyphens and dots, or an IP address.": "Der Hostname ist ungültig. Verwenden Sie Buchstaben, Ziffern, Bindestriche und Punkte oder eine IP-Adresse.",
     "This file is shared without permission to download it, so it cannot be opened in a Craft app.": "Diese Datei ist ohne Berechtigung zum Herunterladen geteilt und kann deshalb nicht in einer Craft-App geöffnet werden.",
     "Type international host names in their xn-- form: this server cannot convert them.": "Geben Sie internationale Hostnamen in der Form mit xn-- ein: Dieser Server kann sie nicht umwandeln.",
-    "Use an https:// address without user name, password or #fragment (http:// only on localhost).": "Verwenden Sie eine https://-Adresse ohne Benutzername, Passwort oder #Fragment (http:// nur auf localhost).",
+    "Use an https:// address without user name, password, ?query or #fragment (http:// only on localhost).": "Verwenden Sie eine https://-Adresse ohne Benutzername, Passwort, ?Abfrage oder #Fragment (http:// nur auf localhost).",
     "Waiting for the save …": "Warten auf die Speicherung …",
     "Where each Craft app is hosted, for example https://craft.example.com/pdfcraft/. The address must use https and another host name than Nextcloud, and its hosting must allow this Nextcloud. Files offers \"Open in …\" only for apps with an address.": "Wo die einzelnen Craft-Apps laufen, zum Beispiel https://craft.example.com/pdfcraft/. Die Adresse muss https verwenden und einen anderen Hostnamen als Nextcloud haben, und ihr Hosting muss diese Nextcloud zulassen. Dateien bietet „In … öffnen“ nur für Apps mit Adresse an.",
     "You are not logged in.": "Sie sind nicht angemeldet.",

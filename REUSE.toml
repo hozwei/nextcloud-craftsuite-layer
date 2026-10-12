@@ -19,9 +19,9 @@ precedence = "override"
 SPDX-FileCopyrightText = "2026 The nextcloud-craftsuite-layer contributors"
 SPDX-License-Identifier = "AGPL-3.0-or-later"
 
-# Test fixtures: written by the make-fixtures.mjs scripts next to them, or (DesignCraft, see
-# docs/apps/designcraft.md) saved by the Craft app from our own inputs. Binary or data formats
-# without room for a header; the generator scripts carry their own.
+# Test fixtures: written by the make-fixtures.mjs scripts next to them, or saved by the Craft app
+# from our own inputs (see the app pages in docs/apps/). Binary or data formats without room for a
+# header; the generator scripts carry their own.
 [[annotations]]
 path = [
   "tests/e2e/fixtures/*.pdf",
@@ -31,10 +31,49 @@ path = [
   "tests/e2e/fixtures/vectorcraft/*.svg",
   "tests/e2e/fixtures/designcraft/*.designcraft",
   "tests/e2e/fixtures/designcraft/*.idml",
+  "tests/e2e/fixtures/wordcraft/*.docx",
+  "tests/e2e/fixtures/wordcraft/*.odt",
+  "tests/e2e/fixtures/wordcraft/*.rtf",
+  "tests/e2e/fixtures/gridcraft/craftsuite-probe.xlsx",
+  "tests/e2e/fixtures/gridcraft/from-excel.xlsx",
+  "tests/e2e/fixtures/gridcraft/*.xlsm",
+  "tests/e2e/fixtures/gridcraft/*.ods",
+  "tests/e2e/fixtures/gridcraft/*.csv",
+  "tests/e2e/fixtures/deckcraft/*.deckcraft",
+  "tests/e2e/fixtures/deckcraft/*.pptx",
+  "tests/e2e/fixtures/cadcraft/*.dxf",
+  "tests/e2e/fixtures/lightcraft/*.jpg",
+  "tests/e2e/fixtures/lightcraft/**/*.tif",
+  "tests/e2e/fixtures/lightcraft/*.dng",
+  "tests/e2e/fixtures/effectcraft/*.ecproj",
+  "tests/e2e/fixtures/effectcraft/*.ecprojx",
 ]
 precedence = "override"
 SPDX-FileCopyrightText = "2026 The nextcloud-craftsuite-layer contributors"
 SPDX-License-Identifier = "AGPL-3.0-or-later"
+
+# GridCraft's 'Quarterly Sales Dashboard' sample (engine/src/sample.rs), saved by GridCraft 0.5.0:
+# upstream content under upstream's license.
+[[annotations]]
+path = "tests/e2e/fixtures/gridcraft/sales-sample.xlsx"
+precedence = "override"
+SPDX-FileCopyrightText = "2026 ArtCraft Team and the GridCraft contributors"
+SPDX-License-Identifier = "MIT OR Apache-2.0"
+
+# FilmCraft 0.6.0's save of its own demo project and that project's EDL export (see
+# docs/apps/filmcraft.md), and the copies tests/e2e/fixtures/filmcraft/make-fixtures.mjs derives
+# from them. The demo project's content comes from FilmCraft (crates/engine/src/demo.rs).
+[[annotations]]
+path = [
+  "tests/e2e/fixtures/filmcraft/*.fcproj",
+  "tests/e2e/fixtures/filmcraft/*.edl",
+]
+precedence = "override"
+SPDX-FileCopyrightText = [
+  "2026 ArtCraft Team and the FilmCraft contributors",
+  "2026 The nextcloud-craftsuite-layer contributors",
+]
+SPDX-License-Identifier = "MIT OR Apache-2.0"
 
 # Written by craftsuite_layer/l10n.mjs from l10n/*.json, in the format Nextcloud's translationtool
 # writes (no room for a header).

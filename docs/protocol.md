@@ -66,7 +66,7 @@ host (Nextcloud page)                    translator (inside the Craft app frame)
 | `save` | `id`, `kind`, `openId`, `follows`, `name`, `size`, `data` | The app started a download. See [Saves](#saves). |
 | `error` | `of`, `id`, `message` | See [Errors](#errors). |
 
-`layerVersion` is the translator's version (currently `0.1.0`).
+`layerVersion` is the translator's version (currently `0.2.0`).
 
 ## Host to translator
 
@@ -160,6 +160,22 @@ host stores a save with `follows` in the file it stored that export in, and ever
 the same `follows` there too. If it has no file for that export, it stores the save as a new file
 and takes that file for the lineage (see [What the host must do](#what-the-host-must-do)).
 
+### Copies
+
+Some apps save a file of another program with losses: WordCraft rewrites a `.docx` from Word
+without the parts it does not model, GridCraft an `.xlsx` from Excel, CADCraft a DXF from
+AutoCAD; DeckCraft and EffectCraft do the same with a file of a newer version of themselves. Such
+a save is the opened document, but it must not replace the opened file. The adapter classifies it
+as `copy`, and the translator makes a lineage of it without a message type of its own: every
+`copy` save of an open is sent as `document` with the open's `openId` and a `follows`. The first
+one's `follows` is its own `id`, which names no export the host stored, so the host stores it as a
+new file next to the original and keeps that file for the lineage (see
+[What the host must do](#what-the-host-must-do)); the later ones carry the same `follows` and
+replace that file. The opened file stays as it is. The check runs right before the save is sent,
+so a second copy follows a first one the host is still storing. If the host does not store the
+first copy (`ok: false`, or no result in time), the next `copy` save starts a new lineage, unless
+it is already on its way. Copies never become the opened file's reference.
+
 ### Fallback to a browser download
 
 The translator keeps each save's `Blob` until the save ends. It downloads the file in the
@@ -208,7 +224,10 @@ should clear the error.
 "Started" means the page dispatched the `TrunkApplicationStarted` event. The loader that Trunk
 writes into a web app's `index.html` (the Craft web builds are built with Trunk) is an inline
 module script: it awaits the initialisation of the WebAssembly module at its top level and then
-dispatches the event. How the usual failures reach the host:
+dispatches the event. FilmCraft, LightCraft and EffectCraft have loaders of their own that never
+dispatch it: for them the drop-target timer never runs, and their adapters' `started` checks
+report a failed start (`the app failed to start: ...`, or `the app failed to load: ...` from
+LightCraft's failure texts) and have deadlines of their own. How the usual failures reach the host:
 
 | Failure | What the translator sees | `message` |
 |---|---|---|

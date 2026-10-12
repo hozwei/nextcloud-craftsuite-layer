@@ -51,7 +51,7 @@ jobs:
   canary:
     name: newest Craft releases
     runs-on: ubuntu-24.04
-    timeout-minutes: 75
+    timeout-minutes: 110
     outputs:
       summary: ${{ steps.summary.outputs.summary }}
       ui: ${{ steps.ui.outcome }}
@@ -86,7 +86,7 @@ jobs:
       - name: Select test projects
         id: projects
         env:
-          NON_BLOCKING: pdfcraft-webkit photocraft-webkit vectorcraft-webkit designcraft-webkit
+          NON_BLOCKING: pdfcraft-webkit photocraft-webkit vectorcraft-webkit designcraft-webkit wordcraft-webkit gridcraft-webkit deckcraft-webkit cadcraft-webkit lightcraft-webkit filmcraft-webkit effectcraft-webkit
         run: |
           npx playwright test -c tests/e2e/playwright.config.ts --list --reporter=json > "$RUNNER_TEMP/projects.json"
           node - "$RUNNER_TEMP/projects.json" <<'JS'
@@ -121,7 +121,7 @@ jobs:
       # their own; their JSON reports feed the summary.
       - name: Run the contract tests
         id: test
-        timeout-minutes: 25
+        timeout-minutes: 40
         env:
           PROJECTS: ${{ steps.projects.outputs.projects }}
           PLAYWRIGHT_HTML_OUTPUT_DIR: playwright-report/contract
@@ -138,7 +138,7 @@ jobs:
         id: ui
         if: ${{ !cancelled() && (steps.test.outcome == 'success' || steps.test.outcome == 'failure') }}
         continue-on-error: true
-        timeout-minutes: 15
+        timeout-minutes: 20
         env:
           PROJECTS: ${{ steps.projects.outputs.projects }}
           PLAYWRIGHT_HTML_OUTPUT_DIR: playwright-report/ui
@@ -154,7 +154,7 @@ jobs:
         id: later
         if: ${{ !cancelled() && steps.projects.outputs.later != '' && (steps.test.outcome == 'success' || steps.test.outcome == 'failure') }}
         continue-on-error: true
-        timeout-minutes: 15
+        timeout-minutes: 30
         env:
           PROJECTS: ${{ steps.projects.outputs.later }}
           PLAYWRIGHT_HTML_OUTPUT_DIR: playwright-report/later

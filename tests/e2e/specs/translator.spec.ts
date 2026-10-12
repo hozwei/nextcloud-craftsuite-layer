@@ -545,8 +545,9 @@ test('load failures: each way the app can fail to load is reported to the host',
 // === Chromium only ===================================================================================
 
 test('names: opens and downloads get plain, short basenames; an opened file stays the document', async ({ page }) => {
-  // The test adapter: PdfCraft's rule, plus an identity read from the bytes ('/StubId (...)').
-  const frame = await openDelivered(page, { 'app-adapter': 'stub', 'app-identity': '1' });
+  // The test adapter: PdfCraft's rule, plus an identity read from the bytes ('/StubId (...)'), and
+  // saves of a file opened as foreign.pdf are copies.
+  const frame = await openDelivered(page, { 'app-adapter': 'stub', 'app-identity': '1', 'app-copy': 'foreign.pdf' });
 
   await test.step('opens sent together are each delivered under a plain basename, with the type the host sent', async () => {
     const text = (id: number) => `%PDF-1.7 open #${id}`;
@@ -600,6 +601,27 @@ test('names: opens and downloads get plain, short basenames; an opened file stay
     expect(await hostSave(page, frame, 'save', { stubId: 'second' })).toMatchObject({ kind: 'export', openId: null, name: 'Untitled-1.pdf' });
     expect(await hostSave(page, frame, 'save', { base: 'original', stubId: 'first' }), 'the same identity, but a stale base')
       .toMatchObject({ kind: 'export', openId: null });
+  });
+
+  await test.step('copies: every save of a file that must stay as it is follows the first, which starts the lineage', async () => {
+    const id = (await value<number>(frame, '__stub.docs.length')) + 1;
+    await hostPost(page, { type: 'open', id, name: 'foreign.pdf', mime: 'application/pdf' }, '%PDF-1.7 from another program\n');
+    await until(frame, `__stub.docs.length === ${id}`);
+    const first = await hostSave(page, frame, 'save');
+    // It follows its own id: no export the host stored, so the host makes it a new file.
+    expect(first).toMatchObject({ kind: 'document', openId: id, follows: first.id, name: 'foreign.pdf' });
+    // Also a full rewrite: the adapter, not the bytes, says it is the document.
+    for (const args of [[], [{ full: true }]]) {
+      expect(await hostSave(page, frame, 'save', ...args)).toMatchObject({ kind: 'document', openId: id, follows: first.id, name: 'foreign.pdf' });
+    }
+    // Another download under the name is still not the document.
+    expect(await hostSave(page, frame, 'download', 'foreign.pdf')).toMatchObject({ kind: 'export', follows: null });
+    // A new open of the name starts a new copy.
+    await hostPost(page, { type: 'open', id: id + 1, name: 'foreign.pdf', mime: 'application/pdf' }, '%PDF-1.7 from another program, again\n');
+    await until(frame, `__stub.docs.length === ${id + 1}`);
+    const again = await hostSave(page, frame, 'save');
+    expect(again).toMatchObject({ kind: 'document', openId: id + 1, follows: again.id });
+    expect(await hostSave(page, frame, 'save')).toMatchObject({ kind: 'document', openId: id + 1, follows: again.id });
   });
 
   await test.step('download names are reduced to a plain basename', async () => {

@@ -16,6 +16,34 @@
     "designcraft": {
       "repo": "storytold/designcraft",
       "tested": "0.6.0"
+    },
+    "wordcraft": {
+      "repo": "storytold/wordcraft",
+      "tested": "0.5.0"
+    },
+    "gridcraft": {
+      "repo": "storytold/gridcraft",
+      "tested": "0.5.0"
+    },
+    "cadcraft": {
+      "repo": "storytold/cadcraft",
+      "tested": "0.5.0"
+    },
+    "deckcraft": {
+      "repo": "storytold/deckcraft",
+      "tested": "0.5.0"
+    },
+    "filmcraft": {
+      "repo": "storytold/filmcraft",
+      "tested": "0.6.0"
+    },
+    "lightcraft": {
+      "repo": "storytold/lightcraft",
+      "tested": "0.6.0"
+    },
+    "effectcraft": {
+      "repo": "storytold/effectcraft",
+      "tested": "0.8.0"
     }
   }
 }

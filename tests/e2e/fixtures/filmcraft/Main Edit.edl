@@ -1,0 +1,59 @@
+TITLE: Main Edit
+FCM: NON-DROP FRAME
+
+001  BL       V     C        00:00:00:00 00:00:00:00 00:00:00:00 00:00:00:00
+001  AX       V     D    024 00:00:00:23 00:00:05:10 00:00:00:00 00:00:04:11
+* TO CLIP NAME: Ocean_Sunset.mp4
+* EFFECT NAME: DIP TO BLACK
+* LOC: 00:00:00:00 GREEN   Open
+
+002  AX       A     C        00:00:00:23 00:00:05:10 00:00:00:00 00:00:04:11
+* FROM CLIP NAME: Ocean_Sunset.mp4
+
+003  AX       A2    C        00:00:00:00 00:00:26:18 00:00:00:00 00:00:26:18
+* FROM CLIP NAME: Ambient_Score.wav
+* LOC: 00:00:09:11 RED     Music hit
+* LOC: 00:00:17:23 YELLOW  Midpoint
+* LOC: 00:00:23:23 BLUE    Closing shot
+
+004  AX       V     C        00:00:05:10 00:00:05:10 00:00:04:11 00:00:04:11
+004  AX       V     D    024 00:00:01:11 00:00:06:10 00:00:04:11 00:00:09:10
+* FROM CLIP NAME: Ocean_Sunset.mp4
+* TO CLIP NAME: Aurora_Timelapse.mp4
+* EFFECT NAME: CROSS DISSOLVE
+
+005  AX       A     C        00:00:05:10 00:00:05:10 00:00:04:11 00:00:04:11
+005  AX       A     D    024 00:00:01:11 00:00:06:10 00:00:04:11 00:00:09:10
+* FROM CLIP NAME: Ocean_Sunset.mp4
+* TO CLIP NAME: Aurora_Timelapse.mp4
+* EFFECT NAME: CONSTANT POWER
+
+006  AX       V     C        00:00:00:11 00:00:03:22 00:00:09:10 00:00:12:21
+* FROM CLIP NAME: City_Night_Drive.mp4
+
+007  AX       A     C        00:00:00:11 00:00:04:10 00:00:09:10 00:00:13:09
+* FROM CLIP NAME: City_Night_Drive.mp4
+
+008  AX       V     C        00:00:03:22 00:00:03:22 00:00:12:21 00:00:12:21
+008  AX       V     D    024 00:00:02:11 00:00:07:22 00:00:12:21 00:00:18:08
+* FROM CLIP NAME: City_Night_Drive.mp4
+* TO CLIP NAME: Desert_Dunes.mp4
+* EFFECT NAME: DIP TO BLACK
+
+009  AX       A     C        00:00:02:23 00:00:07:22 00:00:13:09 00:00:18:08
+* FROM CLIP NAME: Desert_Dunes.mp4
+
+010  AX       V     C        00:00:00:23 00:00:03:10 00:00:18:08 00:00:20:19
+* FROM CLIP NAME: Misty_Forest.mp4
+
+011  AX       A     C        00:00:00:23 00:00:03:22 00:00:18:08 00:00:21:07
+* FROM CLIP NAME: Misty_Forest.mp4
+
+012  AX       V     C        00:00:03:10 00:00:03:10 00:00:20:19 00:00:20:19
+012  AX       V     D    024 00:00:01:11 00:00:07:10 00:00:20:19 00:00:26:18
+* FROM CLIP NAME: Misty_Forest.mp4
+* TO CLIP NAME: Neon_Loop.mov
+* EFFECT NAME: PUSH
+
+013  AX       A     C        00:00:01:23 00:00:07:10 00:00:21:07 00:00:26:18
+* FROM CLIP NAME: Neon_Loop.mov

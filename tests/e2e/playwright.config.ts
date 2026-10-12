@@ -5,9 +5,9 @@
 //  - translator.spec.ts: the translator against a stub that behaves like PdfCraft in the browser
 //    (fast, independent of the app's UI). All of it in Chromium; Firefox and WebKit run only the
 //    tests tagged @cross-browser, the ones that depend on how a browser behaves.
-//  - <app>.spec.ts: the translator inside the real web build of each Craft app (pdfcraft,
-//    photocraft, vectorcraft, designcraft), in Chromium and WebKit (the apps need WebGL2), as the
-//    projects <app>-chromium and <app>-webkit. Needs `npm run craft:fetch` first.
+//  - <app>.spec.ts: the translator inside the real web build of each Craft app in `apps` below, in
+//    Chromium and WebKit (the apps need WebGL2), as the projects <app>-chromium and <app>-webkit.
+//    Needs `npm run craft:fetch` first.
 //
 // Environment: CRAFTSUITE_PORT_BASE (test server ports), CRAFTSUITE_WEBKIT_EXECUTABLE (optional
 // WebKit binary or wrapper, for machines without the usual system libraries), NEXTCLOUD_URL (adds
@@ -21,7 +21,7 @@ const chromiumArgs = ['--enable-unsafe-swiftshader', '--use-angle=swiftshader'];
 const webkitExecutable = process.env.CRAFTSUITE_WEBKIT_EXECUTABLE || undefined;
 const nextcloud = process.env.NEXTCLOUD_URL ? new URL(process.env.NEXTCLOUD_URL).origin : '';
 // The Craft apps with a spec of their own; the canary finds their projects by the name prefix.
-const apps = ['pdfcraft', 'photocraft', 'vectorcraft', 'designcraft'];
+const apps = ['pdfcraft', 'photocraft', 'vectorcraft', 'designcraft', 'wordcraft', 'gridcraft', 'cadcraft', 'deckcraft', 'filmcraft', 'lightcraft', 'effectcraft'];
 
 export default defineConfig({
   testDir: './specs',

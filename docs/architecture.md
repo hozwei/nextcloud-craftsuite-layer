@@ -6,8 +6,10 @@
 
 ## Goal and constraints
 
-Open files from Nextcloud in storytold's Craft web apps (PdfCraft, PhotoCraft, VectorCraft and
-DesignCraft) and save the results back to Nextcloud.
+Open files from Nextcloud in storytold's Craft web apps (PdfCraft, PhotoCraft, VectorCraft,
+DesignCraft, WordCraft, GridCraft, DeckCraft, CADCraft, LightCraft, FilmCraft and EffectCraft) and
+save the results back to Nextcloud. SoundCraft is left out: its web build can neither open nor
+save files.
 
 - The apps stay unmodified. Sites that host them take new upstream releases daily, so a patched fork
   would have to be rebuilt every day.
@@ -23,9 +25,9 @@ DesignCraft) and save the results back to Nextcloud.
 |---|---|---|---|
 | Nextcloud app `craftsuite_layer` | `craftsuite_layer/` | Nextcloud, and in the browser in Files and the editor page | Files entries, editor page, settings page, German; Nextcloud 34 and 35 ([nextcloud-app.md](nextcloud-app.md)) |
 | Translator core | `translators/core.js` | the Craft app's page | done, protocol version 1 |
-| Adapters, one per app | `translators/<app>.js` | the Craft app's page | PdfCraft, PhotoCraft, VectorCraft, DesignCraft ([translators/README.md](../translators/README.md)) |
+| Adapters, one per app | `translators/<app>.js` | the Craft app's page | one for each of the eleven apps ([translators/README.md](../translators/README.md)) |
 | Craft hosting | `hosting/` (template) | a static web server on its own origin, plus an updater | translator injector, nginx template, Compose example; no updater yet ([hosting.md](hosting.md)) |
-| End-to-end tests | `tests/e2e/` | Playwright | the translator in Chromium, Firefox and WebKit; the four apps in Chromium and WebKit; the Nextcloud app in Nextcloud 34 and 35 ([development.md](development.md)) |
+| End-to-end tests | `tests/e2e/` | Playwright | the translator in Chromium, Firefox and WebKit; the apps in Chromium and WebKit; the Nextcloud app in Nextcloud 34 and 35 ([development.md](development.md)) |
 
 ## How it fits together
 
@@ -158,6 +160,8 @@ The message details are in [protocol.md](protocol.md), the page's rules in
 | Open by simulating a drop | Dropping a file is how the web builds take files. |
 | Save by intercepting downloads | Every save and export is a download in the web builds. The `Blob` is kept until the host confirms, so a failure ends in the download the user would have got anyway. |
 | Two kinds, `document` and `export` | Only a recognised save of the opened file may replace it. Everything else is a new file. When in doubt, `export`. |
+| Copies for saves with losses | WordCraft, GridCraft and CADCraft rewrite a file of another program from their own model and drop what they do not model; DeckCraft and EffectCraft do the same with a file of a newer version of themselves. Such a save is the document but must not replace the original: the adapter says `copy`, the first save becomes a new file next to it and the later ones replace that file ([protocol.md](protocol.md#copies)). No message type of its own, so hosts that know continued exports store copies correctly. |
+| Adapters set the apps' own switches | LightCraft keeps photos in the browser and EffectCraft restores old sessions unless their URL says otherwise. The adapter adds the switches (such as `store=memory`) to the frame's address before the app reads it, and the Nextcloud app refuses an app address with a query, so that no address turns them off or on by accident. |
 | A save in another file type is a new file next to the original | The apps save in their own format (PhotoCraft writes a PSD for an opened PNG). Writing it over the original would change the original's type. Later saves of the same open replace the new file, so one document stays one file. |
 | Inactive unless framed by an allowed origin over https | Outside the integration, the app behaves exactly as without the translator. |
 | Hashes of opened files, not copies | Large scans would otherwise be held in memory two or three times. |
@@ -171,14 +175,20 @@ What the layer relies on, and what happens if an upstream release changes it:
 | Relies on | Used for | If it changes |
 |---|---|---|
 | The page dispatches `TrunkApplicationStarted` when the app has started | startup errors | A working app is not affected. An app that starts but cannot take files may be reported only after `data-startup-timeout`, as `the app did not start in time`. |
+| FilmCraft, LightCraft and EffectCraft never dispatch `TrunkApplicationStarted` | their adapters' `started` checks: FilmCraft's waits until `#loading` is gone and reports `#status.err`, LightCraft's re-raises `LightCraft failed to load` / `failed to start` from `#lightcraft_loading` / `#lightcraft_status` | Without the check, a failed graphics start would give `ready` and `delivered` and no error; with a renamed element, `the app did not start in time` after the adapter's own deadline. For these apps only `data-startup-timeout` after `load` applies from the core, and the drop-target timer never runs. |
+| The apps' own URL switches, which their adapters set: LightCraft `store=memory` and `workers=0`, EffectCraft `empty`, `nosw` and `storage=memory`, FilmCraft `fresh` | nothing kept in the browser, no restored session that a failed open would leave to be saved under the opened name, no service worker in the frame | LightCraft's and EffectCraft's `started` checks read what the app reports (`lightcraft.command('web.stats')`, `effectcraft.info()`) and stop every open with a startup error if a switch no longer takes effect. FilmCraft's `fresh` is checked by its `saved-as` test. |
+| EffectCraft's `window.effectcraft` (`info()`, `execute('project.summary')`) and its Save writing `savedBy` first (Collect Files writes none) | the newer-version rule, telling a Save from other downloads under the opened name | If `info()` changes, every open stops with a startup error; if `project.summary` or `savedBy` change, saves under the opened name arrive as `export`: new files, nothing overwritten. The `contract` test fails. |
+| A build's service worker is `sw.js` at its root (EffectCraft) | `inject-translator.sh` replaces it with one that unregisters itself | A worker under another name is not replaced. On the same site, browsers that hold it keep a cached page and translator until the app's next release. |
 | A failed start shows as an error event before `TrunkApplicationStarted` (the loader awaits the `.wasm` module at its top level) | `the app failed to load` | The failure is reported only after `data-startup-timeout`, as `the app did not start in time`. |
 | The app registers a `drop` listener with `addEventListener` | drop target, `ready` | No `ready`; the host gets `the app registered no drop target`. |
 | VectorCraft removes its loading text (`#vectorcraft_loading`) once it can take files | the adapter's `started` check, `ready` | No `ready`; the host gets `the app did not get ready in time`. |
 | The drop handler accepts synthetic events | opening files | `delivered` arrives, but the file does not open. |
 | Downloads are a `Blob` from `URL.createObjectURL` behind a clicked `<a download>` | saves | The translator no longer sees them; the app's own behaviour (a browser download) applies. |
 | PdfCraft's Save keeps the name and writes an incremental update | kind `document` | Saves arrive as `export`: new files, nothing overwritten. |
-| The name PhotoCraft, VectorCraft and DesignCraft give a save of the opened file, and the format they write it in | the adapters' `savedName` and `classify`, kind `document` | Saves arrive as `export`: new files, nothing overwritten. |
-| PhotoCraft reads the user's own files through the `files` getters of `DataTransfer` and `<input type=file>` | telling a save of the opened file from that of a same-named file from elsewhere | Such files go unnoticed again; one with the opened file's stem could pass as the document ([apps/photocraft.md](apps/photocraft.md#known-gaps)). |
+| The name PhotoCraft, VectorCraft, DesignCraft, WordCraft, GridCraft and DeckCraft give a save of the opened file, and the format they write it in | the adapters' `savedName` and `classify`, kind `document` | Saves arrive as `export`: new files, nothing overwritten. |
+| What tells who wrote a file: `<Application>` in `docProps/app.xml` (WordCraft, GridCraft, with the parts GridCraft's writer produces), the generator in a `.deckcraft`, CADCraft 0.5.0's DXF vocabulary (header start, APPID, object types, header variables, xdata applications, dictionary keys) | the adapters' choice between `document` and `copy` | A file of the app's own is taken for another program's: its saves arrive as copies, new files, nothing overwritten. Update the lists in the adapter. |
+| The names the apps give new documents: `Document1` and its translations (WordCraft), `Book<N>` and the sample titles (GridCraft), `Presentation<N>` and `Northern Lights` (DeckCraft), `Drawing<N>` and `Bracket` (CADCraft), `Untitled` and `FilmCraft Demo` (FilmCraft), `Untitled Project` (EffectCraft); WordCraft's and DeckCraft's creation times | telling the opened document from a new one saved under its name | With other names, a new document's save under the opened name could pass as the document. The contract tests check these names and fail first. |
+| PhotoCraft, WordCraft, GridCraft, DeckCraft, CADCraft and FilmCraft read the user's own files through the `files` getters of `DataTransfer` and `<input type=file>` (or `drop` and `change` events), and WordCraft's Finish & Merge copies the opened document's title and creation time | telling a save of the opened file from that of a same-named file from elsewhere, or from merged letters | Such files go unnoticed again; one saved under the opened name could pass as the document (see each app's known gaps). |
 | Links use `window.open` (with `_self`) | keeping the editor in the frame; no `javascript:` or `data:` windows; no opener for pages of other origins | A link may replace the editor in the frame, or open with a handle on it. |
 | Files keeps its actions in the registry of `@nextcloud/files` 4.x | the Files entries | The entries are missing. The canary's `nextcloud-next` job warns before a Nextcloud release with another major ships. |
 | A Files node's `id` is the file id as a string of digits (`fileid`, a number, is deprecated for 64-bit ids) | the editor URL of the Files entries | Without digits the entries are missing; the Files test fails. |
@@ -194,12 +204,13 @@ is on its page in [`apps/`](apps/).
 
 ## Native embedding APIs
 
-Upstream status as of 2026-10-10:
+Upstream status as of 2026-10-11:
 
-| App | Request | State |
+| App | Request or API | State |
 |---|---|---|
-| PdfCraft | [storytold/pdfcraft#422](https://github.com/storytold/pdfcraft/issues/422) | open, no response |
+| PdfCraft | [storytold/pdfcraft#422](https://github.com/storytold/pdfcraft/issues/422) | open. PdfCraft 0.6.0 ships a `postMessage` bridge turned on by `?host=parent`, for a parent on the app's own origin only: under a Nextcloud on another origin it would drop every save, which is one reason the Nextcloud app refuses app addresses with a query ([apps/pdfcraft.md](apps/pdfcraft.md)). |
 | PhotoCraft | [storytold/photocraft#1614](https://github.com/storytold/photocraft/issues/1614), [pull request #2263](https://github.com/storytold/photocraft/pull/2263) | open, not merged |
+| FilmCraft, EffectCraft, LightCraft | `window.filmcraft`, `window.effectcraft`, `lightcraft.command` | JavaScript APIs on the app's own page, without `postMessage` or an origin check: the host cannot reach them. The LightCraft adapter uses `lightcraft.command('web.stats')` and the EffectCraft adapter `effectcraft.info()` and `effectcraft.execute('project.summary')` ([apps/lightcraft.md](apps/lightcraft.md), [apps/effectcraft.md](apps/effectcraft.md)). |
 
 Pull request #2263 proposes `window.photocraft` and a `postMessage` API enabled with
 `?embed=<origin>` in the app URL. When an app ships a native API:
@@ -216,10 +227,10 @@ Pull request #2263 proposes `window.photocraft` and a `postMessage` API enabled 
 | What | Where | Current |
 |---|---|---|
 | Protocol | `version` in every message | 1 |
-| Translator | `LAYER_VERSION` in `translators/core.js`, reported as `layerVersion` in `hello` and `ready` | 0.1.0 |
-| Nextcloud app | `<version>` in `craftsuite_layer/appinfo/info.xml` | 0.1.0, Nextcloud 34 and 35 |
-| Release | the tag `v<version>` | v0.1.0 |
-| Tested app versions | `tests/e2e/craft-versions.json` | PdfCraft 0.6.0, PhotoCraft 0.7.0, VectorCraft 0.9.0, DesignCraft 0.6.0 |
+| Translator | `LAYER_VERSION` in `translators/core.js`, reported as `layerVersion` in `hello` and `ready` | 0.2.0 |
+| Nextcloud app | `<version>` in `craftsuite_layer/appinfo/info.xml` | 0.2.0, Nextcloud 34 and 35 |
+| Release | the tag `v<version>` | v0.2.0 |
+| Tested app versions | `tests/e2e/craft-versions.json` | PdfCraft 0.6.0, PhotoCraft 0.7.0, VectorCraft 0.9.0, DesignCraft 0.6.0, WordCraft 0.5.0, GridCraft 0.5.0, DeckCraft 0.5.0, CADCraft 0.5.0, LightCraft 0.6.0, FilmCraft 0.6.0, EffectCraft 0.8.0 |
 
 The translator and the Nextcloud app share one version number, and a release carries both: the
 app, and the translators with the injector for the hosting

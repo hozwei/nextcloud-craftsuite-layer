@@ -22,7 +22,7 @@
 ```sh
 npm ci
 npx playwright install chromium firefox webkit
-npm run craft:fetch          # the web builds of PdfCraft, PhotoCraft, VectorCraft and DesignCraft
+npm run craft:fetch          # the web builds of the Craft apps in tests/e2e/craft-versions.json
 npm test                     # lint, typecheck, translations, end-to-end tests
 ```
 
@@ -52,7 +52,7 @@ Run one project with `npm run test:e2e -- --project translator-firefox`.
 |---|---|---|
 | `translator-chromium` | `specs/translator.spec.ts`, every test | the stub app in `tests/e2e/stub-app/`, which imitates PdfCraft's browser-facing behaviour: fast and independent of the app's UI |
 | `translator-firefox`, `translator-webkit` | `specs/translator.spec.ts`, only the tests tagged `@cross-browser` (see [Writing tests](#writing-tests)) | the same stub app |
-| `<app>-chromium`, `<app>-webkit` for `pdfcraft`, `photocraft`, `vectorcraft` and `designcraft` | `specs/<app>.spec.ts` | the real web build from `.craft-builds/`. The apps need WebGL2: Chromium runs them with SwiftShader, WebKit with the system's GL libraries (set `CRAFTSUITE_WEBKIT_EXECUTABLE` where those are missing). The `<app>-webkit` projects have not passed on a GitHub runner yet, so CI does not let them fail a run until they have (see [Continuous integration](#continuous-integration)). |
+| `<app>-chromium`, `<app>-webkit` for each app in `apps` in `tests/e2e/playwright.config.ts` (all eleven Craft apps) | `specs/<app>.spec.ts` | the real web build from `.craft-builds/`. The apps need WebGL2: Chromium runs them with SwiftShader, WebKit with the system's GL libraries (set `CRAFTSUITE_WEBKIT_EXECUTABLE` where those are missing). The `<app>-webkit` projects have not passed on a GitHub runner yet, so CI does not let them fail a run until they have (see [Continuous integration](#continuous-integration)). |
 | `nextcloud-chromium` | `specs/nextcloud.spec.ts`, `specs/nextcloud-files.spec.ts`, `specs/nextcloud-apps.spec.ts` | the Nextcloud app in a real Nextcloud, with the real Craft builds; only defined when `NEXTCLOUD_URL` is set (see [Testing in Nextcloud](#testing-in-nextcloud)) |
 
 Each `<app>.spec.ts` keeps the steps that drive the app apart from the contract checks: what the
@@ -60,7 +60,11 @@ host and the browser see. It drives the app with the keyboard: its shortcuts and
 has one, its command palette, with the English labels from the app's source (the app's page in
 [`apps/`](apps/) names the files). Only its `ui` test, tagged `@ui`, also clicks with the pointer.
 The click positions are the only layout knowledge in the spec, in its `AT` table, measured at a
-1400x900 viewport with the locale `en-US`. When only the `@ui` test fails after a release,
+1400x900 viewport with the locale `en-US` (LightCraft's at 1400x1400: its Export dialog is taller
+than a 900 px frame). Some apps are driven partly through their own page APIs where neither a
+shortcut nor a palette reaches a command (`window.filmcraft`, `window.effectcraft`,
+`lightcraft.command`); LightCraft, which renders on the page's thread, also gets longer host
+deadlines (20 s for `app-ack` and `app-result` instead of 3 s). When only the `@ui` test fails after a release,
 re-measure those positions; the test reports every pointer path that failed
 (`scenario failed: <title>`), not only the first. The contract tests alone:
 `npm run test:e2e -- --grep-invert @ui`.
@@ -132,9 +136,16 @@ Fixtures in `tests/e2e/fixtures/` (committed):
 | `photocraft/probe.psd`, `photocraft/probe.png`, `photocraft/elsewhere/probe.psd` | A 64x48 PSD, the same picture as a PNG, and a different PSD under the same name |
 | `vectorcraft/craftsuite-probe.vectorcraft`, `vectorcraft/renamed-probe.vectorcraft`, `vectorcraft/probe.svg` | A native file, the same drawing renamed (gzip, another stored title, data after the JSON), and an SVG |
 | `designcraft/craftsuite-probe.designcraft`, `designcraft/from-indesign.idml` | Saved by DesignCraft 0.5.0 from inputs of this project (see [apps/designcraft.md](apps/designcraft.md)) |
+| `wordcraft/craftsuite-probe.docx`, `wordcraft/from-word.docx`, `wordcraft/probe.odt`, `wordcraft/probe.rtf` | A `.docx` saved by WordCraft 0.5.0 (see [apps/wordcraft.md](apps/wordcraft.md#tests)), a `.docx` as Word writes it (a content control, a form field, a custom XML part), an ODT and an RTF |
+| `gridcraft/craftsuite-probe.xlsx`, `gridcraft/sales-sample.xlsx`, `gridcraft/from-excel.xlsx`, `gridcraft/macros.xlsm`, `gridcraft/data.ods`, `gridcraft/data.csv` | Saved by GridCraft 0.5.0 (a new workbook with the marker; the Start dialog's sales sample with charts, a table and notes, GridCraft's own content under MIT or Apache-2.0), and written by `gridcraft/make-fixtures.mjs`: an Excel workbook with parts GridCraft drops, the same with a VBA project, an ODS and a CSV (see [apps/gridcraft.md](apps/gridcraft.md)) |
+| `deckcraft/craftsuite-probe.pptx`, `deckcraft/craftsuite-probe.deckcraft` | A one-slide PowerPoint package with a marker, a stored title and a creation time (written by `deckcraft/make-fixtures.mjs`), and DeckCraft 0.5.0's save of the same slide without a creation time (see [apps/deckcraft.md](apps/deckcraft.md)) |
+| `cadcraft/craftsuite-probe.dxf`, `cadcraft/foreign.dxf`, `cadcraft/newer-cadcraft.dxf` | A DXF saved by CADCraft 0.5.0 (a circle and a text with a marker); an R2018 DXF as another program writes it, with header variables, xdata, an MLINE and an XRECORD that CADCraft drops; and the CADCraft DXF with an MLINE, `$FINGERPRINTGUID` and another application's xdata added. CRLF text, kept byte for byte (`.gitattributes`, see [apps/cadcraft.md](apps/cadcraft.md#tests)) |
+| `lightcraft/probe-photo.jpg`, `lightcraft/probe-scan.tif`, `lightcraft/elsewhere/probe-scan.tif`, `lightcraft/probe-raw.dng` | A 120x80 JPEG, a 90x60 TIFF, a different 64x64 TIFF under the same name, and a 96x64 DNG with an uncompressed RGGB mosaic, written by `lightcraft/make-fixtures.mjs` (which needs Playwright's Chromium for the JPEG; see [apps/lightcraft.md](apps/lightcraft.md#tests)) |
+| `filmcraft/FilmCraft Demo.fcproj`, `filmcraft/Main Edit.edl`, `filmcraft/craftsuite-probe.fcproj`, `filmcraft/old-schema.fcproj` | Saved by FilmCraft 0.6.0 from its demo project (the project, and its File > Export > EDL…; FilmCraft's own content under MIT or Apache-2.0), and derived from it by `filmcraft/make-fixtures.mjs`: a copy that stores another project name (`Probe Title`) with a marker in its notes, and one in schema 14 (see [apps/filmcraft.md](apps/filmcraft.md)) |
+| `effectcraft/craftsuite-probe.ecproj`, `effectcraft/craftsuite-probe.ecprojx` | Saved by EffectCraft 0.8.0: a blank project with a new composition and a solid, and its Save a Copy As XML (see [apps/effectcraft.md](apps/effectcraft.md#tests)); the spec derives the other files it opens from them |
 
-`node tests/e2e/fixtures/make-fixtures.mjs` rewrites the PDFs, and the `make-fixtures.mjs` in
-`photocraft/` and `vectorcraft/` rewrite theirs.
+`node tests/e2e/fixtures/make-fixtures.mjs` rewrites the PDFs, and the `make-fixtures.mjs` in the
+app folders rewrite the files that are not saved by the app itself (each script says which).
 
 ## Testing in Nextcloud
 
@@ -143,15 +154,16 @@ The project `nextcloud-chromium` runs three specs in a real Nextcloud with the a
 | Spec | What it checks |
 |---|---|
 | `nextcloud.spec.ts` | The editor page with PdfCraft: saves replace the opened file and Nextcloud keeps a version, two quick saves both reach Nextcloud, a reload of the app frame keeps the last save, exports become new files, after Sanitize the next Save continues the new file, a conflict becomes a copy that later saves follow, a missing ETag gives a copy too, a page another site opened asks first, the page explains files it cannot open, Close waits for a pending save, leaving asks |
-| `nextcloud-files.spec.ts` | The entries in Files ("Open in PdfCraft", PhotoCraft on a click for a PSD but not a PNG, DesignCraft for a `.designcraft`), the settings page refusing unusable addresses and saving after Nextcloud's password dialog, shares to the second user (without download permission: no entry and 403; read-only: a save becomes a new file; no settings for non-admins), a `/f/<id>` link that another site opens getting the question first, and the German texts |
-| `nextcloud-apps.spec.ts` | PhotoCraft, VectorCraft and DesignCraft saving the opened file as another type: the first save becomes a new file next to the original, later saves replace it |
+| `nextcloud-files.spec.ts` | The entries in Files ("Open in PdfCraft", PhotoCraft on a click for a PSD but not a PNG, DesignCraft for a `.designcraft`, a `.dxf` to CADCraft when it has an address and to VectorCraft otherwise), the settings page refusing unusable addresses (also one with a `?query`) and saving after Nextcloud's password dialog, shares to the second user (without download permission: no entry and 403; read-only: a save becomes a new file; no settings for non-admins), a `/f/<id>` link that another site opens getting the question first, and the German texts |
+| `nextcloud-apps.spec.ts` | PhotoCraft, VectorCraft and DesignCraft saving the opened file as another type, and WordCraft saving a Word file another program wrote as a copy: the first save becomes a new file next to the original, later saves replace it, the original stays unchanged |
 
 It runs one test at a time: a test Nextcloud on SQLite answers parallel writes with `database is
 locked`. The tests log in with the given user, who must be an administrator, work in a folder of
 their own and check the results through WebDAV. A second user, `NEXTCLOUD_USER2`, must not be an
 administrator: the tests share files with that user and use the app without admin rights. The
-settings test in `nextcloud-files.spec.ts` changes `designcraft_url` and `vectorcraft_url` and
-saves the addresses it found again when it ends (the other specs need them).
+settings test in `nextcloud-files.spec.ts` changes `designcraft_url`, `vectorcraft_url` and
+`cadcraft_url` and saves the addresses of every app it found again when it ends (the other specs
+need them).
 
 A test Nextcloud with Docker, for the default port base. It runs the App Store package, as
 users install it: `make appstore` stages it in `craftsuite_layer/build/stage/craftsuite_layer/`,
@@ -170,7 +182,7 @@ docker run -d --name nextcloud-test -p 8080:80 \
 occ() { docker exec -u www-data nextcloud-test php occ "$@"; }
 occ app:enable craftsuite_layer
 occ app:disable firstrunwizard     # its dialog would cover the page
-for app in pdfcraft photocraft vectorcraft designcraft; do
+for app in pdfcraft photocraft vectorcraft designcraft wordcraft gridcraft deckcraft cadcraft lightcraft filmcraft effectcraft; do
   occ config:app:set craftsuite_layer "${app}_url" --value="http://127.0.0.2:8702/$app/"
 done
 # The second user, not an administrator; occ reads the password from OC_PASS.
@@ -192,8 +204,10 @@ only; PHP 8.2 to 8.4, which `appinfo/info.xml` also allows, get only the `php -l
 ## Hosting tests
 
 `hosting/tests/inject-translator.test.sh` tests `hosting/inject-translator.sh` on small made-up
-pages and, after `npm run craft:fetch`, on the fetched web builds. It works in a temporary
-folder and removes it.
+pages and, after `npm run craft:fetch`, on the fetched web builds of all eleven apps; it names
+the apps it skipped for want of a fetched build or an adapter. It works in a temporary folder and
+removes it. `--busybox` needs `busybox` on the `PATH`; Debian's `busybox-static` has no `cksum`
+applet, so it also tests the injector's fallback to `sha256sum`.
 
 ```sh
 sh hosting/tests/inject-translator.test.sh                 # under sh
@@ -202,7 +216,10 @@ sh hosting/tests/inject-translator.test.sh --busybox       # BusyBox sh with Bus
 shellcheck -s sh hosting/inject-translator.sh hosting/tests/inject-translator.test.sh
 ```
 
-CI runs ShellCheck and the tests under dash, `bash --posix` and BusyBox.
+CI runs ShellCheck and the tests under dash, `bash --posix` and BusyBox. The nginx template and
+the Compose example have no tests: after changing the template, fill in
+`${CRAFTSUITE_ALLOWED_ORIGINS}`, run `nginx -t` on it and check the `Cache-Control` of a few
+files of each build with `curl -I`, hashed and unhashed.
 
 ## Writing tests
 
@@ -273,8 +290,8 @@ Workflows live in `.github/workflows/`:
 | Canary, `report` | after both, on `main` | Opens, comments on or closes the issues labelled `canary` and `canary-ui` (from the job `canary`) and `canary-nextcloud` (from `nextcloud-next`); each part acts only on its own job's result |
 | Release (`release.yml`), `release` | a pushed tag `v*` | Checks the versions, builds the release's assets and publishes the GitHub release, see [Releasing](#releasing) |
 
-In CI, every Playwright project can fail the check, except those listed in `NON_BLOCKING`:
-`pdfcraft-webkit`, `photocraft-webkit`, `vectorcraft-webkit` and `designcraft-webkit`. They have
+In CI, every Playwright project can fail the check, except those listed in `NON_BLOCKING`: at
+present the `<app>-webkit` project of every app. They have
 passed only outside GitHub so far, through a WebKit wrapper with its own GL libraries; on a
 GitHub runner the apps' WebGL2 depends on the image's libraries. `ci.yml` and `canary.yml` each
 carry this list, and both must stay the same: the listed projects run all their tests in a step
@@ -365,8 +382,18 @@ that installations and release updaters need no GitHub API (and none of its rate
    a GitHub runner.
 5. Add the app to `CraftApps::APPS` in `craftsuite_layer/lib/Service/CraftApps.php`: its name, the
    extensions it opens and those it opens on a click in Files. The settings field, the
-   `<app>_url` key and the Files entries follow from that list.
-6. Add the app to the list of fetched builds in `hosting/tests/inject-translator.test.sh`.
+   `<app>_url` key and the Files entries follow from that list. If another app already opens a
+   click type of the new one, decide which gets the click (`PREFERRED`). CI's Nextcloud job sets
+   an address for every app in `craft-versions.json`; add the app to the Docker example under
+   [Testing in Nextcloud](#testing-in-nextcloud) too.
+6. The hosting tests run on every fetched build (`hosting/tests/inject-translator.test.sh`). If the
+   app's page never dispatches `TrunkApplicationStarted`, loads large files after `load`, has file
+   names without a content hash or ships a service worker, say so in `docs/hosting.md` and
+   `hosting/README.md` (startup timeout, caching, `sw.js`).
+7. New fixtures need an entry in `REUSE.toml` (upstream content under upstream's license), and a
+   row in the fixtures table above. Name the app wherever all apps are listed: the README, the
+   documentation index, `docs/architecture.md`, `docs/nextcloud-app.md`, `translators/README.md`,
+   `craftsuite_layer/appinfo/info.xml` and both changelogs.
 
 ## Conventions
 

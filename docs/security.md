@@ -109,11 +109,15 @@ before it changes anything, and the adapters do nothing without the core.
 | `URL.createObjectURL`, `URL.revokeObjectURL` | core | always | keep the `Blob` behind each object URL until the URL is revoked; the URLs are unchanged |
 | `HTMLAnchorElement.prototype.click` | core | after the handshake, for an `<a download>` whose `href` is a `blob:` URL of this page | the download becomes a `save` message; every other click is the native one |
 | `window.open` | core | after the handshake | only `http`, `https`, `mailto`, `blob` and `about:blank` open (anything else returns `null`); the targets `_self`, `_top` and `_parent` become `_blank`; an `http` or `https` page of another origin gets `noopener` |
-| the `files` getters of `DataTransfer.prototype` and `HTMLInputElement.prototype` | PhotoCraft adapter | during a trusted `drop`, and for `<input type=file>` | notes the stems of the file names; returns the same list |
+| the `files` getters of `DataTransfer.prototype` and `HTMLInputElement.prototype` | adapters of PhotoCraft, WordCraft, GridCraft, DeckCraft, FilmCraft, EffectCraft | during a `drop` (only a trusted one counts as a file from the user), and for `<input type=file>` | notes the names of the files the user brings in; returns the same list |
+| `FileSystemFileHandle.prototype.getFile` | FilmCraft adapter | always | notes a project file the user picks; returns the same file |
+| the frame's address (`history.replaceState`) | adapters of LightCraft, FilmCraft, EffectCraft | once, as they load, only when the core is active | adds the app's own switches (`store=memory&workers=0`, `fresh`, `empty`, `nosw`, `storage=memory`), before the app reads them |
 
 The core also listens for `TrunkApplicationStarted`, the page's `load` event, and error events
 and unhandled rejections before the app has started, and defines `window.craftsuiteLayer`, which
-cannot be replaced. The other adapters replace nothing.
+cannot be replaced. The CADCraft adapter only adds capturing `drop` and `change` listeners, and
+the LightCraft adapter passes LightCraft's own failure texts to `reportError`, which the core
+reports as startup errors. The PdfCraft, VectorCraft and DesignCraft adapters replace nothing.
 
 ## What the host must do
 
@@ -180,7 +184,8 @@ These rules apply to any host; the Nextcloud app follows them ([nextcloud-app.md
   `?`, `*`) with `_` in new names, keeps new names within Nextcloud's 250 bytes, and picks a name
   that no file in the folder has in any letter case.
 - **The Craft origin.** The address must be `https` (`http` only on `localhost`, `127.x.x.x` or
-  `[::1]`), without user name, password or fragment. Its host must be a name of letters, digits,
+  `[::1]`), without user name, password, query or fragment (several apps read their query as
+  switches). Its host must be a name of letters, digits,
   hyphens and dots (an international name in its `xn--` form, converted with PHP's `intl` when
   it is installed), a dotted IPv4 address, or an IPv6 address in brackets; the editor page's
   Content-Security-Policy names it in the form the browser uses, so nothing else (a `;`, a space)

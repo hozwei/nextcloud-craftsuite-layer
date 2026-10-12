@@ -39,11 +39,19 @@ What it does with the folder (the one that holds the app's `index.html`):
    of `index.html`: not one inside an HTML comment, not `<header>`, in any case, with or without
    attributes. Nothing else in the file changes, so the integrity attributes of the app's own
    files stay valid.
-3. Writes `data-allowed-origins` and `data-app-version` on the `core.js` tag, and a checksum of
-   each translator file into its URL (`core.js?v=<checksum>`), so that a cache which keeps `*.js`
-   for a year (as the upstream `_headers` file asks for) still loads a new translator. The
+3. Writes `data-allowed-origins`, `data-app-version` and, with `--startup-timeout`,
+   `data-startup-timeout` on the `core.js` tag, and a checksum of each translator file into its
+   URL (`core.js?v=<checksum>`), so that a cache which keeps `*.js` for a year (as most upstream
+   `_headers` files ask for) still loads a new translator. The
    checksum comes from `cksum` (`<CRC>-<size>`); where `cksum` is missing, as in some BusyBox
    builds, from `sha256sum` or else `md5sum` (the first 16 hex digits).
+4. Replaces a service worker at the folder's root, `sw.js` (EffectCraft ships one), with a worker
+   that serves nothing: no `fetch` handler, so the browser loads everything from the server; on
+   activation it deletes the caches named after the app (`<app>-*`), takes over the open pages and
+   unregisters itself. The app's own worker would answer from its cache, so a changed
+   `index.html` or translator would reach browsers that have it only with the app's next release
+   ([docs/hosting.md](../docs/hosting.md#service-workers)). The original stays as
+   `craftsuite-layer/sw.js.orig`. The app then no longer starts offline from the hosting.
 
 ```html
 <head>
@@ -54,11 +62,12 @@ What it does with the folder (the one that holds the app's `index.html`):
 | Option | Meaning |
 |---|---|
 | `-o`, `--allowed-origins` | The Nextcloud origins allowed to frame the app, separated by spaces. Default: `$CRAFTSUITE_ALLOWED_ORIGINS`. |
-| `-a`, `--app` | App id (`pdfcraft`, `photocraft`, `vectorcraft`, `designcraft`). Default: from a folder named `<app>-web-<version>`, as in the upstream archives. |
+| `-a`, `--app` | The app id, such as `pdfcraft`: its adapter is `translators/<app>.js`. The layer has adapters for `pdfcraft`, `photocraft`, `vectorcraft`, `designcraft`, `wordcraft`, `gridcraft`, `deckcraft`, `cadcraft`, `lightcraft`, `filmcraft` and `effectcraft`. Default: from a folder named `<app>-web-<version>`, as in the upstream archives. |
 | `-V`, `--app-version` | The version served, reported to Nextcloud in `ready`. Default: from the folder name. |
+| `--startup-timeout` | Milliseconds (1 to 2147483647) after the page's `load` event for the app to start, written as `data-startup-timeout`; without it the translator's default of 60000 applies. 180000 for LightCraft and EffectCraft, see below. |
 | `-t`, `--translators` | Folder with `core.js` and the adapters. Default: `$CRAFTSUITE_TRANSLATORS`, else `../translators` next to the script. |
 | `-c`, `--check` | Change nothing; exit 0 if the folder is up to date, 1 if not. For monitoring. |
-| `-r`, `--remove` | Remove the tags again; the app then works as without the layer. `craftsuite-layer/` stays in place. |
+| `-r`, `--remove` | Remove the tags again and put back the app's own `sw.js` from `craftsuite-layer/sw.js.orig`; the app then works as without the layer. `craftsuite-layer/` stays in place. |
 | `-q`, `--quiet` | No message on success. |
 | `-h`, `--help` | The options and exit codes. |
 
@@ -73,13 +82,25 @@ becomes `https://cloud.example.com`. Separate them with spaces: the same list go
 server's `frame-ancestors`, where commas are not allowed (the script accepts commas, with a
 warning).
 
-**Run again**, the script changes nothing and says `already up to date`. With other origins,
-another version or other translator files it replaces its own tags and files. It refuses to touch
-`craftsuite-layer` tags it did not write.
+**Startup timeout.** FilmCraft, LightCraft and EffectCraft fetch their large `.wasm` (LightCraft
+also a 16 MB font) from a module script, which does not hold back the page's `load` event, so the
+translator's startup timer (60 s from `load`) runs during the download. On a slow first load the
+host then reports `the app did not start in time` for an app that is still loading, and `ready`
+once it has started. Pass `--startup-timeout 180000` for `lightcraft` and `effectcraft`; FilmCraft
+needs it only when its `.wasm` is served uncompressed or for users on slow connections
+([docs/hosting.md](../docs/hosting.md#startup-timeout)). The script has no per-app defaults.
 
-**Precompressed files.** If the folder already has `index.html.gz` or `craftsuite-layer/*.js.gz`
-(for nginx `gzip_static`), the script writes them again for the files it changed and removes
-`.br` files, which it cannot write. It is simpler to compress after injecting.
+**Run again**, the script changes nothing and says `already up to date`. With other origins,
+another version, another startup timeout or other translator files it replaces its own tags and
+files. It writes the whole block each time, so pass the same `--startup-timeout` on every run,
+`--check` included: without it, the attribute is removed (and `--check` exits 1). It refuses to
+touch `craftsuite-layer` tags it did not write. A `sw.js` that is the app's own again (a release
+unpacked over the folder) is replaced again, and the new original kept.
+
+**Precompressed files.** If the folder already has `index.html.gz`, `sw.js.gz` or
+`craftsuite-layer/*.js.gz` (for nginx `gzip_static`), the script writes them again for the files
+it changed and removes `.br` files, which it cannot write. It is simpler to compress after
+injecting.
 
 **Exit codes**, for an updater's log and decisions:
 
@@ -87,8 +108,8 @@ another version or other translator files it replaces its own tags and files. It
 |---|---|---|
 | 0 | Done, or already up to date | Go on: compress, switch to the new version. |
 | 1 | `--check` only: not up to date | Run without `--check`. |
-| 2 | Usage error or invalid setting (origin, app id, version) | Fix the configuration. Keep the current version. |
-| 3 | Missing or unusable input: folder, `index.html`, `craftsuite-layer/`, `core.js` (a wrong `--translators` or `$CRAFTSUITE_TRANSLATORS`), an unreadable adapter; no working `cksum`, `sha256sum` or `md5sum` | Fix the setup. Keep the current version. |
+| 2 | Usage error or invalid setting (origin, app id, version, startup timeout) | Fix the configuration. Keep the current version. |
+| 3 | Missing or unusable input: folder, `index.html`, `craftsuite-layer/`, `core.js` (a wrong `--translators` or `$CRAFTSUITE_TRANSLATORS`), an unreadable adapter, a `sw.js` that is not a regular file; no working `cksum`, `sha256sum` or `md5sum` | Fix the setup. Keep the current version. |
 | 4 | `index.html` cannot take the tags: no `<head>`, or `craftsuite-layer` tags the script did not write | The release changed its layout. Keep the current version and report it. |
 | 5 | Writing failed (permissions, disk space) | Keep the current version. |
 | 6 | `no adapter for <app>`: this version of the layer does not support the app | The app can be served without the layer (it works, but Nextcloud cannot open files in it), or keep the current version until there is an adapter. |
@@ -99,9 +120,9 @@ Errors and warnings go to stderr, everything else to stdout, one line each, star
 The script needs only POSIX `sh` and `awk` and a few standard tools: `cat`, `chmod`, `cmp`, `cp`,
 `mkdir`, `mv`, `rm`, `tail`, `tr`, `wc`, one of `cksum`, `sha256sum` and `md5sum`, and `gzip` for
 precompressed files. CI runs ShellCheck on it and its tests under dash, `bash --posix` and
-BusyBox sh with BusyBox's tools (`--busybox`), on made-up pages and on the web builds of
-PdfCraft 0.5.0, PhotoCraft 0.6.0, VectorCraft 0.8.0 and DesignCraft 0.5.0 that
-`npm run craft:fetch` fetched.
+BusyBox sh with BusyBox's tools (`--busybox`), on made-up pages and on the web builds of all
+eleven apps that `npm run craft:fetch` fetched, in the versions listed in
+`tests/e2e/craft-versions.json` (EffectCraft's with its service worker).
 
 ### In a release updater
 
@@ -113,7 +134,7 @@ GitHub API:
 ```sh
 # Once per layer version: the bundle unpacks to craftsuite-layer-hosting-<version>/, with
 # hosting/ and translators/ side by side, so the script finds the translators by itself.
-layer_version=0.1.0
+layer_version=0.2.0
 base=https://github.com/hozwei/nextcloud-craftsuite-layer/releases/download/v$layer_version
 cd /opt
 curl -fL --remote-name-all "$base/craftsuite-layer-hosting-$layer_version.tar.gz" "$base/SHA256SUMS"
@@ -125,12 +146,24 @@ layer=/opt/craftsuite-layer-hosting-$layer_version
 The `grep` picks the bundle's line from `SHA256SUMS`, which also lists the Nextcloud app; it
 works with BusyBox's `sha256sum` too, which has no `--ignore-missing`.
 
-For each new Craft app release the order matters: verify, unpack, inject, compress, switch.
+For each new Craft app release the order matters: verify, unpack, remove what must not be
+served, inject, compress, switch.
 
 ```sh
 # The archive's checksum is verified and it is unpacked to "$dir", which is not served yet.
+# LightCraft's release also holds the leftovers of its Cargo build (docs/hosting.md#files-to-serve).
+if [ "$app" = lightcraft ]; then
+  rm -rf "$dir/build" "$dir/deps" "$dir/incremental" "$dir/examples" "$dir/.fingerprint" \
+    "$dir/.cargo-lock" "$dir/.cargo-artifact-lock" "$dir/.cargo-build-lock"
+fi
+# The startup timeout of each app, from the updater's configuration; the same on every run
+# (docs/hosting.md#startup-timeout).
+case $app in
+  lightcraft | effectcraft) startup=180000 ;;
+  *) startup= ;;
+esac
 if sh "$layer/hosting/inject-translator.sh" -q \
-     --app "$app" --app-version "$version" "$dir"; then
+     --app "$app" --app-version "$version" ${startup:+"--startup-timeout=$startup"} "$dir"; then
   :
 else
   rc=$?
@@ -141,7 +174,8 @@ else
     exit 1   # keep serving the previous version
   fi
 fi
-find "$dir" -type f \( -name '*.wasm' -o -name '*.js' -o -name '*.html' \) -exec gzip -9 -k -f {} \;
+find "$dir" -type f \( -name '*.wasm' -o -name '*.js' -o -name '*.html' -o -name '*.otf' \) \
+  -exec gzip -9 -k -f {} \;
 # Then switch to "$dir" in one step (rename a symbolic link) and keep the previous version.
 ```
 
@@ -156,29 +190,38 @@ with:
 
 - `Content-Security-Policy: frame-ancestors` from `CRAFTSUITE_ALLOWED_ORIGINS`, the same variable
   the injector reads, on every response;
-- `Cache-Control: no-cache` for `index.html`, `craftsuite-layer/` and everything else without a
-  hash in its name, `public, max-age=31536000, immutable` for the hashed `*.js` and `*.wasm`;
-- `application/wasm` for `.wasm` (from nginx's `mime.types`), `font/ttf` for `.ttf`,
-  `text/javascript` for `.mjs`, and `charset=utf-8` for HTML;
+- `public, max-age=31536000, immutable` only for `*.js` and `*.wasm` whose names end in Trunk's
+  content hash (`-[0-9a-f]{8,16}(_bg)?\.(js|wasm)$`, such as
+  `pdfcraft-web-9fbc20856b2df0f8_bg.wasm`), `Cache-Control: no-cache` for everything else:
+  `index.html`, `sw.js`, `craftsuite-layer/`, and the JavaScript and WebAssembly of FilmCraft,
+  LightCraft and EffectCraft, whose names stay the same from one release to the next
+  (`effectcraft_web.js`, `worker.js`, ...). An `immutable` cache would keep their old versions
+  for a year after an update under the same `/<app>/` path
+  ([docs/hosting.md](../docs/hosting.md#caching));
+- `application/wasm` for `.wasm` (from nginx's `mime.types`), `font/ttf` and `font/otf` for
+  fonts, `text/javascript` for `.mjs`, and `charset=utf-8` for HTML;
 - `gzip_static` for the files the updater compressed, gzip on the fly for the rest;
 - `X-Content-Type-Options: nosniff`, no `X-Frame-Options`, 404 for hidden files.
 
 A `location` with its own `add_header` lines drops those of the outer blocks, so each location
-repeats them. Behind a sign-in, use `private` instead of `public` in `Cache-Control`.
+repeats them. Behind a sign-in, use `private` instead of `public` in `Cache-Control`. The
+template serves every file in an app's folder: remove LightCraft's Cargo leftovers first
+(see [In a release updater](#in-a-release-updater)). nginx 1.26 and 1.30 accept it
+(`nginx -t`); it is not tested in CI.
 
 ## Compose
 
 [`compose.example.yaml`](compose.example.yaml) runs the template with
 `nginxinc/nginx-unprivileged`, whose entrypoint fills in `CRAFTSUITE_ALLOWED_ORIGINS`. It serves
 `www/<app>/` next to the Compose file at `/<app>/`, on `127.0.0.1:8080`. In the unpacked bundle,
-with `pdfcraft-web-0.5.0/` injected next to the bundle as in the repository's README:
+with `pdfcraft-web-0.6.0/` injected next to the bundle as in the repository's README:
 
 ```sh
-cd craftsuite-layer-hosting-0.1.0/hosting
+cd craftsuite-layer-hosting-0.2.0/hosting
 cp compose.example.yaml compose.yaml
 mkdir -p www/releases
-mv ../../pdfcraft-web-0.5.0 www/releases/
-ln -s releases/pdfcraft-web-0.5.0 www/pdfcraft   # relative, so it resolves in the container
+mv ../../pdfcraft-web-0.6.0 www/releases/
+ln -s releases/pdfcraft-web-0.6.0 www/pdfcraft   # relative, so it resolves in the container
 echo 'CRAFTSUITE_ALLOWED_ORIGINS=https://cloud.example.com' > .env
 docker compose up -d
 curl -sI http://127.0.0.1:8080/pdfcraft/ | grep -i -e content-security-policy -e cache-control

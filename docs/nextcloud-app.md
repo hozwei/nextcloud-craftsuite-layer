@@ -26,13 +26,13 @@ The app is not in the Nextcloud App Store. Each
 `craftsuite_layer-<version>.tar.gz`, with the checksums in `SHA256SUMS`. Both are plain
 downloads from
 `https://github.com/hozwei/nextcloud-craftsuite-layer/releases/download/v<version>/<asset>`.
-For version 0.1.0:
+For version 0.2.0:
 
 ```sh
-v=0.1.0
+v=0.2.0
 base=https://github.com/hozwei/nextcloud-craftsuite-layer/releases/download/v$v
 curl -fL --remote-name-all "$base/craftsuite_layer-$v.tar.gz" "$base/SHA256SUMS"
-sha256sum -c --ignore-missing SHA256SUMS      # craftsuite_layer-0.1.0.tar.gz: OK
+sha256sum -c --ignore-missing SHA256SUMS      # craftsuite_layer-0.2.0.tar.gz: OK
 ```
 
 `--ignore-missing` skips the line of the hosting bundle, which `SHA256SUMS` lists too. The
@@ -79,11 +79,14 @@ occ config:app:delete craftsuite_layer designcraft_url      # no DesignCraft ent
 ```
 
 `occ` does not check the address. An address that cannot be used leaves its app without an entry
-in Files, and the editor page says why. The app declares the four keys in Nextcloud's config
+in Files, and the editor page says why. The app declares one key per app in Nextcloud's config
 lexicon: a key it does not know, such as a typo, is not stored, and Nextcloud logs a warning.
 
 **Rules for the address.** It must use `https` (plain `http` only on `localhost`, `127.x.x.x` or
-`[::1]`, for development) and have no user name, password or `#fragment`. Its host must be a
+`[::1]`, for development) and have no user name, password, `?query` or `#fragment`. Several Craft
+apps read their query as switches: PdfCraft's `?host=parent` would make it drop every save under
+a Nextcloud on another origin, and others restore old sessions or keep files in the browser. The
+adapters set the switches their app needs themselves. Its host must be a
 name of letters, digits, hyphens and dots, a dotted IPv4 address, or an IPv6 address in brackets:
 the page's Content-Security-Policy names it, and has to name it as the browser does. A name with
 other letters (`bücher.example`) is converted to its `xn--` form when PHP's `intl` extension
@@ -102,7 +105,7 @@ and in its `frame-ancestors` header ([hosting.md](hosting.md)).
 ## Upgrading to Nextcloud 35
 
 1. Update the app to a release that declares Nextcloud 35 (`max-version="35"` in
-   `appinfo/info.xml`, as 0.1.0 does; see [Installing](#installing)) **before** upgrading the
+   `appinfo/info.xml`, as 0.1.0 and later do; see [Installing](#installing)) **before** upgrading the
    server. The server's updater
    disables every app whose range ends below the new version ("incompatible app"). Installed
    before the upgrade, the app stays enabled and keeps its addresses; this was rehearsed from
@@ -129,6 +132,15 @@ on the file does.
 | PhotoCraft | `psd`, `psb`, `pcraft`, `tga`, `png`, `jpg`, `jpeg`, `webp`, `gif`, `bmp`, `tif`, `tiff`, `ico`, `heic`, `heif` | `psd`, `psb`, `pcraft`, `tga` |
 | VectorCraft | `vectorcraft`, `drawcraft`, `ai`, `eps`, `svgz`, `dxf`, `svg`, `emf`, `wmf`, `pdf` | `vectorcraft`, `drawcraft`, `eps`, `svgz`, `dxf` |
 | DesignCraft | `designcraft`, `idml` | `designcraft`, `idml` |
+| WordCraft | `docx`, `docm`, `dotx`, `dotm`, `doc`, `dot`, `odt`, `rtf` | none |
+| GridCraft | `xlsx`, `xlsm`, `ods`, `csv` | none |
+| DeckCraft | `deckcraft`, `pptx`, `potx`, `ppsx` | `deckcraft` |
+| CADCraft | `dxf` | `dxf` |
+| LightCraft | `dng`, `cr2`, `cr3`, `nef`, `nrw`, `arw`, `raf`, `orf`, `rw2`, `rwl`, `pef`, `srw`, `jpg`, `jpeg`, `png`, `tif`, `tiff`, `webp` | `dng`, `cr2`, `cr3`, `nef`, `nrw`, `arw`, `raf`, `orf`, `rw2`, `rwl`, `pef`, `srw` |
+| FilmCraft | `fcproj` | `fcproj` |
+| EffectCraft | `ecproj` | `ecproj` |
+
+SoundCraft has no entry: its web build can neither open nor save files.
 
 - **By extension, in any letter case.** Nextcloud stores `application/octet-stream` for
   extensions it does not know, such as `.designcraft`, `.vectorcraft` and `.idml`; matching by
@@ -136,13 +148,20 @@ on the file does.
   extension needs no change on the server.
 - **A click only where no common Nextcloud app opens the type.** A PDF stays with the PDF
   viewer, a PNG or SVG with the Viewer; their entries are in the action menu. The PDF viewer also
-  opens `.ai` (Illustrator files are PDF-compatible), so `.ai` is in the menu only. A PDF can show
-  both "Open in PdfCraft" and "Open in VectorCraft".
+  opens `.ai` (Illustrator files are PDF-compatible), so `.ai` is in the menu only. Office files
+  stay with Nextcloud Office or ONLYOFFICE where they are installed (and `.csv` with Text), so
+  WordCraft and GridCraft are in the menu only. A file can show several entries, such as "Open in
+  PdfCraft" and "Open in VectorCraft" for a PDF, or PhotoCraft and LightCraft for a JPEG.
+- **One app per click.** Where two apps have the same type as their click type (CADCraft and
+  VectorCraft for `.dxf`), the click goes to CADCraft when both have an address, and to the one
+  with an address otherwise; the other keeps its menu entry.
 - **What each list contains** follows from what the app opens from a drop and saves back well;
   the reasons per type, and the types left out on purpose, are on the app pages:
   [PdfCraft](apps/pdfcraft.md), [PhotoCraft](apps/photocraft.md#file-types),
-  [VectorCraft](apps/vectorcraft.md#file-types), [DesignCraft](apps/designcraft.md#file-types).
-  The lists live in `lib/Service/CraftApps.php`.
+  [VectorCraft](apps/vectorcraft.md#file-types), [DesignCraft](apps/designcraft.md#file-types),
+  [WordCraft](apps/wordcraft.md), [GridCraft](apps/gridcraft.md), [DeckCraft](apps/deckcraft.md),
+  [CADCraft](apps/cadcraft.md), [LightCraft](apps/lightcraft.md), [FilmCraft](apps/filmcraft.md),
+  [EffectCraft](apps/effectcraft.md). The lists live in `lib/Service/CraftApps.php`.
 - **Not offered** for several selected files, for folders, in the trash (a deleted file has no
   folder to save to), and for files shared without permission to download or with downloads
   hidden: handing a file to a Craft app, which can save and export it, is a download. Public
@@ -150,7 +169,8 @@ on the file does.
 
 An entry opens the editor page,
 `/index.php/apps/craftsuite_layer/edit/<fileId>?app=<app>`. Without `?app=`, the page takes the
-app that opens the type on a click, else the first app that opens it. The entry uses the file's
+app that opens the type on a click, else the first app that opens it, both among the apps with an
+address. The entry uses the file's
 `id` from Files, as a string of digits (Nextcloud is moving to 64-bit ids). When the user clicked
 (or pressed a key) to open the file, the entry adds the session's request token
 (`&requesttoken=…`), which lets the editor open at once (see below); Files also runs the entry
@@ -186,7 +206,8 @@ referrer, so the token never reaches the Craft origin. Browsers without
 | What the app saves | What the page stores |
 |---|---|
 | The opened document under the name the app got (PdfCraft's Save, PhotoCraft's Save of a `.psd`, VectorCraft's and DesignCraft's Save of their own files) | Replaces the opened file. The write is conditional (`If-Match` with the version the page read or last wrote), and Nextcloud keeps the previous content as a version. |
-| The opened document under another name or file type: PhotoCraft saves a PNG as `<stem>.psd`, VectorCraft an SVG (or a `.drawcraft`) as `<stem>.vectorcraft`, DesignCraft an IDML as `<stem>.designcraft` | The first save becomes a new file next to the original, which stays as it is. Later saves under that name replace the new file, conditionally. |
+| The opened document under another name or file type: PhotoCraft saves a PNG as `<stem>.psd`, VectorCraft an SVG (or a `.drawcraft`) as `<stem>.vectorcraft`, DesignCraft an IDML as `<stem>.designcraft`, WordCraft an ODT as `<stem>.docx`, GridCraft a CSV as `<stem>.xlsx`, DeckCraft a PPTX as `<stem>.deckcraft` | The first save becomes a new file next to the original, which stays as it is. Later saves under that name replace the new file, conditionally. |
+| The opened document, but the app cannot save it without losses: WordCraft's Save of a Word file another program wrote, GridCraft's of such an Excel file, CADCraft's of such a DXF, DeckCraft's of a file from a newer DeckCraft (or of a PowerPoint file named `.deckcraft`), EffectCraft's of a project from a newer EffectCraft (a copy, [protocol.md](protocol.md#copies)) | The first save becomes a new file next to the original, which stays as it is, and the name above the app shows that file. Later saves of the same editor session replace it, conditionally. |
 | The document, but the file was changed elsewhere since the page read or last wrote it | A new file `<name> (conflict <date> <time>).<ext>` next to it, such as `report (conflict 2026-10-10 14-05).pdf`; the other change stays in the original. Later saves go to the new file. |
 | The document, but the file's version cannot be checked (no usable ETag) | The same as a conflict: the page never writes without knowing which version it replaces. |
 | The document, but the user may not change the file (for example in a read-only share) | A new file next to it, under the name of the save. Later saves go to the new file. |
@@ -314,4 +335,6 @@ esbuild into `js/*.mjs`. The German texts are in `l10n/` (see
   ([PhotoCraft's known gaps](apps/photocraft.md#known-gaps)).
 - **The apps' own gaps.** What each Craft app does not do, or does differently in a frame:
   [PdfCraft](apps/pdfcraft.md#known-gaps), [PhotoCraft](apps/photocraft.md#known-gaps),
-  [VectorCraft](apps/vectorcraft.md#known-gaps), [DesignCraft](apps/designcraft.md#known-gaps).
+  [VectorCraft](apps/vectorcraft.md#known-gaps), [DesignCraft](apps/designcraft.md#known-gaps),
+  and the pages of WordCraft, GridCraft, DeckCraft, CADCraft, LightCraft, FilmCraft and
+  EffectCraft in [apps/](apps/).

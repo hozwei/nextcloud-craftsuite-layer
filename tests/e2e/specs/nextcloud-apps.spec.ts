@@ -4,8 +4,10 @@
 // The Nextcloud app's editor page with the real builds of PhotoCraft, VectorCraft and DesignCraft,
 // which save the opened file under another name or type: the first save of the document creates
 // a new file next to the original and the name label shows it, later saves replace that file
-// (and Nextcloud keeps a version), the original stays as it was, and nothing is downloaded.
-// Checked through WebDAV. One test per app:
+// (and Nextcloud keeps a version), the original stays as it was, and nothing is downloaded; and
+// with WordCraft, whose saves of a Word file another program wrote are copies (docs/protocol.md,
+// "Copies"): the first becomes a new file, later ones replace it. Checked through WebDAV. One
+// test per app:
 //
 //   photocraft    an opened probe.png, next to an unrelated 'Probe.PSD': Ctrl+S after an edit
 //                 creates 'probe (2).psd' ('probe.psd' would clash with 'Probe.PSD' on Windows
@@ -16,15 +18,20 @@
 //   designcraft   an opened from-indesign.idml: Ctrl+S creates from-indesign.designcraft next to
 //                 it, a save after an edit replaces it; Export Page as PNG (Ctrl+E) becomes a new
 //                 file
+//   wordcraft     an opened from-word.docx (written by Word): Ctrl+S after an edit saves it under
+//                 the same name, which becomes 'from-word (2).docx' next to it (the name label
+//                 still shows the original); a second Ctrl+S after another edit replaces that
+//                 file, and the name label shows it; the original stays byte for byte as it was
 //
 // The steps that drive each app use the keyboard, as in <app>.spec.ts (which has the sources of
 // the shortcuts and command labels). Needs a Nextcloud with the app enabled and photocraft_url,
-// vectorcraft_url and designcraft_url set to the test server's /<app>/, and NEXTCLOUD_URL,
-// NEXTCLOUD_USER, NEXTCLOUD_PASSWORD (docs/development.md). Each test works in a folder of its own.
+// vectorcraft_url, designcraft_url and wordcraft_url set to the test server's /<app>/, and
+// NEXTCLOUD_URL, NEXTCLOUD_USER, NEXTCLOUD_PASSWORD (docs/development.md). Each test works in a
+// folder of its own.
 
 import { readFileSync } from 'node:fs';
 import { gunzipSync } from 'node:zlib';
-import { test, expect, type Page } from '@playwright/test';
+import { test, expect, type Frame, type Page } from '@playwright/test';
 import { strFromU8, unzipSync } from 'fflate';
 import { appFrames, PALETTE_KEYS, press, runCommand, settle } from '../lib/craft-ui.ts';
 import { appView, login, nameLabel, newFolder, openEditor, status, trackDownloads, type Folder } from '../lib/nextcloud.ts';
@@ -243,6 +250,77 @@ test('designcraft: an opened IDML is saved as from-indesign.designcraft next to 
     const exported = await expectExported(page, folder, before, SAVED);
     expect(exported).toMatch(/^from-indesign-p\d+\.png$/);
     expect((await folder.get(exported)).subarray(0, 8).toString('latin1'), 'a PNG').toBe(PNG_SIGNATURE);
+    await expectUnchanged(folder, originals);
+  });
+
+  expect(downloads, 'browser downloads').toEqual([]);
+});
+
+// WordCraft's typing (wordcraft.spec.ts): at the caret, which is at the start of the text after
+// an open.
+async function typeText(page: Page, app: Frame, text: string) {
+  await test.step(`ui: type "${text}"`, async () => {
+    await app.locator('canvas').first().focus();
+    await page.keyboard.type(text, { delay: 10 });
+    await appFrames(app, 3);
+  });
+}
+
+// A Word document as WordCraft saves it (wordcraft.spec.ts): the opened text (MARKER, from
+// fixtures/wordcraft/make-fixtures.mjs) with the texts typed into it, written by WordCraft.
+const WORD_MARKER = 'CRAFTSUITE-PROBE-wc01';
+function expectWordCraftSave(bytes: Buffer, ...typed: string[]) {
+  expect(bytes.subarray(0, 4).toString('latin1'), 'a zip package').toBe('PK\x03\x04');
+  const files = unzipSync(bytes);
+  const part = (name: string) => (files[name] ? strFromU8(files[name]) : '');
+  expect(part('[Content_Types].xml'), 'a Word document').toContain('wordprocessingml.document.main+xml');
+  const text = part('word/document.xml').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+  expect(text, 'the opened document\'s text').toContain(WORD_MARKER);
+  for (const t of typed) expect(text, 'the edit').toContain(t);
+  expect(/<Application>([^<]*)</.exec(part('docProps/app.xml'))?.[1], 'written by WordCraft').toBe('WordCraft');
+}
+
+test('wordcraft: an opened .docx Word wrote is saved as a copy next to it, later saves replace the copy', async ({ page, request }) => {
+  const ORIGINAL = 'from-word.docx';
+  const originals = { [ORIGINAL]: fixture('wordcraft/from-word.docx') };
+  const folder = await newFolder(request, originals);
+  await login(page);
+  const downloads = trackDownloads(page);
+  const app = await openEditor(page, await folder.fileId(ORIGINAL), 'wordcraft');
+
+  // Typing, then Ctrl+S (WordCraft's shortcut, wordcraft.spec.ts): WordCraft saves under the
+  // opened name, but drops what it does not model, so the save must not replace Word's file.
+  const editAndSave = async (text: string) => {
+    await typeText(page, app, text);
+    await press(page, app, 'Control+s');
+  };
+
+  let copy = '';
+  let first: Buffer = Buffer.alloc(0);
+  let id = 0;
+
+  await test.step('the first Ctrl+S after an edit becomes a new file next to the original, which the name label shows', async () => {
+    await editAndSave('EDIT1 ');
+    copy = 'from-word (2).docx'; // the first free name
+    await expect(status(page)).toHaveText(`Saved as ${copy} next to the original. Later saves go there.`, { timeout: SAVE_TIMEOUT });
+    await expect(nameLabel(page), 'the name label shows the file saves go to').toHaveText(copy);
+    expect(await folder.names(), 'the original and one copy').toEqual([ORIGINAL, copy].sort());
+    first = await folder.get(copy);
+    expectWordCraftSave(first, 'EDIT1');
+    id = await folder.fileId(copy);
+    await expectUnchanged(folder, originals);
+  });
+
+  await test.step('a second Ctrl+S after another edit replaces that copy', async () => {
+    await editAndSave('EDIT2 ');
+    await expect(status(page)).toHaveText(`Saved ${copy}`, { timeout: SAVE_TIMEOUT });
+    await expect(nameLabel(page), 'the name label still shows the copy').toHaveText(copy);
+    const second = await folder.get(copy);
+    expect(second.equals(first), `${copy} holds the new save`).toBe(false);
+    expectWordCraftSave(second, 'EDIT1', 'EDIT2');
+    expect(await folder.fileId(copy), `${copy} replaced in place, not deleted and created again`).toBe(id);
+    expect(await folder.versions(id), `older versions of ${copy}`).toBeGreaterThanOrEqual(1);
+    expect(await folder.names(), 'the original and one copy').toEqual([ORIGINAL, copy].sort());
     await expectUnchanged(folder, originals);
   });
 

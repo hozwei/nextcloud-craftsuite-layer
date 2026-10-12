@@ -4,8 +4,9 @@
 -->
 # nextcloud-craftsuite-layer
 
-Open files from Nextcloud in storytold's Craft web apps (PdfCraft, PhotoCraft, VectorCraft and
-DesignCraft) and save the results back to Nextcloud, without modifying the apps.
+Open files from Nextcloud in storytold's Craft web apps (PdfCraft, PhotoCraft, VectorCraft,
+DesignCraft, WordCraft, GridCraft, DeckCraft, CADCraft, LightCraft, FilmCraft and EffectCraft)
+and save the results back to Nextcloud, without modifying the apps.
 
 [![CI](https://github.com/hozwei/nextcloud-craftsuite-layer/actions/workflows/ci.yml/badge.svg)](https://github.com/hozwei/nextcloud-craftsuite-layer/actions/workflows/ci.yml)
 [![Canary](https://github.com/hozwei/nextcloud-craftsuite-layer/actions/workflows/canary.yml/badge.svg)](https://github.com/hozwei/nextcloud-craftsuite-layer/actions/workflows/canary.yml)
@@ -24,6 +25,9 @@ frame and the file loaded. What the user saves in the app goes back into Nextclo
 - **A save of the opened file** replaces it. Nextcloud keeps the previous content as a version.
 - **A save in the app's own format** (a PNG saved as PSD in PhotoCraft) becomes a new file next
   to the original. Later saves replace that new file.
+- **A save the app cannot make without losses** (a `.docx` from Word in WordCraft, an `.xlsx`
+  from Excel in GridCraft, a DXF from AutoCAD in CADCraft) becomes a copy next to the original,
+  which stays as it is. Later saves replace that copy.
 - **Exports** always become new files next to the original.
 - **A file changed elsewhere** in the meantime is not overwritten: the save becomes a conflict
   copy next to it.
@@ -31,7 +35,8 @@ frame and the file loaded. What the user saves in the app goes back into Nextclo
   session) reaches the user as the browser download the app would have made without this layer.
 
 A click on a file opens the Craft app only for types no common Nextcloud app opens. A PDF, PNG
-or SVG keeps its Nextcloud viewer on a click; the Craft app is in its action menu.
+or SVG keeps its Nextcloud viewer on a click, and Office files keep Nextcloud Office or
+ONLYOFFICE; the Craft app is in their action menu.
 
 | App | Tested version | In the action menu for | Also on a click on the file |
 |---|---|---|---|
@@ -39,6 +44,19 @@ or SVG keeps its Nextcloud viewer on a click; the Craft app is in its action men
 | PhotoCraft | 0.7.0 | `psd` `psb` `pcraft` `tga` `png` `jpg` `jpeg` `webp` `gif` `bmp` `tif` `tiff` `ico` `heic` `heif` | `psd` `psb` `pcraft` `tga` |
 | VectorCraft | 0.9.0 | `vectorcraft` `drawcraft` `ai` `eps` `svgz` `dxf` `svg` `emf` `wmf` `pdf` | `vectorcraft` `drawcraft` `eps` `svgz` `dxf` |
 | DesignCraft | 0.6.0 | `designcraft` `idml` | `designcraft` `idml` |
+| WordCraft | 0.5.0 | `docx` `docm` `dotx` `dotm` `doc` `dot` `odt` `rtf` | none |
+| GridCraft | 0.5.0 | `xlsx` `xlsm` `ods` `csv` | none |
+| DeckCraft | 0.5.0 | `deckcraft` `pptx` `potx` `ppsx` | `deckcraft` |
+| CADCraft | 0.5.0 | `dxf` | `dxf` (instead of VectorCraft when both are set up) |
+| LightCraft | 0.6.0 | `dng` `cr2` `cr3` `nef` `nrw` `arw` `raf` `orf` `rw2` `rwl` `pef` `srw` `jpg` `jpeg` `png` `tif` `tiff` `webp` | the camera raw types |
+| FilmCraft | 0.6.0 | `fcproj` | `fcproj` |
+| EffectCraft | 0.8.0 | `ecproj` | `ecproj` |
+
+LightCraft develops photos and exports them as new files; it never saves a photo back, and its
+edits are gone when the editor closes. FilmCraft and EffectCraft open their project files; a
+project refers to its media, which are not in the file. SoundCraft is not supported: its web
+build can neither open nor save files. Each app's page in [docs/apps/](docs/apps/) says what
+saves where.
 
 Files are matched by extension, in any letter case. The tested version is the Craft release the
 tests pass with; a daily canary run tests each newer release. The Nextcloud app's texts are in
@@ -69,7 +87,7 @@ The app is not in the Nextcloud App Store. Each
 | `SHA256SUMS` | The checksums of both |
 
 ```sh
-v=0.1.0
+v=0.2.0
 base=https://github.com/hozwei/nextcloud-craftsuite-layer/releases/download/v$v
 curl -fL --remote-name-all "$base/craftsuite_layer-$v.tar.gz" \
   "$base/craftsuite-layer-hosting-$v.tar.gz" "$base/SHA256SUMS"
@@ -89,7 +107,7 @@ sha256sum -c --ignore-missing SHA256SUMS.txt
 unzip -q pdfcraft-web-0.6.0.zip
 sh craftsuite-layer-hosting-$v/hosting/inject-translator.sh \
   --allowed-origins https://cloud.example.com pdfcraft-web-0.6.0
-find pdfcraft-web-0.6.0 -type f \( -name '*.wasm' -o -name '*.js' -o -name '*.html' \) -exec gzip -9 -k -f {} \;
+find pdfcraft-web-0.6.0 -type f \( -name '*.wasm' -o -name '*.js' -o -name '*.html' -o -name '*.otf' \) -exec gzip -9 -k -f {} \;
 ```
 
 Serve the folder at `https://craft.example.com/pdfcraft/`, with `frame-ancestors` for the same
@@ -116,7 +134,7 @@ occ app:enable craftsuite_layer
 Under **Administration settings > Craft apps**, enter the address of each Craft app you host,
 such as `https://craft.example.com/pdfcraft/`. The page checks each address against the rules
 for addresses; it does not test whether the app answers there. Or use `occ`, with
-the keys `pdfcraft_url`, `photocraft_url`, `vectorcraft_url` and `designcraft_url`:
+the keys `<app>_url` (`pdfcraft_url`, `photocraft_url`, ... `effectcraft_url`):
 
 ```sh
 occ config:app:set craftsuite_layer pdfcraft_url --value=https://craft.example.com/pdfcraft/
@@ -127,7 +145,7 @@ An app without a usable address has no entry in Files. The rules for addresses a
 
 ### Upgrading to Nextcloud 35
 
-Install a release of the app that declares Nextcloud 35 (0.1.0 does) **before** you upgrade the
+Install a release of the app that declares Nextcloud 35 (0.1.0 and later do) **before** you upgrade the
 server: the server's updater disables every app whose range ends below the new version. Nextcloud
 35 needs PHP 8.3 or newer
 ([docs/nextcloud-app.md](docs/nextcloud-app.md#upgrading-to-nextcloud-35)).
@@ -179,13 +197,35 @@ Details: [architecture](docs/architecture.md), [protocol](docs/protocol.md),
   saved as a new file next to the opened one.
 - **Saves in an app's own format become a new file.** A PNG saved in PhotoCraft becomes
   `<name>.psd`, an SVG in VectorCraft `<name>.vectorcraft`, an IDML in DesignCraft
-  `<name>.designcraft`. The original stays as it was.
+  `<name>.designcraft`, an ODT, RTF or DOC in WordCraft `<name>.docx`, a CSV or XLSM in
+  GridCraft `<name>.xlsx` (an ODS `<name> (imported).xlsx`), a PowerPoint file in DeckCraft
+  `<name>.deckcraft`. The original stays
+  as it was.
+- **Files of other programs become copies.** WordCraft, GridCraft and CADCraft drop what they do
+  not model (content controls and custom XML in Word files, custom parts in Excel files, unknown
+  objects in DXF), so the first save of a `.docx` from Word, an `.xlsx` from Excel or a DXF from
+  AutoCAD becomes a new file next to it (`<name> (2).docx`), and later saves in the same editor
+  replace that copy. DeckCraft and EffectCraft do the same for a file from a newer version of
+  themselves (DeckCraft also for a PowerPoint file named `.deckcraft`). The original stays as it
+  was.
+- **LightCraft only exports.** A developed photo comes back as a new file; the edits themselves
+  are gone when the editor closes, because LightCraft keeps nothing in the browser there.
+- **Projects without their media.** FilmCraft and EffectCraft open their project files, but a
+  project refers to its video, audio and pictures, which are not in the file and missing when it
+  is opened from Nextcloud.
 - **PhotoCraft's copies replace the opened file.** Image > Duplicate, Split Channels and Crop and
   Straighten Photos save under the opened document's name, and a PSD carries nothing that tells
   them apart. Nextcloud keeps the previous content as a version.
 - **Files named like a new document always save as new files**: `Untitled-1.psd` and the like in
-  PhotoCraft, and `Untitled-<n>` drawings and packages made in the browser in VectorCraft and
-  DesignCraft. Rename such a file in Nextcloud before opening it.
+  PhotoCraft, `Untitled-<n>` drawings and packages made in the browser in VectorCraft and
+  DesignCraft, `Document1.docx` without a creation time in WordCraft, `Book<n>.xlsx` and the
+  sample titles in GridCraft, `Presentation<n>` and `Northern Lights` in DeckCraft,
+  `Drawing<n>.dxf` and `Bracket.dxf` in CADCraft, `Untitled.fcproj` and `FilmCraft Demo.fcproj`
+  in FilmCraft, `Untitled Project.ecproj` in EffectCraft. Rename such a file in Nextcloud before
+  opening it.
+- **A WordCraft mail merge with a recipient list typed into the app** may replace the opened
+  document with the merged letters when they are saved (see
+  [WordCraft's known gaps](docs/apps/wordcraft.md#known-gaps)).
 - **A PDF after Sanitize, a redaction or a password change** is saved to a new file. The opened
   file keeps the removed content until the user deletes or replaces it.
 - **Only in Files in the browser.** Public share pages and Nextcloud's mobile and desktop clients
@@ -193,10 +233,8 @@ Details: [architecture](docs/architecture.md), [protocol](docs/protocol.md),
 - **The WebKit tests of the apps do not block CI yet.** They have passed only outside GitHub's
   runners so far, so CI runs them without letting them fail a run.
 
-More: [the Nextcloud app's limitations](docs/nextcloud-app.md#limitations) and the known gaps of
-[PdfCraft](docs/apps/pdfcraft.md#known-gaps), [PhotoCraft](docs/apps/photocraft.md#known-gaps),
-[VectorCraft](docs/apps/vectorcraft.md#known-gaps) and
-[DesignCraft](docs/apps/designcraft.md#known-gaps).
+More: [the Nextcloud app's limitations](docs/nextcloud-app.md#limitations) and the known gaps on
+each app's page in [docs/apps/](docs/apps/).
 
 ## Documentation
 
@@ -210,7 +248,7 @@ More: [the Nextcloud app's limitations](docs/nextcloud-app.md#limitations) and t
 | [docs/protocol.md](docs/protocol.md) | The `postMessage` protocol between the host page and the translator |
 | [docs/security.md](docs/security.md) | Trust model, and what the translator, the Nextcloud app and the hosting each enforce |
 | [translators/README.md](translators/README.md) | Loading and configuring the translator, writing an adapter |
-| [docs/apps/](docs/apps/) | One page per Craft app ([PdfCraft](docs/apps/pdfcraft.md), [PhotoCraft](docs/apps/photocraft.md), [VectorCraft](docs/apps/vectorcraft.md), [DesignCraft](docs/apps/designcraft.md)): what its web build does, how its saves are classified, file types, known gaps, tests |
+| [docs/apps/](docs/apps/) | One page per Craft app ([PdfCraft](docs/apps/pdfcraft.md), [PhotoCraft](docs/apps/photocraft.md), [VectorCraft](docs/apps/vectorcraft.md), [DesignCraft](docs/apps/designcraft.md), [WordCraft](docs/apps/wordcraft.md), [GridCraft](docs/apps/gridcraft.md), [DeckCraft](docs/apps/deckcraft.md), [CADCraft](docs/apps/cadcraft.md), [LightCraft](docs/apps/lightcraft.md), [FilmCraft](docs/apps/filmcraft.md), [EffectCraft](docs/apps/effectcraft.md)): what its web build does, how its saves are classified, file types, known gaps, tests |
 | [docs/development.md](docs/development.md) | Setup, commands, tests (also in a real Nextcloud), testing a new Craft release, CI and the canary, releasing, adding a Craft app, conventions |
 | [CHANGELOG.md](CHANGELOG.md), [craftsuite_layer/CHANGELOG.md](craftsuite_layer/CHANGELOG.md) | Changes to the repository, and to the Nextcloud app |
 
@@ -232,7 +270,7 @@ Requires Node.js 24 or newer.
 ```sh
 npm ci
 npx playwright install chromium firefox webkit   # on Linux: --with-deps (needs root)
-npm run craft:fetch                               # the four Craft web builds the tests run against
+npm run craft:fetch                               # the Craft web builds the tests run against
 npm test                                          # lint, typecheck, translations, end-to-end tests
 ```
 
@@ -261,12 +299,15 @@ secure is described in [docs/security.md](docs/security.md).
 
 [GNU Affero General Public License v3.0 or later](LICENSE) (`AGPL-3.0-or-later`). The files
 state this in an SPDX header; those that cannot hold one are listed in [`REUSE.toml`](REUSE.toml).
+A few test fixtures are upstream content under upstream's license, MIT or Apache-2.0: GridCraft's
+sales sample and FilmCraft's demo project with the files derived from it (see `REUSE.toml`).
 
 ## Affiliation and trademarks
 
 This project is not affiliated with, endorsed by or sponsored by storytold or Nextcloud GmbH.
-PdfCraft, PhotoCraft, VectorCraft, DesignCraft, ArtCraft and Nextcloud are names or trademarks
-of their respective owners and are used here only to say what this project works with.
+PdfCraft, PhotoCraft, VectorCraft, DesignCraft, WordCraft, GridCraft, DeckCraft, CADCraft,
+LightCraft, FilmCraft, EffectCraft, SoundCraft, ArtCraft and Nextcloud are names or trademarks of
+their respective owners and are used here only to say what this project works with.
 
 The Craft apps are not part of this repository. They are developed by storytold in their own
 repositories, such as [github.com/storytold/pdfcraft](https://github.com/storytold/pdfcraft),

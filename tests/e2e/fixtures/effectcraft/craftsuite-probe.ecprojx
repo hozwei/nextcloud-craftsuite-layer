@@ -1,0 +1,1448 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<EffectCraftProject encoding="json" version="1">
+  <obj>
+    <m n="items">
+      <obj>
+        <m n="1">
+          <obj>
+            <m n="comment">
+              <str></str>
+            </m>
+            <m n="id">
+              <num>1</num>
+            </m>
+            <m n="kind">
+              <obj>
+                <m n="background">
+                  <arr>
+                    <num>0.0</num>
+                    <num>0.0</num>
+                    <num>0.0</num>
+                  </arr>
+                </m>
+                <m n="display_start">
+                  <num>0</num>
+                </m>
+                <m n="draft_3d">
+                  <bool>false</bool>
+                </m>
+                <m n="duration">
+                  <num>2542700160000</num>
+                </m>
+                <m n="enable_frame_blending">
+                  <bool>true</bool>
+                </m>
+                <m n="enable_motion_blur">
+                  <bool>true</bool>
+                </m>
+                <m n="frame_rate">
+                  <obj>
+                    <m n="den">
+                      <num>1001</num>
+                    </m>
+                    <m n="num">
+                      <num>30000</num>
+                    </m>
+                  </obj>
+                </m>
+                <m n="global_light">
+                  <obj>
+                    <m n="altitude">
+                      <obj>
+                        <m n="hold_only">
+                          <bool>false</bool>
+                        </m>
+                        <m n="match">
+                          <str>globalLightAltitude</str>
+                        </m>
+                        <m n="name">
+                          <str>Global Light Altitude</str>
+                        </m>
+                        <m n="shown_dims">
+                          <num>0</num>
+                        </m>
+                        <m n="spatial">
+                          <bool>false</bool>
+                        </m>
+                        <m n="static_only">
+                          <bool>false</bool>
+                        </m>
+                        <m n="three_d_only">
+                          <bool>false</bool>
+                        </m>
+                        <m n="two_d_only">
+                          <bool>false</bool>
+                        </m>
+                        <m n="ui">
+                          <obj>
+                            <m n="kind">
+                              <str>Angle</str>
+                            </m>
+                          </obj>
+                        </m>
+                        <m n="uid">
+                          <num>0</num>
+                        </m>
+                        <m n="value">
+                          <obj>
+                            <m n="t">
+                              <str>Scalar</str>
+                            </m>
+                            <m n="v">
+                              <num>30.0</num>
+                            </m>
+                          </obj>
+                        </m>
+                      </obj>
+                    </m>
+                    <m n="angle">
+                      <obj>
+                        <m n="hold_only">
+                          <bool>false</bool>
+                        </m>
+                        <m n="match">
+                          <str>globalLightAngle</str>
+                        </m>
+                        <m n="name">
+                          <str>Global Light Angle</str>
+                        </m>
+                        <m n="shown_dims">
+                          <num>0</num>
+                        </m>
+                        <m n="spatial">
+                          <bool>false</bool>
+                        </m>
+                        <m n="static_only">
+                          <bool>false</bool>
+                        </m>
+                        <m n="three_d_only">
+                          <bool>false</bool>
+                        </m>
+                        <m n="two_d_only">
+                          <bool>false</bool>
+                        </m>
+                        <m n="ui">
+                          <obj>
+                            <m n="kind">
+                              <str>Angle</str>
+                            </m>
+                          </obj>
+                        </m>
+                        <m n="uid">
+                          <num>0</num>
+                        </m>
+                        <m n="value">
+                          <obj>
+                            <m n="t">
+                              <str>Scalar</str>
+                            </m>
+                            <m n="v">
+                              <num>120.0</num>
+                            </m>
+                          </obj>
+                        </m>
+                      </obj>
+                    </m>
+                  </obj>
+                </m>
+                <m n="height">
+                  <num>1080</num>
+                </m>
+                <m n="hide_shy">
+                  <bool>false</bool>
+                </m>
+                <m n="layers">
+                  <arr>
+                    <obj>
+                      <m n="auto_orient">
+                        <str>Off</str>
+                      </m>
+                      <m n="blend_mode">
+                        <str>Normal</str>
+                      </m>
+                      <m n="comment">
+                        <str></str>
+                      </m>
+                      <m n="id">
+                        <num>4</num>
+                      </m>
+                      <m n="in_point">
+                        <num>0</num>
+                      </m>
+                      <m n="label">
+                        <str>Red</str>
+                      </m>
+                      <m n="markers">
+                        <arr/>
+                      </m>
+                      <m n="name">
+                        <str>Solid 1</str>
+                      </m>
+                      <m n="out_point">
+                        <num>2542700160000</num>
+                      </m>
+                      <m n="parent">
+                        <null/>
+                      </m>
+                      <m n="preserve_transparency">
+                        <bool>false</bool>
+                      </m>
+                      <m n="props">
+                        <obj>
+                          <m n="children">
+                            <arr>
+                              <obj>
+                                <m n="children">
+                                  <arr/>
+                                </m>
+                                <m n="enabled">
+                                  <bool>true</bool>
+                                </m>
+                                <m n="kind">
+                                  <obj>
+                                    <m n="kind">
+                                      <str>Plain</str>
+                                    </m>
+                                  </obj>
+                                </m>
+                                <m n="match">
+                                  <str>masks</str>
+                                </m>
+                                <m n="name">
+                                  <str>Masks</str>
+                                </m>
+                                <m n="node">
+                                  <str>Group</str>
+                                </m>
+                                <m n="uid">
+                                  <num>6</num>
+                                </m>
+                              </obj>
+                              <obj>
+                                <m n="children">
+                                  <arr/>
+                                </m>
+                                <m n="enabled">
+                                  <bool>true</bool>
+                                </m>
+                                <m n="kind">
+                                  <obj>
+                                    <m n="kind">
+                                      <str>Plain</str>
+                                    </m>
+                                  </obj>
+                                </m>
+                                <m n="match">
+                                  <str>effects</str>
+                                </m>
+                                <m n="name">
+                                  <str>Effects</str>
+                                </m>
+                                <m n="node">
+                                  <str>Group</str>
+                                </m>
+                                <m n="uid">
+                                  <num>7</num>
+                                </m>
+                              </obj>
+                              <obj>
+                                <m n="children">
+                                  <arr>
+                                    <obj>
+                                      <m n="hold_only">
+                                        <bool>false</bool>
+                                      </m>
+                                      <m n="match">
+                                        <str>anchor</str>
+                                      </m>
+                                      <m n="name">
+                                        <str>Anchor Point</str>
+                                      </m>
+                                      <m n="node">
+                                        <str>Prop</str>
+                                      </m>
+                                      <m n="shown_dims">
+                                        <num>2</num>
+                                      </m>
+                                      <m n="spatial">
+                                        <bool>true</bool>
+                                      </m>
+                                      <m n="static_only">
+                                        <bool>false</bool>
+                                      </m>
+                                      <m n="three_d_only">
+                                        <bool>false</bool>
+                                      </m>
+                                      <m n="two_d_only">
+                                        <bool>false</bool>
+                                      </m>
+                                      <m n="ui">
+                                        <obj>
+                                          <m n="kind">
+                                            <str>Point</str>
+                                          </m>
+                                        </obj>
+                                      </m>
+                                      <m n="uid">
+                                        <num>8</num>
+                                      </m>
+                                      <m n="value">
+                                        <obj>
+                                          <m n="t">
+                                            <str>Vec3</str>
+                                          </m>
+                                          <m n="v">
+                                            <arr>
+                                              <num>960.0</num>
+                                              <num>540.0</num>
+                                              <num>0.0</num>
+                                            </arr>
+                                          </m>
+                                        </obj>
+                                      </m>
+                                    </obj>
+                                    <obj>
+                                      <m n="hold_only">
+                                        <bool>false</bool>
+                                      </m>
+                                      <m n="match">
+                                        <str>position</str>
+                                      </m>
+                                      <m n="name">
+                                        <str>Position</str>
+                                      </m>
+                                      <m n="node">
+                                        <str>Prop</str>
+                                      </m>
+                                      <m n="shown_dims">
+                                        <num>2</num>
+                                      </m>
+                                      <m n="spatial">
+                                        <bool>true</bool>
+                                      </m>
+                                      <m n="static_only">
+                                        <bool>false</bool>
+                                      </m>
+                                      <m n="three_d_only">
+                                        <bool>false</bool>
+                                      </m>
+                                      <m n="two_d_only">
+                                        <bool>false</bool>
+                                      </m>
+                                      <m n="ui">
+                                        <obj>
+                                          <m n="kind">
+                                            <str>Point</str>
+                                          </m>
+                                        </obj>
+                                      </m>
+                                      <m n="uid">
+                                        <num>9</num>
+                                      </m>
+                                      <m n="value">
+                                        <obj>
+                                          <m n="t">
+                                            <str>Vec3</str>
+                                          </m>
+                                          <m n="v">
+                                            <arr>
+                                              <num>960.0</num>
+                                              <num>540.0</num>
+                                              <num>0.0</num>
+                                            </arr>
+                                          </m>
+                                        </obj>
+                                      </m>
+                                    </obj>
+                                    <obj>
+                                      <m n="hold_only">
+                                        <bool>false</bool>
+                                      </m>
+                                      <m n="match">
+                                        <str>scale</str>
+                                      </m>
+                                      <m n="name">
+                                        <str>Scale</str>
+                                      </m>
+                                      <m n="node">
+                                        <str>Prop</str>
+                                      </m>
+                                      <m n="shown_dims">
+                                        <num>2</num>
+                                      </m>
+                                      <m n="spatial">
+                                        <bool>false</bool>
+                                      </m>
+                                      <m n="static_only">
+                                        <bool>false</bool>
+                                      </m>
+                                      <m n="three_d_only">
+                                        <bool>false</bool>
+                                      </m>
+                                      <m n="two_d_only">
+                                        <bool>false</bool>
+                                      </m>
+                                      <m n="ui">
+                                        <obj>
+                                          <m n="kind">
+                                            <str>Percent</str>
+                                          </m>
+                                        </obj>
+                                      </m>
+                                      <m n="uid">
+                                        <num>10</num>
+                                      </m>
+                                      <m n="value">
+                                        <obj>
+                                          <m n="t">
+                                            <str>Vec3</str>
+                                          </m>
+                                          <m n="v">
+                                            <arr>
+                                              <num>100.0</num>
+                                              <num>100.0</num>
+                                              <num>100.0</num>
+                                            </arr>
+                                          </m>
+                                        </obj>
+                                      </m>
+                                    </obj>
+                                    <obj>
+                                      <m n="hold_only">
+                                        <bool>false</bool>
+                                      </m>
+                                      <m n="match">
+                                        <str>orientation</str>
+                                      </m>
+                                      <m n="name">
+                                        <str>Orientation</str>
+                                      </m>
+                                      <m n="node">
+                                        <str>Prop</str>
+                                      </m>
+                                      <m n="shown_dims">
+                                        <num>0</num>
+                                      </m>
+                                      <m n="spatial">
+                                        <bool>false</bool>
+                                      </m>
+                                      <m n="static_only">
+                                        <bool>false</bool>
+                                      </m>
+                                      <m n="three_d_only">
+                                        <bool>true</bool>
+                                      </m>
+                                      <m n="two_d_only">
+                                        <bool>false</bool>
+                                      </m>
+                                      <m n="ui">
+                                        <obj>
+                                          <m n="kind">
+                                            <str>Angle</str>
+                                          </m>
+                                        </obj>
+                                      </m>
+                                      <m n="uid">
+                                        <num>11</num>
+                                      </m>
+                                      <m n="value">
+                                        <obj>
+                                          <m n="t">
+                                            <str>Vec3</str>
+                                          </m>
+                                          <m n="v">
+                                            <arr>
+                                              <num>0.0</num>
+                                              <num>0.0</num>
+                                              <num>0.0</num>
+                                            </arr>
+                                          </m>
+                                        </obj>
+                                      </m>
+                                    </obj>
+                                    <obj>
+                                      <m n="hold_only">
+                                        <bool>false</bool>
+                                      </m>
+                                      <m n="match">
+                                        <str>rotationX</str>
+                                      </m>
+                                      <m n="name">
+                                        <str>X Rotation</str>
+                                      </m>
+                                      <m n="node">
+                                        <str>Prop</str>
+                                      </m>
+                                      <m n="shown_dims">
+                                        <num>0</num>
+                                      </m>
+                                      <m n="spatial">
+                                        <bool>false</bool>
+                                      </m>
+                                      <m n="static_only">
+                                        <bool>false</bool>
+                                      </m>
+                                      <m n="three_d_only">
+                                        <bool>true</bool>
+                                      </m>
+                                      <m n="two_d_only">
+                                        <bool>false</bool>
+                                      </m>
+                                      <m n="ui">
+                                        <obj>
+                                          <m n="kind">
+                                            <str>Angle</str>
+                                          </m>
+                                        </obj>
+                                      </m>
+                                      <m n="uid">
+                                        <num>12</num>
+                                      </m>
+                                      <m n="value">
+                                        <obj>
+                                          <m n="t">
+                                            <str>Scalar</str>
+                                          </m>
+                                          <m n="v">
+                                            <num>0.0</num>
+                                          </m>
+                                        </obj>
+                                      </m>
+                                    </obj>
+                                    <obj>
+                                      <m n="hold_only">
+                                        <bool>false</bool>
+                                      </m>
+                                      <m n="match">
+                                        <str>rotationY</str>
+                                      </m>
+                                      <m n="name">
+                                        <str>Y Rotation</str>
+                                      </m>
+                                      <m n="node">
+                                        <str>Prop</str>
+                                      </m>
+                                      <m n="shown_dims">
+                                        <num>0</num>
+                                      </m>
+                                      <m n="spatial">
+                                        <bool>false</bool>
+                                      </m>
+                                      <m n="static_only">
+                                        <bool>false</bool>
+                                      </m>
+                                      <m n="three_d_only">
+                                        <bool>true</bool>
+                                      </m>
+                                      <m n="two_d_only">
+                                        <bool>false</bool>
+                                      </m>
+                                      <m n="ui">
+                                        <obj>
+                                          <m n="kind">
+                                            <str>Angle</str>
+                                          </m>
+                                        </obj>
+                                      </m>
+                                      <m n="uid">
+                                        <num>13</num>
+                                      </m>
+                                      <m n="value">
+                                        <obj>
+                                          <m n="t">
+                                            <str>Scalar</str>
+                                          </m>
+                                          <m n="v">
+                                            <num>0.0</num>
+                                          </m>
+                                        </obj>
+                                      </m>
+                                    </obj>
+                                    <obj>
+                                      <m n="hold_only">
+                                        <bool>false</bool>
+                                      </m>
+                                      <m n="match">
+                                        <str>rotation</str>
+                                      </m>
+                                      <m n="name">
+                                        <str>Rotation</str>
+                                      </m>
+                                      <m n="node">
+                                        <str>Prop</str>
+                                      </m>
+                                      <m n="shown_dims">
+                                        <num>0</num>
+                                      </m>
+                                      <m n="spatial">
+                                        <bool>false</bool>
+                                      </m>
+                                      <m n="static_only">
+                                        <bool>false</bool>
+                                      </m>
+                                      <m n="three_d_only">
+                                        <bool>false</bool>
+                                      </m>
+                                      <m n="two_d_only">
+                                        <bool>false</bool>
+                                      </m>
+                                      <m n="ui">
+                                        <obj>
+                                          <m n="kind">
+                                            <str>Angle</str>
+                                          </m>
+                                        </obj>
+                                      </m>
+                                      <m n="uid">
+                                        <num>14</num>
+                                      </m>
+                                      <m n="value">
+                                        <obj>
+                                          <m n="t">
+                                            <str>Scalar</str>
+                                          </m>
+                                          <m n="v">
+                                            <num>0.0</num>
+                                          </m>
+                                        </obj>
+                                      </m>
+                                    </obj>
+                                    <obj>
+                                      <m n="hold_only">
+                                        <bool>false</bool>
+                                      </m>
+                                      <m n="match">
+                                        <str>opacity</str>
+                                      </m>
+                                      <m n="name">
+                                        <str>Opacity</str>
+                                      </m>
+                                      <m n="node">
+                                        <str>Prop</str>
+                                      </m>
+                                      <m n="shown_dims">
+                                        <num>0</num>
+                                      </m>
+                                      <m n="spatial">
+                                        <bool>false</bool>
+                                      </m>
+                                      <m n="static_only">
+                                        <bool>false</bool>
+                                      </m>
+                                      <m n="three_d_only">
+                                        <bool>false</bool>
+                                      </m>
+                                      <m n="two_d_only">
+                                        <bool>false</bool>
+                                      </m>
+                                      <m n="ui">
+                                        <obj>
+                                          <m n="decimals">
+                                            <num>0</num>
+                                          </m>
+                                          <m n="kind">
+                                            <str>Slider</str>
+                                          </m>
+                                          <m n="max">
+                                            <num>100.0</num>
+                                          </m>
+                                          <m n="min">
+                                            <num>0.0</num>
+                                          </m>
+                                          <m n="slider_max">
+                                            <num>100.0</num>
+                                          </m>
+                                          <m n="slider_min">
+                                            <num>0.0</num>
+                                          </m>
+                                        </obj>
+                                      </m>
+                                      <m n="uid">
+                                        <num>15</num>
+                                      </m>
+                                      <m n="value">
+                                        <obj>
+                                          <m n="t">
+                                            <str>Scalar</str>
+                                          </m>
+                                          <m n="v">
+                                            <num>100.0</num>
+                                          </m>
+                                        </obj>
+                                      </m>
+                                    </obj>
+                                  </arr>
+                                </m>
+                                <m n="enabled">
+                                  <bool>true</bool>
+                                </m>
+                                <m n="kind">
+                                  <obj>
+                                    <m n="kind">
+                                      <str>Plain</str>
+                                    </m>
+                                  </obj>
+                                </m>
+                                <m n="match">
+                                  <str>transform</str>
+                                </m>
+                                <m n="name">
+                                  <str>Transform</str>
+                                </m>
+                                <m n="node">
+                                  <str>Group</str>
+                                </m>
+                                <m n="uid">
+                                  <num>16</num>
+                                </m>
+                              </obj>
+                              <obj>
+                                <m n="children">
+                                  <arr>
+                                    <obj>
+                                      <m n="hold_only">
+                                        <bool>true</bool>
+                                      </m>
+                                      <m n="match">
+                                        <str>castsShadows</str>
+                                      </m>
+                                      <m n="name">
+                                        <str>Casts Shadows</str>
+                                      </m>
+                                      <m n="node">
+                                        <str>Prop</str>
+                                      </m>
+                                      <m n="shown_dims">
+                                        <num>0</num>
+                                      </m>
+                                      <m n="spatial">
+                                        <bool>false</bool>
+                                      </m>
+                                      <m n="static_only">
+                                        <bool>false</bool>
+                                      </m>
+                                      <m n="three_d_only">
+                                        <bool>false</bool>
+                                      </m>
+                                      <m n="two_d_only">
+                                        <bool>false</bool>
+                                      </m>
+                                      <m n="ui">
+                                        <obj>
+                                          <m n="kind">
+                                            <str>Popup</str>
+                                          </m>
+                                          <m n="options">
+                                            <arr>
+                                              <str>Off</str>
+                                              <str>On</str>
+                                              <str>Only</str>
+                                            </arr>
+                                          </m>
+                                        </obj>
+                                      </m>
+                                      <m n="uid">
+                                        <num>18</num>
+                                      </m>
+                                      <m n="value">
+                                        <obj>
+                                          <m n="t">
+                                            <str>Enum</str>
+                                          </m>
+                                          <m n="v">
+                                            <num>0</num>
+                                          </m>
+                                        </obj>
+                                      </m>
+                                    </obj>
+                                    <obj>
+                                      <m n="hold_only">
+                                        <bool>false</bool>
+                                      </m>
+                                      <m n="match">
+                                        <str>lightTransmission</str>
+                                      </m>
+                                      <m n="name">
+                                        <str>Light Transmission</str>
+                                      </m>
+                                      <m n="node">
+                                        <str>Prop</str>
+                                      </m>
+                                      <m n="shown_dims">
+                                        <num>0</num>
+                                      </m>
+                                      <m n="spatial">
+                                        <bool>false</bool>
+                                      </m>
+                                      <m n="static_only">
+                                        <bool>false</bool>
+                                      </m>
+                                      <m n="three_d_only">
+                                        <bool>false</bool>
+                                      </m>
+                                      <m n="two_d_only">
+                                        <bool>false</bool>
+                                      </m>
+                                      <m n="ui">
+                                        <obj>
+                                          <m n="kind">
+                                            <str>Percent</str>
+                                          </m>
+                                        </obj>
+                                      </m>
+                                      <m n="uid">
+                                        <num>19</num>
+                                      </m>
+                                      <m n="value">
+                                        <obj>
+                                          <m n="t">
+                                            <str>Scalar</str>
+                                          </m>
+                                          <m n="v">
+                                            <num>0.0</num>
+                                          </m>
+                                        </obj>
+                                      </m>
+                                    </obj>
+                                    <obj>
+                                      <m n="hold_only">
+                                        <bool>true</bool>
+                                      </m>
+                                      <m n="match">
+                                        <str>acceptsShadows</str>
+                                      </m>
+                                      <m n="name">
+                                        <str>Accepts Shadows</str>
+                                      </m>
+                                      <m n="node">
+                                        <str>Prop</str>
+                                      </m>
+                                      <m n="shown_dims">
+                                        <num>0</num>
+                                      </m>
+                                      <m n="spatial">
+                                        <bool>false</bool>
+                                      </m>
+                                      <m n="static_only">
+                                        <bool>false</bool>
+                                      </m>
+                                      <m n="three_d_only">
+                                        <bool>false</bool>
+                                      </m>
+                                      <m n="two_d_only">
+                                        <bool>false</bool>
+                                      </m>
+                                      <m n="ui">
+                                        <obj>
+                                          <m n="kind">
+                                            <str>Popup</str>
+                                          </m>
+                                          <m n="options">
+                                            <arr>
+                                              <str>Off</str>
+                                              <str>On</str>
+                                              <str>Only</str>
+                                            </arr>
+                                          </m>
+                                        </obj>
+                                      </m>
+                                      <m n="uid">
+                                        <num>20</num>
+                                      </m>
+                                      <m n="value">
+                                        <obj>
+                                          <m n="t">
+                                            <str>Enum</str>
+                                          </m>
+                                          <m n="v">
+                                            <num>1</num>
+                                          </m>
+                                        </obj>
+                                      </m>
+                                    </obj>
+                                    <obj>
+                                      <m n="hold_only">
+                                        <bool>true</bool>
+                                      </m>
+                                      <m n="match">
+                                        <str>acceptsLights</str>
+                                      </m>
+                                      <m n="name">
+                                        <str>Accepts Lights</str>
+                                      </m>
+                                      <m n="node">
+                                        <str>Prop</str>
+                                      </m>
+                                      <m n="shown_dims">
+                                        <num>0</num>
+                                      </m>
+                                      <m n="spatial">
+                                        <bool>false</bool>
+                                      </m>
+                                      <m n="static_only">
+                                        <bool>false</bool>
+                                      </m>
+                                      <m n="three_d_only">
+                                        <bool>false</bool>
+                                      </m>
+                                      <m n="two_d_only">
+                                        <bool>false</bool>
+                                      </m>
+                                      <m n="ui">
+                                        <obj>
+                                          <m n="kind">
+                                            <str>Checkbox</str>
+                                          </m>
+                                        </obj>
+                                      </m>
+                                      <m n="uid">
+                                        <num>21</num>
+                                      </m>
+                                      <m n="value">
+                                        <obj>
+                                          <m n="t">
+                                            <str>Bool</str>
+                                          </m>
+                                          <m n="v">
+                                            <bool>true</bool>
+                                          </m>
+                                        </obj>
+                                      </m>
+                                    </obj>
+                                    <obj>
+                                      <m n="hold_only">
+                                        <bool>false</bool>
+                                      </m>
+                                      <m n="match">
+                                        <str>ambient</str>
+                                      </m>
+                                      <m n="name">
+                                        <str>Ambient</str>
+                                      </m>
+                                      <m n="node">
+                                        <str>Prop</str>
+                                      </m>
+                                      <m n="shown_dims">
+                                        <num>0</num>
+                                      </m>
+                                      <m n="spatial">
+                                        <bool>false</bool>
+                                      </m>
+                                      <m n="static_only">
+                                        <bool>false</bool>
+                                      </m>
+                                      <m n="three_d_only">
+                                        <bool>false</bool>
+                                      </m>
+                                      <m n="two_d_only">
+                                        <bool>false</bool>
+                                      </m>
+                                      <m n="ui">
+                                        <obj>
+                                          <m n="kind">
+                                            <str>Percent</str>
+                                          </m>
+                                        </obj>
+                                      </m>
+                                      <m n="uid">
+                                        <num>22</num>
+                                      </m>
+                                      <m n="value">
+                                        <obj>
+                                          <m n="t">
+                                            <str>Scalar</str>
+                                          </m>
+                                          <m n="v">
+                                            <num>100.0</num>
+                                          </m>
+                                        </obj>
+                                      </m>
+                                    </obj>
+                                    <obj>
+                                      <m n="hold_only">
+                                        <bool>false</bool>
+                                      </m>
+                                      <m n="match">
+                                        <str>diffuse</str>
+                                      </m>
+                                      <m n="name">
+                                        <str>Diffuse</str>
+                                      </m>
+                                      <m n="node">
+                                        <str>Prop</str>
+                                      </m>
+                                      <m n="shown_dims">
+                                        <num>0</num>
+                                      </m>
+                                      <m n="spatial">
+                                        <bool>false</bool>
+                                      </m>
+                                      <m n="static_only">
+                                        <bool>false</bool>
+                                      </m>
+                                      <m n="three_d_only">
+                                        <bool>false</bool>
+                                      </m>
+                                      <m n="two_d_only">
+                                        <bool>false</bool>
+                                      </m>
+                                      <m n="ui">
+                                        <obj>
+                                          <m n="kind">
+                                            <str>Percent</str>
+                                          </m>
+                                        </obj>
+                                      </m>
+                                      <m n="uid">
+                                        <num>23</num>
+                                      </m>
+                                      <m n="value">
+                                        <obj>
+                                          <m n="t">
+                                            <str>Scalar</str>
+                                          </m>
+                                          <m n="v">
+                                            <num>50.0</num>
+                                          </m>
+                                        </obj>
+                                      </m>
+                                    </obj>
+                                    <obj>
+                                      <m n="hold_only">
+                                        <bool>false</bool>
+                                      </m>
+                                      <m n="match">
+                                        <str>specularIntensity</str>
+                                      </m>
+                                      <m n="name">
+                                        <str>Specular Intensity</str>
+                                      </m>
+                                      <m n="node">
+                                        <str>Prop</str>
+                                      </m>
+                                      <m n="shown_dims">
+                                        <num>0</num>
+                                      </m>
+                                      <m n="spatial">
+                                        <bool>false</bool>
+                                      </m>
+                                      <m n="static_only">
+                                        <bool>false</bool>
+                                      </m>
+                                      <m n="three_d_only">
+                                        <bool>false</bool>
+                                      </m>
+                                      <m n="two_d_only">
+                                        <bool>false</bool>
+                                      </m>
+                                      <m n="ui">
+                                        <obj>
+                                          <m n="kind">
+                                            <str>Percent</str>
+                                          </m>
+                                        </obj>
+                                      </m>
+                                      <m n="uid">
+                                        <num>24</num>
+                                      </m>
+                                      <m n="value">
+                                        <obj>
+                                          <m n="t">
+                                            <str>Scalar</str>
+                                          </m>
+                                          <m n="v">
+                                            <num>50.0</num>
+                                          </m>
+                                        </obj>
+                                      </m>
+                                    </obj>
+                                    <obj>
+                                      <m n="hold_only">
+                                        <bool>false</bool>
+                                      </m>
+                                      <m n="match">
+                                        <str>specularShininess</str>
+                                      </m>
+                                      <m n="name">
+                                        <str>Specular Shininess</str>
+                                      </m>
+                                      <m n="node">
+                                        <str>Prop</str>
+                                      </m>
+                                      <m n="shown_dims">
+                                        <num>0</num>
+                                      </m>
+                                      <m n="spatial">
+                                        <bool>false</bool>
+                                      </m>
+                                      <m n="static_only">
+                                        <bool>false</bool>
+                                      </m>
+                                      <m n="three_d_only">
+                                        <bool>false</bool>
+                                      </m>
+                                      <m n="two_d_only">
+                                        <bool>false</bool>
+                                      </m>
+                                      <m n="ui">
+                                        <obj>
+                                          <m n="kind">
+                                            <str>Percent</str>
+                                          </m>
+                                        </obj>
+                                      </m>
+                                      <m n="uid">
+                                        <num>25</num>
+                                      </m>
+                                      <m n="value">
+                                        <obj>
+                                          <m n="t">
+                                            <str>Scalar</str>
+                                          </m>
+                                          <m n="v">
+                                            <num>5.0</num>
+                                          </m>
+                                        </obj>
+                                      </m>
+                                    </obj>
+                                    <obj>
+                                      <m n="hold_only">
+                                        <bool>false</bool>
+                                      </m>
+                                      <m n="match">
+                                        <str>metal</str>
+                                      </m>
+                                      <m n="name">
+                                        <str>Metal</str>
+                                      </m>
+                                      <m n="node">
+                                        <str>Prop</str>
+                                      </m>
+                                      <m n="shown_dims">
+                                        <num>0</num>
+                                      </m>
+                                      <m n="spatial">
+                                        <bool>false</bool>
+                                      </m>
+                                      <m n="static_only">
+                                        <bool>false</bool>
+                                      </m>
+                                      <m n="three_d_only">
+                                        <bool>false</bool>
+                                      </m>
+                                      <m n="two_d_only">
+                                        <bool>false</bool>
+                                      </m>
+                                      <m n="ui">
+                                        <obj>
+                                          <m n="kind">
+                                            <str>Percent</str>
+                                          </m>
+                                        </obj>
+                                      </m>
+                                      <m n="uid">
+                                        <num>26</num>
+                                      </m>
+                                      <m n="value">
+                                        <obj>
+                                          <m n="t">
+                                            <str>Scalar</str>
+                                          </m>
+                                          <m n="v">
+                                            <num>100.0</num>
+                                          </m>
+                                        </obj>
+                                      </m>
+                                    </obj>
+                                  </arr>
+                                </m>
+                                <m n="enabled">
+                                  <bool>true</bool>
+                                </m>
+                                <m n="kind">
+                                  <obj>
+                                    <m n="kind">
+                                      <str>Plain</str>
+                                    </m>
+                                  </obj>
+                                </m>
+                                <m n="match">
+                                  <str>materialOptions</str>
+                                </m>
+                                <m n="name">
+                                  <str>Material Options</str>
+                                </m>
+                                <m n="node">
+                                  <str>Group</str>
+                                </m>
+                                <m n="uid">
+                                  <num>17</num>
+                                </m>
+                              </obj>
+                            </arr>
+                          </m>
+                          <m n="enabled">
+                            <bool>true</bool>
+                          </m>
+                          <m n="kind">
+                            <obj>
+                              <m n="kind">
+                                <str>Plain</str>
+                              </m>
+                            </obj>
+                          </m>
+                          <m n="match">
+                            <str>layer</str>
+                          </m>
+                          <m n="name">
+                            <str>Solid 1</str>
+                          </m>
+                          <m n="uid">
+                            <num>5</num>
+                          </m>
+                        </obj>
+                      </m>
+                      <m n="source">
+                        <obj>
+                          <m n="item">
+                            <num>3</num>
+                          </m>
+                          <m n="type">
+                            <str>Solid</str>
+                          </m>
+                        </obj>
+                      </m>
+                      <m n="start_time">
+                        <num>0</num>
+                      </m>
+                      <m n="stretch">
+                        <num>100.0</num>
+                      </m>
+                      <m n="switches">
+                        <obj>
+                          <m n="adjustment">
+                            <bool>false</bool>
+                          </m>
+                          <m n="audio">
+                            <bool>true</bool>
+                          </m>
+                          <m n="collapse">
+                            <bool>false</bool>
+                          </m>
+                          <m n="effects">
+                            <bool>true</bool>
+                          </m>
+                          <m n="frame_blend">
+                            <str>Off</str>
+                          </m>
+                          <m n="guide">
+                            <bool>false</bool>
+                          </m>
+                          <m n="locked">
+                            <bool>false</bool>
+                          </m>
+                          <m n="motion_blur">
+                            <bool>false</bool>
+                          </m>
+                          <m n="quality">
+                            <str>Best</str>
+                          </m>
+                          <m n="sampling">
+                            <str>Bilinear</str>
+                          </m>
+                          <m n="shy">
+                            <bool>false</bool>
+                          </m>
+                          <m n="solo">
+                            <bool>false</bool>
+                          </m>
+                          <m n="three_d">
+                            <bool>false</bool>
+                          </m>
+                          <m n="video">
+                            <bool>true</bool>
+                          </m>
+                        </obj>
+                      </m>
+                      <m n="track_matte">
+                        <null/>
+                      </m>
+                    </obj>
+                  </arr>
+                </m>
+                <m n="markers">
+                  <arr/>
+                </m>
+                <m n="motion_blur_adaptive_limit">
+                  <num>128</num>
+                </m>
+                <m n="motion_blur_samples">
+                  <num>16</num>
+                </m>
+                <m n="pixel_aspect">
+                  <num>1.0</num>
+                </m>
+                <m n="poster_time">
+                  <num>0</num>
+                </m>
+                <m n="preserve_frame_rate">
+                  <bool>false</bool>
+                </m>
+                <m n="preserve_resolution">
+                  <bool>false</bool>
+                </m>
+                <m n="renderer">
+                  <str>Classic3D</str>
+                </m>
+                <m n="shutter_angle">
+                  <num>180.0</num>
+                </m>
+                <m n="shutter_phase">
+                  <num>-90.0</num>
+                </m>
+                <m n="type">
+                  <str>Comp</str>
+                </m>
+                <m n="width">
+                  <num>1920</num>
+                </m>
+                <m n="work_area">
+                  <arr>
+                    <num>0</num>
+                    <num>2542700160000</num>
+                  </arr>
+                </m>
+              </obj>
+            </m>
+            <m n="label">
+              <str>Sandstone</str>
+            </m>
+            <m n="name">
+              <str>Comp 1</str>
+            </m>
+            <m n="parent">
+              <null/>
+            </m>
+          </obj>
+        </m>
+        <m n="2">
+          <obj>
+            <m n="comment">
+              <str></str>
+            </m>
+            <m n="id">
+              <num>2</num>
+            </m>
+            <m n="kind">
+              <obj>
+                <m n="type">
+                  <str>Folder</str>
+                </m>
+              </obj>
+            </m>
+            <m n="label">
+              <str>Yellow</str>
+            </m>
+            <m n="name">
+              <str>Solids</str>
+            </m>
+            <m n="parent">
+              <null/>
+            </m>
+          </obj>
+        </m>
+        <m n="3">
+          <obj>
+            <m n="comment">
+              <str></str>
+            </m>
+            <m n="id">
+              <num>3</num>
+            </m>
+            <m n="kind">
+              <obj>
+                <m n="color">
+                  <arr>
+                    <num>0.2</num>
+                    <num>0.45</num>
+                    <num>0.85</num>
+                  </arr>
+                </m>
+                <m n="height">
+                  <num>1080</num>
+                </m>
+                <m n="pixel_aspect">
+                  <num>1.0</num>
+                </m>
+                <m n="type">
+                  <str>Solid</str>
+                </m>
+                <m n="width">
+                  <num>1920</num>
+                </m>
+              </obj>
+            </m>
+            <m n="label">
+              <str>Red</str>
+            </m>
+            <m n="name">
+              <str>Solid 1</str>
+            </m>
+            <m n="parent">
+              <num>2</num>
+            </m>
+          </obj>
+        </m>
+      </obj>
+    </m>
+    <m n="next_id">
+      <num>27</num>
+    </m>
+    <m n="savedBy">
+      <str>0.8.0</str>
+    </m>
+    <m n="schema">
+      <num>2</num>
+    </m>
+    <m n="settings">
+      <obj>
+        <m n="audio_sample_rate">
+          <num>48000</num>
+        </m>
+        <m n="bit_depth">
+          <str>Bpc8</str>
+        </m>
+        <m n="blend_linear">
+          <bool>false</bool>
+        </m>
+        <m n="color_engine">
+          <str>Adobe</str>
+        </m>
+        <m n="frame_start">
+          <num>0</num>
+        </m>
+        <m n="gpu_acceleration">
+          <bool>true</bool>
+        </m>
+        <m n="hdr">
+          <str>Clip</str>
+        </m>
+        <m n="linearize">
+          <bool>false</bool>
+        </m>
+        <m n="output_space">
+          <null/>
+        </m>
+        <m n="time_display">
+          <str>Timecode</str>
+        </m>
+        <m n="working_gamma">
+          <num>2.2</num>
+        </m>
+        <m n="working_space">
+          <null/>
+        </m>
+      </obj>
+    </m>
+  </obj>
+</EffectCraftProject>

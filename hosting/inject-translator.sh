@@ -13,8 +13,11 @@
 #
 # It copies translators/core.js and translators/<app>.js into <folder>/craftsuite-layer/ and
 # inserts their two script tags directly after the first real <head> tag of <folder>/index.html
-# (not one inside an HTML comment, not <header>). Run again, it changes nothing; with other
-# origins, another version or other translator files, it replaces its own tags and files.
+# (not one inside an HTML comment, not <header>). A service worker at the build's root
+# (<folder>/sw.js, as EffectCraft ships one) is replaced by one that serves nothing and removes
+# itself; the original is kept as <folder>/craftsuite-layer/sw.js.orig. Run again, it changes
+# nothing; with other origins, another version, another startup timeout or other translator
+# files, it replaces its own tags and files.
 # Plain POSIX sh and awk: runs with dash, BusyBox ash, bash and others. Run with --help for the
 # options and exit codes.
 
@@ -35,24 +38,35 @@ Options:
                               localhost, 127.x.x.x or [::1] for tests. No path, no wildcard.
                               Default: $CRAFTSUITE_ALLOWED_ORIGINS. Use the same list for the
                               web server's Content-Security-Policy frame-ancestors.
-  -a, --app ID                App id: pdfcraft, photocraft, vectorcraft, designcraft, ...
-                              Default: from a FOLDER named <app>-web-<version>.
+  -a, --app ID                The app id, such as pdfcraft; the adapter is ID.js in the
+                              translators folder. Default: from a FOLDER named
+                              <app>-web-<version>.
   -V, --app-version VERSION   Version being served, reported to Nextcloud.
                               Default: from a FOLDER named <app>-web-<version>.
+      --startup-timeout MS    Write data-startup-timeout="MS" on the core.js tag: how many
+                              milliseconds after the page's load event the app may take to
+                              start before the host is told that it did not (the translator's
+                              default is 60000). A whole number from 1 to 2147483647. Without
+                              this option the tag gets no such attribute, so pass the same
+                              value on every run, --check included. Recommended: 180000 for
+                              lightcraft and effectcraft, whose large downloads do not hold
+                              back the load event (see docs/hosting.md).
   -t, --translators DIR       Folder with core.js and <app>.js. Default: $CRAFTSUITE_TRANSLATORS,
                               else ../translators next to this script.
   -c, --check                 Change nothing. Exit 0 if FOLDER is up to date, 1 if not.
-  -r, --remove                Remove the two script tags again (the app then works as
-                              without the layer). Leaves FOLDER/craftsuite-layer/ in place.
+  -r, --remove                Remove the two script tags again and put back the app's own
+                              service worker (the app then works as without the layer).
+                              Leaves FOLDER/craftsuite-layer/ in place.
   -q, --quiet                 No message on success.
   -h, --help                  Show this help.
 
 Exit codes:
   0  done, or already up to date
   1  --check: FOLDER is not up to date
-  2  usage error or invalid setting (origin, app id, version)
+  2  usage error or invalid setting (origin, app id, version, startup timeout)
   3  missing or unusable input: FOLDER, FOLDER/index.html, FOLDER/craftsuite-layer, core.js
-     (see --translators), an unreadable adapter, or no working cksum, sha256sum or md5sum
+     (see --translators), an unreadable adapter, a FOLDER/sw.js that is not a regular file, or
+     no working cksum, sha256sum or md5sum
   4  index.html cannot take the tags: no <head> tag, or craftsuite-layer tags this script did
      not write
   5  writing failed (permissions, disk space)
@@ -64,6 +78,11 @@ is acceptable, and keeps the current release on any other code.
 
 Messages go to stderr for errors and warnings, to stdout otherwise, one line each, starting
 with "inject-translator:".
+
+A service worker that the build ships as FOLDER/sw.js would serve index.html and the translator
+from its cache, so that changes to them reach browsers only with the app's next release. It is
+replaced by one that serves nothing, deletes the app's caches and unregisters itself; the
+original is kept as FOLDER/craftsuite-layer/sw.js.orig.
 EOF
 }
 
@@ -81,6 +100,8 @@ app=
 app_set=0
 ver=
 ver_set=0
+startup=
+startup_set=0
 origins=${CRAFTSUITE_ALLOWED_ORIGINS-}
 translators=${CRAFTSUITE_TRANSLATORS-}
 mode=inject
@@ -95,6 +116,8 @@ while [ $# -gt 0 ]; do
     --app=*) app=${1#*=}; app_set=1; shift ;;
     -V | --app-version) need_value $# "$1"; ver=$2; ver_set=1; shift 2 ;;
     --app-version=*) ver=${1#*=}; ver_set=1; shift ;;
+    --startup-timeout) need_value $# "$1"; startup=$2; startup_set=1; shift 2 ;;
+    --startup-timeout=*) startup=${1#*=}; startup_set=1; shift ;;
     -t | --translators) need_value $# "$1"; translators=$2; shift 2 ;;
     --translators=*) translators=${1#*=}; shift ;;
     -c | --check) mode=check; shift ;;
@@ -138,6 +161,16 @@ case $ver in
   '') [ "$mode" = remove ] || die 2 "no version: pass --app-version (FOLDER is not named <app>-web-<version>)" ;;
   [!0-9A-Za-z]* | *[!0-9A-Za-z.+-]*) die 2 "invalid version '$ver': use letters, digits, '.', '+' and '-'" ;;
 esac
+# Startup timeout: milliseconds, written without leading zeros. Browsers run a setTimeout of
+# more than 2147483647 ms (2^31 - 1) at once, so that is the largest value.
+if [ "$startup_set" = 1 ]; then
+  bad_startup="invalid startup timeout '$startup': use milliseconds, a whole number from 1 to 2147483647, such as 180000"
+  case $startup in
+    '' | *[!0-9]*) die 2 "$bad_startup" ;;
+  esac
+  startup=${startup#"${startup%%[!0]*}"}
+  if [ -z "$startup" ] || [ "${#startup}" -gt 10 ] || [ "$startup" -gt 2147483647 ]; then die 2 "$bad_startup"; fi
+fi
 
 # --- Allowed origins: the translator's rule (translators/README.md#configuration) -------------
 # Normalised like the browser reports MessageEvent.origin: lowercase, no default port, no "/".
@@ -226,6 +259,54 @@ if [ -e "$layer" ] || [ -h "$layer" ]; then
   if [ ! -d "$layer" ] || [ -h "$layer" ]; then die 3 "$layer exists but is not a folder"; fi
 fi
 
+# --- Service worker ---------------------------------------------------------------------------
+# A service worker at the build's root (EffectCraft's sw.js) answers from its cache: index.html
+# with the translator's tags, the translator files and their headers would stay as they were
+# until the app's next release changes sw.js, also for frames that never register it themselves
+# (a direct visit on the same site registers it for them). The replacement has no fetch handler,
+# so the browser loads everything from the server again; on activation it deletes the app's
+# caches (named after the app, as EffectCraft's effectcraft-<version>), takes over the open
+# pages and unregisters itself. Its first line marks it as ours.
+sw=$dir/sw.js
+sw_orig=$layer/sw.js.orig
+sw_first='// craftsuite-layer: inject-translator.sh wrote this in place of the service worker of the app.'
+sw_replacement() {
+  cat <<EOF
+$sw_first
+// The app's own worker answered from its cache, so a changed page or translator reached browsers
+// only with the app's next release. This one answers nothing: on activation it deletes the app's
+// caches, takes over the open pages (their requests go to the server again) and unregisters
+// itself. The original is craftsuite-layer/sw.js.orig; inject-translator.sh --remove puts it back.
+self.addEventListener('install', () => { self.skipWaiting(); });
+self.addEventListener('activate', (event) => {
+  event.waitUntil((async () => {
+    try {
+      const names = await caches.keys();
+      await Promise.all(names.filter((n) => n === '$app' || n.startsWith('$app-')).map((n) => caches.delete(n)));
+    } catch (e) { /* unregister all the same */ }
+    try { await self.clients.claim(); } catch (e) { /* unregister all the same */ }
+    await self.registration.unregister();
+  })());
+});
+EOF
+}
+# none: no sw.js; current: ours as this version writes it; outdated: ours, other content; app:
+# the app's own.
+sw_state=none
+if [ -e "$sw" ] || [ -h "$sw" ]; then
+  if [ ! -f "$sw" ] || [ -h "$sw" ]; then die 3 "$sw exists but is not a regular file"; fi
+  [ -r "$sw" ] || die 3 "cannot read $sw"
+  first_line=
+  IFS= read -r first_line <"$sw" || :
+  if sw_replacement | cmp -s - "$sw"; then
+    sw_state=current
+  elif [ "$first_line" = "$sw_first" ]; then
+    sw_state=outdated
+  else
+    sw_state=app
+  fi
+fi
+
 if [ "$mode" != remove ]; then
   if [ -z "$translators" ]; then
     case $0 in
@@ -259,7 +340,9 @@ if [ "$mode" != remove ]; then
   if ! core_sum=$(sum "$translators/core.js") || ! app_sum=$(sum "$translators/$app.js"); then
     die 3 "cannot compute a checksum: none of cksum, sha256sum and md5sum works here"
   fi
-  tags="<script src=\"./craftsuite-layer/core.js?v=$core_sum\" data-allowed-origins=\"$allowed\" data-app-version=\"$ver\"></script><script src=\"./craftsuite-layer/$app.js?v=$app_sum\"></script>"
+  startup_attr=
+  [ -z "$startup" ] || startup_attr=" data-startup-timeout=\"$startup\""
+  tags="<script src=\"./craftsuite-layer/core.js?v=$core_sum\" data-allowed-origins=\"$allowed\" data-app-version=\"$ver\"$startup_attr></script><script src=\"./craftsuite-layer/$app.js?v=$app_sum\"></script>"
 else
   tags=
 fi
@@ -332,8 +415,9 @@ END {
 noeol=0
 [ -n "$(tail -c 1 "$index" | tr -d '\n')" ] && noeol=1
 tmp=$dir/.index.html.craftsuite-$$
+sw_tmp=$dir/.sw.js.craftsuite-$$
 # shellcheck disable=SC2317,SC2329 # called by the EXIT trap (the code differs between versions)
-cleanup() { rm -f "$tmp" "$tmp.len" "$layer/.core.js.craftsuite-$$" "$layer/.$app.js.craftsuite-$$"; }
+cleanup() { rm -f "$tmp" "$tmp.len" "$sw_tmp" "$layer/.core.js.craftsuite-$$" "$layer/.$app.js.craftsuite-$$" "$layer/.sw.js.orig.craftsuite-$$"; }
 trap cleanup EXIT
 trap 'exit 130' HUP INT TERM
 
@@ -378,17 +462,23 @@ if [ "$mode" != remove ]; then
   done
 fi
 
+sw_due=0
+case $sw_state in app | outdated) [ "$mode" = remove ] || sw_due=1 ;; esac
+
 if [ "$mode" = check ]; then
-  if [ "$rc" = 10 ] && [ -z "$changed_files" ]; then
+  if [ "$rc" = 10 ] && [ -z "$changed_files" ] && [ "$sw_due" = 0 ]; then
     say "$app $ver: up to date in $dir"
     exit 0
   fi
   [ "$rc" = 10 ] || printf '%s: %s %s: index.html is not up to date\n' "$me" "$app" "$ver"
   [ -z "$changed_files" ] || printf '%s: %s %s: craftsuite-layer/ is not up to date:%s\n' "$me" "$app" "$ver" "$changed_files"
+  [ "$sw_state" != app ] || printf "%s: %s %s: sw.js is the app's own service worker\n" "$me" "$app" "$ver"
+  [ "$sw_state" != outdated ] || printf '%s: %s %s: sw.js is not up to date\n' "$me" "$app" "$ver"
   exit 1
 fi
 
-# Translator files first, then index.html: a page never refers to files that are not there.
+# Translator files first, then the service worker, then index.html: a page never refers to files
+# that are not there.
 if [ -n "$changed_files" ]; then
   mkdir -p "$layer" || die 5 "cannot create $layer"
   for f in $changed_files; do
@@ -398,17 +488,46 @@ if [ -n "$changed_files" ]; then
     recompress "$layer/$f"
   done
 fi
+if [ "$sw_due" = 1 ]; then
+  if [ "$sw_state" = app ]; then
+    # Keep the app's own worker for --remove (a newer one from an unpacked release replaces an
+    # older copy).
+    t=$layer/.sw.js.orig.craftsuite-$$
+    { mkdir -p "$layer" && cp -p "$sw" "$t" && cmp -s "$sw" "$t" && mv -f "$t" "$sw_orig"; } 2>/dev/null ||
+      die 5 "cannot keep the original $sw as $sw_orig"
+  fi
+  { sw_replacement >"$sw_tmp" && sw_replacement | cmp -s - "$sw_tmp" && chmod 644 "$sw_tmp" && mv -f "$sw_tmp" "$sw"; } 2>/dev/null ||
+    die 5 "cannot write $sw"
+  recompress "$sw"
+fi
 if [ "$rc" = 0 ]; then
   [ "$(wc -c <"$tmp" | tr -d " ")" = "$(cat "$tmp.len" 2>/dev/null)" ] || die 5 "could not write the new $index completely (disk full?); nothing changed"
   mv -f "$tmp" "$index" || die 5 "cannot replace $index"
   recompress "$index"
 fi
+# --remove: the app's own service worker back in place, once the tags are gone.
+sw_restored=0
+if [ "$mode" = remove ]; then
+  case $sw_state in
+    current | outdated)
+      if [ -f "$sw_orig" ] && [ ! -h "$sw_orig" ]; then
+        mv -f "$sw_orig" "$sw" || die 5 "cannot put back $sw from $sw_orig"
+        recompress "$sw"
+        sw_restored=1
+      else
+        warn "no $sw_orig to put back: $sw stays the one that removes itself (the app works, but not offline)"
+      fi
+      ;;
+  esac
+fi
 
 if [ "$mode" = remove ]; then
   if [ "$rc" = 0 ]; then say "$app: removed the translator tags from $index"; else say "$app: no translator tags in $index"; fi
-elif [ "$rc" = 10 ] && [ -z "$changed_files" ]; then
-  say "$app $ver: already up to date in $dir (allowed origins: $allowed)"
+  [ "$sw_restored" = 0 ] || say "$app: put back the app's service worker $sw"
+elif [ "$rc" = 10 ] && [ -z "$changed_files" ] && [ "$sw_due" = 0 ]; then
+  say "$app $ver: already up to date in $dir (allowed origins: $allowed${startup:+; startup timeout: $startup ms})"
 else
-  say "$app $ver: translator added to $dir (allowed origins: $allowed)"
+  say "$app $ver: translator added to $dir (allowed origins: $allowed${startup:+; startup timeout: $startup ms})"
+  [ "$sw_state" != app ] || say "$app $ver: replaced the app's service worker $sw with one that removes itself (original: $sw_orig)"
 fi
 exit 0

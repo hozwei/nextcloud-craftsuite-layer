@@ -30,10 +30,11 @@ class CraftApps {
 	/**
 	 * App id => display name, the extensions it opens (lower case, no dot) and those it opens on
 	 * a click in Files (default action; only types no common Nextcloud app opens by default, so a
-	 * PDF stays with the PDF viewer and a PNG or SVG with the Viewer). Each list follows what the
-	 * app opens from a drop and saves back well; docs/apps/<app>.md has the reasons, including
-	 * the types left out on purpose (such as .pdn, whose saves PhotoCraft writes as new .pcraft
-	 * files every time).
+	 * PDF stays with the PDF viewer, a PNG or SVG with the Viewer and Office files with Nextcloud
+	 * Office or ONLYOFFICE). Each list follows what the app opens from a drop and saves back well;
+	 * docs/apps/<app>.md has the reasons, including the types left out on purpose (such as .pdn,
+	 * whose saves PhotoCraft writes as new .pcraft files every time). SoundCraft is missing on
+	 * purpose: its web build can neither open nor save files.
 	 */
 	public const APPS = [
 		'pdfcraft' => ['name' => 'PdfCraft', 'extensions' => ['pdf'], 'default' => []],
@@ -49,7 +50,28 @@ class CraftApps {
 			'default' => ['vectorcraft', 'drawcraft', 'eps', 'svgz', 'dxf'],
 		],
 		'designcraft' => ['name' => 'DesignCraft', 'extensions' => ['designcraft', 'idml'], 'default' => ['designcraft', 'idml']],
+		// Saves of Word files from other programs become a copy next to them (docs/apps/wordcraft.md).
+		'wordcraft' => ['name' => 'WordCraft', 'extensions' => ['docx', 'docm', 'dotx', 'dotm', 'doc', 'dot', 'odt', 'rtf'], 'default' => []],
+		'gridcraft' => ['name' => 'GridCraft', 'extensions' => ['xlsx', 'xlsm', 'ods', 'csv'], 'default' => []],
+		'deckcraft' => ['name' => 'DeckCraft', 'extensions' => ['deckcraft', 'pptx', 'potx', 'ppsx'], 'default' => ['deckcraft']],
+		// 'dxf' is also VectorCraft's default; CADCraft wins it when both are configured (PREFERRED).
+		'cadcraft' => ['name' => 'CADCraft', 'extensions' => ['dxf'], 'default' => ['dxf']],
+		// Every result is a new file: LightCraft exports, it never saves a photo back.
+		'lightcraft' => [
+			'name' => 'LightCraft',
+			'extensions' => ['dng', 'cr2', 'cr3', 'nef', 'nrw', 'arw', 'raf', 'orf', 'rw2', 'rwl', 'pef', 'srw', 'jpg', 'jpeg', 'png', 'tif', 'tiff', 'webp'],
+			'default' => ['dng', 'cr2', 'cr3', 'nef', 'nrw', 'arw', 'raf', 'orf', 'rw2', 'rwl', 'pef', 'srw'],
+		],
+		'filmcraft' => ['name' => 'FilmCraft', 'extensions' => ['fcproj'], 'default' => ['fcproj']],
+		'effectcraft' => ['name' => 'EffectCraft', 'extensions' => ['ecproj'], 'default' => ['ecproj']],
 	];
+
+	/**
+	 * Extension => the app that opens it on a click when several configured apps have it as their
+	 * default. Without an entry the first of them in APPS wins. An app that is not configured
+	 * never takes the click away from one that is.
+	 */
+	private const PREFERRED = ['dxf' => 'cadcraft'];
 
 	public function __construct(
 		private IAppConfig $appConfig,
@@ -75,17 +97,49 @@ class CraftApps {
 		return isset(self::APPS[$app]) && in_array(self::extension($name), self::APPS[$app]['extensions'], true);
 	}
 
-	/** The first app that opens $name, preferring the one that opens it by default. */
-	public static function forFileName(string $name): ?string {
+	/**
+	 * The app among $apps that opens files with extension $ext on a click in Files, or null.
+	 *
+	 * @param list<string> $apps
+	 */
+	public static function clickApp(string $ext, array $apps): ?string {
+		$claims = array_values(array_filter($apps, fn (string $app) => isset(self::APPS[$app]) && in_array($ext, self::APPS[$app]['default'], true)));
+		if ($claims === []) {
+			return null;
+		}
+		$preferred = self::PREFERRED[$ext] ?? null;
+		return $preferred !== null && in_array($preferred, $claims, true) ? $preferred : $claims[0];
+	}
+
+	/**
+	 * The extensions $app opens on a click in Files when $apps are configured: its defaults that
+	 * no other app among $apps takes (clickApp()).
+	 *
+	 * @param list<string> $apps
+	 * @return list<string>
+	 */
+	public static function clickExtensions(string $app, array $apps): array {
+		return array_values(array_filter(self::APPS[$app]['default'] ?? [], fn (string $ext) => self::clickApp($ext, $apps) === $app));
+	}
+
+	/**
+	 * The app that opens $name when no app was chosen: the one that opens it on a click, then the
+	 * first that opens it at all, both among the configured apps $configured. If none of them
+	 * opens it, the same among all apps, so that the editor can say which app is missing.
+	 *
+	 * @param list<string> $configured
+	 */
+	public static function forFileName(string $name, array $configured): ?string {
 		$ext = self::extension($name);
-		foreach (self::APPS as $app => $info) {
-			if (in_array($ext, $info['default'], true)) {
+		foreach ([$configured, array_keys(self::APPS)] as $apps) {
+			$app = self::clickApp($ext, $apps);
+			if ($app !== null) {
 				return $app;
 			}
-		}
-		foreach (self::APPS as $app => $info) {
-			if (in_array($ext, $info['extensions'], true)) {
-				return $app;
+			foreach ($apps as $candidate) {
+				if (self::opens($candidate, $name)) {
+					return $candidate;
+				}
 			}
 		}
 		return null;
@@ -121,7 +175,7 @@ class CraftApps {
 				: $this->l->t('The host name is not valid. Use letters, digits, hyphens and dots, or an IP address.');
 		}
 		if (!self::isAcceptable($url)) {
-			return $this->l->t('Use an https:// address without user name, password or #fragment (http:// only on localhost).');
+			return $this->l->t('Use an https:// address without user name, password, ?query or #fragment (http:// only on localhost).');
 		}
 		// On a Nextcloud host the app's code would share the user's session (same origin), or at
 		// least receive Nextcloud's cookies (cookies do not separate ports, RFC 6265 8.5).
@@ -241,13 +295,17 @@ class CraftApps {
 	}
 
 	/**
-	 * https only, or http on a loopback address for development; no credentials and no fragment;
+	 * https only, or http on a loopback address for development; no credentials, no query and no
+	 * fragment;
 	 * a host that canonicalHost() accepts. The translator in the app applies the same rule to the
 	 * Nextcloud origin.
 	 */
 	public static function isAcceptable(string $url): bool {
 		$parts = parse_url($url);
-		if (!is_array($parts) || !isset($parts['scheme'], $parts['host']) || isset($parts['user']) || isset($parts['pass']) || isset($parts['fragment'])) {
+		// No query: several Craft apps read their query as switches (PdfCraft's ?host=parent drops
+		// every save under another origin, others restore sessions or keep files in the browser);
+		// adapters set the switches their app needs themselves (translators/README.md).
+		if (!is_array($parts) || !isset($parts['scheme'], $parts['host']) || isset($parts['user']) || isset($parts['pass']) || isset($parts['query']) || isset($parts['fragment'])) {
 			return false;
 		}
 		$host = self::canonicalHost($parts['host']);
