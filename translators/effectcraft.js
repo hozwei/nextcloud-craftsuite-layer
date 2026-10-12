@@ -304,8 +304,24 @@
     }
   };
 
+  // The interface language: the web build reads none at start (no system language; under
+  // storage=memory no stored preference either, crates/ui-egui/src/i18n.rs:60-72), but its
+  // automation call sets the preference general.language, which applies on the next frame
+  // (crates/engine/src/prefs.rs:25-67). BCP 47 tag -> EffectCraft's code; left out: ja, zh-Hans and
+  // zh-Hant, which the web build draws without a font. Its Spanish and Portuguese translate only
+  // the menu bar.
+  const LANGUAGES = { en: 'en', es: 'es', 'pt-BR': 'pt-br', uk: 'uk' };
+  const LANGUAGE_WAIT_MS = 10000;
+  let wantedLanguage = null;
+  let settleLanguage = () => undefined;
+  const languageApplied = new Promise((resolve) => { settleLanguage = resolve; });
+
   window.craftsuiteLayer.register({
     app: 'effectcraft',
+    language(tag, util) {
+      wantedLanguage = util.matchLanguage(tag, LANGUAGES);
+      return wantedLanguage ? languageApplied : null;
+    },
     // Ready only if the flags took effect where the app tells (effectcraft.info(), set before
     // eframe registers its drop listener, app.rs:201, 239-243): memory storage and no restored
     // session. Otherwise (a release that renamed a flag, or no answer) the host gets a
@@ -316,6 +332,21 @@
       const storage = info && info.storage ? info.storage.backend : undefined;
       if (storage !== 'memory') throw new Error(`the app would keep the opened project in browser storage (storage: ${String(storage)})`);
       if (info.restored !== false) throw new Error(`the app may have restored an earlier session (restored: ${String(info.restored)})`);
+      // The host's language, before `ready`; the app goes on in its own if it does not take it.
+      if (!wantedLanguage) return settleLanguage(null);
+      let timer;
+      try {
+        await Promise.race([
+          window.effectcraft.execute('prefs.set', { key: 'general.language', value: LANGUAGES[wantedLanguage] }),
+          new Promise((resolve, reject) => { timer = setTimeout(reject, LANGUAGE_WAIT_MS, new Error('no answer')); }),
+        ]);
+        settleLanguage(wantedLanguage);
+      } catch (error) {
+        console.warn('[craftsuite-layer] EffectCraft did not take the language', error);
+        settleLanguage(null);
+      } finally {
+        clearTimeout(timer);
+      }
     },
     // Not a document identity (the format has none): NEWER for a file a newer EffectCraft wrote,
     // UNKNOWN when savedBy or the app's own version cannot be read, null otherwise. A save of this

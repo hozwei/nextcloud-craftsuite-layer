@@ -16,6 +16,9 @@
 //   app-<knob>=<value>     translator config for the test server (ack, result, startup, drop,
 //                          allowed, version, adapter; see server/serve.mjs), and the stub's and
 //                          the test adapter's parameters (see stub-app/)
+//   lang=<tag>             frame the app with this language in the fragment, as the Nextcloud
+//                          editor page does ('#craftsuite-layer:lang=<tag>'; an empty lang= sends
+//                          an empty one)
 'use strict';
 
 const PROTOCOL = 'craftsuite-layer';
@@ -28,6 +31,7 @@ if (params.get('appfile') === '1') appUrl.search = '?file=/files/craftsuite-prob
 // Test knobs for the injected translator config (app-ack, app-drop, app-version, ...), passed to
 // the test server's index request; see server/serve.mjs.
 for (const [key, value] of params) if (key.startsWith('app-')) appUrl.searchParams.set(key.slice(4), value);
+if (params.has('lang')) appUrl.hash = 'craftsuite-layer:lang=' + encodeURIComponent(params.get('lang'));
 const filePath = (params.get('name') || 'craftsuite-probe.pdf').replace(/[^\w ./-]/g, '').replace(/\.\.+/g, '.');
 const fileName = filePath.split('/').pop();
 // The type the editor page sends: Nextcloud's MIME type for the file, '' for those it does not know.
@@ -38,7 +42,7 @@ const MIME = {
 const mime = MIME[fileName.split('.').pop().toLowerCase()] || '';
 const iframe = document.getElementById('app');
 
-const host = (window.__host = { state: 'starting', events: [], messages: [], saves: [], started: [], errors: [], opened: null });
+const host = (window.__host = { state: 'starting', events: [], messages: [], saves: [], started: [], errors: [], opened: null, readies: [] });
 document.getElementById('origin').textContent = location.origin;
 
 function log(text) {
@@ -105,7 +109,8 @@ window.addEventListener('message', async (event) => {
       sendInit('hello');
       break;
     case 'ready':
-      log(`ready (app ${msg.appVersion}, layer ${msg.layerVersion})`);
+      log(`ready (app ${msg.appVersion}, layer ${msg.layerVersion}, language ${msg.language})`);
+      host.readies.push({ layerVersion: msg.layerVersion, language: msg.language === undefined ? 'absent' : msg.language });
       setState('ready');
       if (params.get('open') !== '0' && params.get('appfile') !== '1') await openFile();
       break;

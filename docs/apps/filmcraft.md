@@ -35,8 +35,9 @@ are to the `v0.6.0` tag; `web/` is `apps/filmcraft-web/`, the other paths are un
   with class `err` (`index.html:88-89`). If the error names the graphics (`wgpu`, `surface`,
   `WebGPU`, ...), it first reloads itself once with `?webgl` added to its query
   (`index.html:84-86`). With neither WebGL2 nor WebGPU the second start fails as well.
-- The UI language follows `navigator.languages` (German, Spanish, French, Japanese, ...); the
-  tests pin `en-US`.
+- The interface language follows the browser's `navigator.languages`, read on the first frame
+  (German, Spanish, French, Japanese, ...). A Chinese browser gets English: the web build has no
+  Chinese font. See [Interface language](#interface-language); the tests pin `en-US`.
 
 **Storage in the browser**
 
@@ -53,7 +54,8 @@ are to the `v0.6.0` tag; `web/` is `apps/filmcraft-web/`, the other paths are un
   [How the adapter classifies](#how-the-adapter-classifies)). The snapshots are still written,
   and the copies still made; only nothing from an earlier session comes back.
 - FilmCraft uses no `localStorage` (eframe's persistence is not enabled, `web/Cargo.toml:28`),
-  although `HOSTING.md` says preferences are kept there.
+  although `HOSTING.md` says preferences are kept there. The web build keeps its preferences, the
+  interface language among them, in memory only (see [Interface language](#interface-language)).
 
 **Opening**
 
@@ -127,7 +129,7 @@ are to the `v0.6.0` tag; `web/` is `apps/filmcraft-web/`, the other paths are un
 | Save of a project the user dropped or opened from the disk | its name, which may be the opened one | `export` |
 | File > Export > EDL…, Final Cut Pro XML…, FCPXML…, OpenTimelineIO…, AAF…, OMF… | `<sequence>.<ext>` (EDL of the demo: `Main Edit.edl`), lossy re-encodings with export reports | `export` |
 | File > Export > Avid Log Exchange…, Markers CSV | `<project>.ale`, `<sequence>.csv` | `export` |
-| File > Export > Selection as FilmCraft Project… | `<project> Selection.fcproj` (`ui-egui/src/panels/menu_dialogs.rs:215`; `Selection` is translated in some UI languages), the selected items stored under that stem, without `view`; for an opened `<name> Selection.fcproj` that stores `<name>`, the opened name | `export` |
+| File > Export > Selection as FilmCraft Project… | `<project> Selection.fcproj` (`ui-egui/src/panels/menu_dialogs.rs:215`; `Selection` is translated in some UI languages, see [Interface language](#interface-language)), the selected items stored under that stem, without `view`; for an opened `<name> Selection.fcproj` that stores `<name>`, the opened name | `export` |
 | Export mode (Ctrl+M) and the export queue, Export Frame | the File Name field (default: the sequence's name) with the preset's extension; stills `png`, `jpg`, `tif`, `bmp` | `export` |
 | Captions, presets, keyboard shortcuts, graphics templates, voice-over and narration WAVs, XMP sidecars | their own names | `export` |
 
@@ -210,6 +212,61 @@ Notes:
   only from an export (an EDL export of a sequence with the opened EDL's name), never as a save of
   it: `export`.
 
+## Interface language
+
+**How FilmCraft picks it.** From its preference Interface Language
+(`general.interfaceLanguage`), by default `system` (`engine/src/settings.rs:36-39`, `:66`). The
+web build never loads or stores preferences: they live in the session's memory
+(`engine/src/lib.rs:360-362`, `:479-480`); only the desktop app calls `start_autosave`, which
+reads `preferences.json` (`:536-552`). So every start is `system`, which means the browser's
+`navigator.languages` (`web/src/lib.rs:189-191`). FilmCraft takes the first of them it has, by
+the primary subtag (`ui-egui/src/i18n/mod.rs:91-123`): `de-AT` gives German, `fr-CA` French, any
+Portuguese Brazilian Portuguese; a language it lacks (`it`) is skipped, and without a match the
+interface is English. Chinese counts only for Simplified tags (`zh`, `zh-CN`, `zh-SG`,
+`zh-Hans`), and the web build has no Chinese font (`ui-egui/src/cjk.rs:28-49`): FilmCraft then
+shows English with `no Chinese font is installed on this system; the interface stays in English`
+in its status bar, and tries no later language (`ui-egui/src/lib.rs:640-657`). Japanese renders.
+The list is read on the first frame (`apply_prefs` from `frame`, `ui-egui/src/lib.rs:1582-1597`),
+seconds after the translator ran, and again only when the preference changes. No query flag sets
+the language (see [Hosting notes](#hosting-notes)), there is no `languagechange` listener, and
+neither `navigator.language` nor `<html lang>` is read.
+
+**What the adapter does.** Its `language` member gets the host's language
+([protocol.md](../protocol.md#host-settings)) before FilmCraft's module runs, finds it in its
+`LANGUAGES` table (the same tag, else the same language and script: `de-AT` finds `de`, `pt-PT`
+finds `pt-BR`, `en-GB` finds `en`) and makes the frame report FilmCraft's code for it (`pt-br` for
+`pt-BR`) as the browser's language: `navigator.language` returns it, and `navigator.languages`
+starts with it, followed by the browser's own (getters on `Navigator.prototype`). FilmCraft's
+first frame is already in that language. `ready` reports the tag it found. For any other
+language, and without one, it changes nothing and reports `null`, so FilmCraft follows the
+browser's languages, as outside the integration. A reloaded frame, also FilmCraft's own `?webgl`
+reload, gets the language again: the core keeps it in the frame's name.
+
+**Languages.** The Nextcloud app's settings offer the keys of `LANGUAGES`: `en`, `de`, `es`,
+`fr`, `ja`, `pt-BR`, `ru` and `uk`, every language of FilmCraft 0.6.0's Edit > Language
+(`ui-egui/src/menus.rs:25-33`) except Simplified Chinese. The web build refuses that one for want
+of a font, so a start in it would be English with the message above.
+
+**Partial translations.** Spanish, French and Japanese translate nearly the whole interface
+(about 3,500 entries each in `ui-egui/src/i18n/<code>.tsv`). German, Brazilian Portuguese,
+Russian and Ukrainian translate the menus only (about 350 entries each; their catalogs say so), and
+everything else shows in English, such as `(no clips)` in the German interface. Names FilmCraft
+gives files and projects (`Untitled`, `FilmCraft Demo`, `<project> copy.fcproj`,
+`(schema vN backup)`) are not translated, so the classification does not depend on the language.
+The one translated file name is the default of File > Export > Selection as FilmCraft Project…,
+`<project> Selection.fcproj` (`ui-egui/src/panels/menu_dialogs.rs:215`): `Selección` in Spanish,
+`Sélection` in French, `選択項目` in Japanese (`es.tsv:2744`, `fr.tsv:2746`, `ja.tsv:2734`). It
+arrives as a new file in any language.
+
+**A language the user picks.** Edit > Language (`ui-egui/src/menus.rs:25-33`, `:178-223`) and
+Edit > Preferences > General… > Interface Language, which also has System Language
+(`menus.rs:141`, `engine/src/settings.rs:766-782`), switch the interface at once. The web build
+keeps the choice in memory: it lasts until the editor is closed or the frame reloads, and the
+next start is in the host's language again (without one, in the browser's). System Language goes
+back to the language the adapter set. The host is not told; `ready` reported the language
+FilmCraft started in. Chinese is refused there too (no font). Outside the integration the web
+build behaves the same; only FilmCraft's desktop app keeps the choice, in `preferences.json`.
+
 ## Known gaps
 
 - **Projects named like FilmCraft's own.** A project file named `Untitled.fcproj` or
@@ -277,6 +334,8 @@ For the Nextcloud app's list:
 
 Match the extension in any letter case, as FilmCraft does. Nextcloud 34 and 35 have no MIME type
 for it (it arrives as `application/octet-stream`), so the app must pick FilmCraft by extension.
+For the FilmCraft icon in Files the Nextcloud app registers `application/x-filmcraft` for it
+([nextcloud-app.md](../nextcloud-app.md#file-type-icons)).
 
 Do not offer anything else. Media (mp4, mov, webm, mkv, mxf, wav, mp3, ...) would only be
 imported into the demo project, and only new files would come back: a project that cannot find
@@ -292,13 +351,15 @@ srt and vtt belong to text editors. `y4m` and `avi` are listed by FilmCraft but 
 (fallback downloads, a foreign host, startup errors) is tested in `translator.spec.ts` and
 `pdfcraft.spec.ts`; this spec checks what depends on FilmCraft.
 
-The spec has three tests, and its header lists them with their scenarios. The first two are the
-contract tests; the canary runs them apart from the `@ui` test.
+The spec has four tests, and its header lists them with their scenarios. `contract` and `saved-as`
+are the contract tests; the canary runs them apart from the `language` test (tagged `@language`) and
+the `@ui` test.
 
 | Test | What it checks |
 |---|---|
 | `contract` | An allowed host: the handshake with the served app version; `ready` only after `#loading` was removed, while FilmCraft's drop listener came earlier (times recorded in the frame and the host page); the frame address `?ack=…&result=…&fresh`. The open of `craftsuite-probe.fcproj`, which stores `Probe Title`: a marker (M) saved with Ctrl+S arrives as the document under the opened name, with the edit and the fixture's notes, and so does the next Ctrl+S. Save a Copy (Ctrl+Alt+S) and a new project's save (Ctrl+Alt+N, Ctrl+S) arrive as new files. Nothing becomes a browser download, also not after the deadlines for the host's confirmation and result. Without WebGL2 and WebGPU (blocked in the frame) the host gets `the app failed to start: failed to create wgpu surface ...` and no `ready`, after FilmCraft's reload to `?fresh&webgl`, although its drop listener was there. |
 | `saved-as` | An opened `Probe Title Selection.fcproj` (the fixture under another name): File > Export > Selection as FilmCraft Project… of its sequence, named and stored like the opened file but without `view`, is a new file; Save As first: `Probe Title.fcproj` as the document, then Ctrl+S again. An opened `Probe Title copy.fcproj`: Save a Copy is a new file, Ctrl+S the document. `old-schema.fcproj` (schema 14): the backup with the opened bytes is a new file, the save in schema 15 the document. An opened `Untitled.fcproj` storing `FilmCraft Demo`: its Save As and a new project saved under the opened name are new files. An opened EDL: imported, and its EDL export and the demo project's save are new files. A project with the opened name from the user's disk (Chromium: a trusted drop; WebKit: Open Project with the file input): Ctrl+S is a new file. An earlier session's unsaved project named `corrupt` and an imported WAV in OPFS, then the host opens a `corrupt.fcproj` FilmCraft refuses: nothing of the earlier session comes back, Ctrl+S saves the demo project as a new file, and the WAV imported again keeps its name. |
+| `language` | The host's language under the browser locale `en-US`: with `lang=de`, `ready` reports `de`, FilmCraft reports `de` as its interface language (`request('ui.inspect')`, polled: a request answered on its very first frame, before the frame applies the language, can still say `en`), File > Save is labelled `Speichern` (`request('ui.menu.list')`), and the open project is the opened `craftsuite-probe.fcproj` (`execute('project.inspect')`: `Probe Title` at `/projects/craftsuite-probe.fcproj`). |
 | `ui` (`@ui`) | The File menu with the pointer, on the opened `craftsuite-probe.fcproj`: Save saves the document; Export > EDL… arrives as a new file. |
 
 A test with several scenarios (`saved-as`) runs each in a page of its own and reports every
@@ -316,7 +377,9 @@ file a drop delivered), and run File > Export > EDL… and Selection as FilmCraf
 (`ui-egui/src/control.rs:103-110`), after selecting the sequence as a click in the Project panel
 does (`execute('project.select', …)`). Only the `ui` test clicks with the pointer; its click
 positions are in the `AT` table of the spec, measured on 0.6.0 at a 1400x900 viewport with the
-locale `en-US`. When a new release fails the canary:
+locale `en-US`. Only the `language` test sets a host language: German moves those menu items,
+and Spanish, French and Japanese translate the name `saved-as` expects from Export Selection as
+Project. When a new release fails the canary:
 
 - **Contract tests fail.** The release changed something the translator relies on: the start
   (`#loading`, `#status.err`, the order in `web/src/lib.rs` `start()`), the drop routing
@@ -328,6 +391,12 @@ locale `en-US`. When a new release fails the canary:
   that host the app should hold the release back until the adapter is fixed. If only the waits
   fail (a warning `FilmCraft did not show: ...` in the report), `window.filmcraft` changed; fix the
   helpers in the spec.
+- **The `language` test fails.** If FilmCraft does not report German, the release no longer
+  starts in the first of `navigator.languages` it has (`web/src/lib.rs:189-191`,
+  `ui-egui/src/i18n/mod.rs:91-123`, `ui-egui/src/lib.rs:640-657`), or a stored preference now wins
+  over it: the adapter needs another way in. If it reports German but labels Save otherwise, or
+  `project.inspect` answers otherwise, the test needs the new label or reply. Files open and save
+  as before either way.
 - **Only the `@ui` test fails.** A menu item moved. Re-measure the positions in `AT`
   (`window.filmcraft.request('ui.elements')` lists the open menu's items with their rectangles);
   the translator is not at fault.

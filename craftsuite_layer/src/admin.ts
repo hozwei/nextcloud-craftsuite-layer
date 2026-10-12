@@ -2,8 +2,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
 // Admin settings: sends the form (templates/admin.php) to SettingsController and shows the result.
-// The server checks every address and saves nothing if one is not acceptable. It requires a
-// recent password confirmation; Nextcloud's own dialog asks for it when needed.
+// The server checks every address and language and saves nothing if one is not acceptable. It
+// requires a recent password confirmation; Nextcloud's own dialog asks for it when needed. The
+// languages an app can start in come as tags ('pt-BR'); each is shown by its own name.
 
 import { generateUrl } from '@nextcloud/router';
 import { t } from './l10n.ts';
@@ -15,6 +16,14 @@ interface PasswordConfirmation {
 const form = document.querySelector<HTMLFormElement>('#craftsuite-layer-admin form');
 const status = form?.querySelector<HTMLElement>('.craftsuite-admin__status');
 
+// 'pt-BR' -> 'português (Brasil)': each language in its own words, as language menus do.
+for (const option of form?.querySelectorAll<HTMLOptionElement>('select[data-app] option[lang]') ?? []) {
+  try {
+    const name = new Intl.DisplayNames([option.value], { type: 'language' }).of(option.value);
+    if (name && name !== option.value) option.textContent = name.charAt(0).toLocaleUpperCase(option.value) + name.slice(1);
+  } catch { /* the tag stays */ }
+}
+
 // Nextcloud's password dialog (OC.PasswordConfirmation, in Nextcloud 34 and 35). Without it the
 // server answers 403 when a confirmation is due, and the status line says so.
 function confirmPassword(): Promise<void> {
@@ -23,19 +32,25 @@ function confirmPassword(): Promise<void> {
   return new Promise((resolve, reject) => pc.requirePasswordConfirmation(resolve, {}, () => reject(new Error('cancelled'))));
 }
 
-function showHint(input: HTMLInputElement, error: string | null): void {
+// The hint under an app's row shows the problem with its address, else the one with its language.
+function showHint(input: HTMLInputElement, error: string | null, languageError: string | null): void {
   const hint = document.getElementById(`${input.id}-hint`);
   if (!hint) return;
-  hint.textContent = error ?? hint.dataset.hint ?? '';
-  hint.classList.toggle('craftsuite-admin__hint--error', error !== null);
-  if (error === null) input.removeAttribute('aria-invalid');
-  else input.setAttribute('aria-invalid', 'true');
+  hint.textContent = error ?? languageError ?? hint.dataset.hint ?? '';
+  hint.classList.toggle('craftsuite-admin__hint--error', (error ?? languageError) !== null);
+  const mark = (field: Element | null, bad: boolean) => {
+    if (bad) field?.setAttribute('aria-invalid', 'true');
+    else field?.removeAttribute('aria-invalid');
+  };
+  mark(input, error !== null);
+  mark(document.getElementById(`${input.id}-language`), languageError !== null);
 }
 
 async function save(event: SubmitEvent): Promise<void> {
   event.preventDefault();
   if (!form || !status) return;
   const inputs = [...form.querySelectorAll<HTMLInputElement>('input[name]')];
+  const selects = [...form.querySelectorAll<HTMLSelectElement>('select[data-app]')];
   const button = form.querySelector<HTMLButtonElement>('button[type=submit]');
   if (button) button.disabled = true;
   status.textContent = t('craftsuite_layer', 'Saving …');
@@ -45,12 +60,17 @@ async function save(event: SubmitEvent): Promise<void> {
       method: 'POST',
       credentials: 'same-origin',
       headers: { 'Content-Type': 'application/json', requesttoken: document.head.dataset.requesttoken ?? '' },
-      body: JSON.stringify({ urls: Object.fromEntries(inputs.map((input) => [input.name, input.value.trim()])) }),
+      body: JSON.stringify({
+        urls: Object.fromEntries(inputs.map((input) => [input.name, input.value.trim()])),
+        languages: Object.fromEntries(selects.map((select) => [select.dataset.app ?? '', select.value])),
+      }),
     });
-    const body = (await res.json().catch(() => ({}))) as { errors?: Record<string, string>; message?: string };
-    for (const input of inputs) showHint(input, body.errors?.[input.name] ?? null);
+    const body = (await res.json().catch(() => ({}))) as {
+      errors?: Record<string, string>; languageErrors?: Record<string, string>; message?: string;
+    };
+    for (const input of inputs) showHint(input, body.errors?.[input.name] ?? null, body.languageErrors?.[input.name] ?? null);
     status.textContent = res.ok ? t('craftsuite_layer', 'Saved')
-      : body.errors ? t('craftsuite_layer', 'Nothing was saved. Correct the marked addresses.')
+      : body.errors ? t('craftsuite_layer', 'Nothing was saved. Correct the marked fields.')
         : res.status === 403 ? t('craftsuite_layer', 'Nothing was saved: confirm your password and try again.')
           : t('craftsuite_layer', 'Nothing was saved: the server answered HTTP {status}.', { status: res.status });
   } catch (err) {

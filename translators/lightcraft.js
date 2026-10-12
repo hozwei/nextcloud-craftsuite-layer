@@ -103,8 +103,41 @@
   });
   observer.observe(document.documentElement, { childList: true, characterData: true, subtree: true });
 
+  // The interface language: the web build reads none at start (in memory mode it has no stored
+  // ui.json, so it starts in English), but its automation call takes the Edit > Language commands
+  // (crates/ui-egui/src/menus.rs:16-51). BCP 47 tag -> command name. The language is set in
+  // started(), before web.stats, so it applies from the app's first frame on; `ready` reports it
+  // only if the app answered with a code.
+  const LANGUAGES = { en: 'english', de: 'german', es: 'spanish', fr: 'french', ja: 'japanese', 'pt-BR': 'portuguese', ru: 'russian', uk: 'ukrainian', 'zh-Hans': 'simplifiedChinese', 'zh-Hant': 'traditionalChinese' };
+  let wantedLanguage = null;
+  let settleLanguage = () => undefined;
+  const languageApplied = new Promise((resolve) => { settleLanguage = resolve; });
+  // The command runs on the app's next frame, like web.stats.
+  const LANGUAGE_WAIT_MS = 10000;
+  const applyLanguage = async (api) => {
+    if (!wantedLanguage) return settleLanguage(null);
+    let timer;
+    try {
+      const answer = JSON.parse(await Promise.race([
+        api.command('app.language.' + LANGUAGES[wantedLanguage], '{}'),
+        new Promise((resolve, reject) => { timer = setTimeout(reject, LANGUAGE_WAIT_MS, new Error('no answer')); }),
+      ]));
+      settleLanguage(typeof answer === 'string' && answer ? wantedLanguage : null);
+    } catch (error) {
+      // The app goes on in its own language; this is no reason to fail the start.
+      console.warn('[craftsuite-layer] LightCraft did not take the language', error);
+      settleLanguage(null);
+    } finally {
+      clearTimeout(timer);
+    }
+  };
+
   window.craftsuiteLayer.register({
     app: 'lightcraft',
+    language(tag, util) {
+      wantedLanguage = util.matchLanguage(tag, LANGUAGES);
+      return wantedLanguage ? languageApplied : null;
+    },
     // Ready only with the library in memory and no render workers: otherwise the photo would be
     // copied into the browser's storage (or would not render). web.stats runs on the app's next
     // frame; a frame that never comes, or a failure text, is a failed start.
@@ -136,7 +169,7 @@
           finish(new Error('the app cannot confirm that it keeps nothing in browser storage'));
           return;
         }
-        Promise.resolve().then(() => api.command('web.stats', '{}')).then((answer) => {
+        Promise.resolve().then(() => applyLanguage(api)).then(() => api.command('web.stats', '{}')).then((answer) => {
           const stats = JSON.parse(answer);
           if (!stats || stats.storage !== 'memory') {
             finish(new Error('the app would keep the photo in browser storage (' + String(stats && stats.storage) + ')'));

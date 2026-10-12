@@ -175,6 +175,43 @@ most 1 MB, unpacked with `DecompressionStream('deflate-raw')`), once per file.
 - The `docProps/app.xml` check of the save is a guard: in 0.5.0 nothing but Save writes
   `<stem>.xlsx`.
 
+## Interface language
+
+- **How GridCraft picks it.** Once, as the app is created (`web.rs:43`), from
+  `navigator.language` (`ui-egui/src/i18n.rs:79-88`): only the browser's first language, not
+  `navigator.languages`, and only its primary subtag (`i18n.rs:64-75`). So `ru-RU` gives Russian,
+  `pt-PT` and `pt-BR` both give Brazilian Portuguese, and a language GridCraft lacks (German,
+  French, ...) gives English, the default (`ui-egui/src/lib.rs:52-57`). The web build then drops
+  Chinese, Japanese and Korean, for which it has no font: they start in English too
+  (`web.rs:41-49`). There is no URL switch and nothing is stored: the web build uses no storage
+  and eframe's persistence is not enabled; only the desktop app keeps the choice, in `ui.json`
+  (`main.rs:81-95` of `apps/gridcraft`).
+- **What the adapter does.** Its `language` member gets the host's language
+  ([protocol.md](../protocol.md#host-settings)) before the app's module runs, finds it in its
+  `LANGUAGES` table (`pt-PT` finds `pt-BR`, `en-GB` finds `en`) and makes the frame report
+  GridCraft's code as the browser's language (`pt` for `pt-BR`): `navigator.language` returns it
+  and `navigator.languages` starts with it (getters on `Navigator.prototype`). `ready` reports
+  the tag it found. For any other language, and without one, it changes nothing and reports
+  `null`, so GridCraft follows the browser's language: an override to a language GridCraft lacks
+  would force English, also on a user whose browser is in Russian.
+- **The languages offered** are `en`, `es`, `pt-BR` and `ru`, the keys of `LANGUAGES` (GridCraft's
+  list in the Nextcloud app's settings too). Chinese, Japanese and Korean are left out: the web
+  build drops them itself, so an override would give English.
+- **Partial translations.** Russian and Brazilian Portuguese translate the ribbon and the status
+  bar, from a table of 266 labels each (`ui-egui/src/i18n/ru.rs`, `pt.rs`). A label without an
+  entry stays English (`i18n.rs:98-108`), and so does what is drawn without the table: the File
+  tab (`ui-egui/src/ribbon.rs:212`), AutoSave (`ribbon.rs:33`) and the dialogs. Names the engine
+  gives (`Book1`, `Sheet1`) are never translated. The Russian labels are longer: in a frame
+  1400 px wide, the last groups of the Home tab (Sort & Filter, Find & Select) no longer fit.
+  Spanish translates no label at all (`i18n.rs:100`); it switches formula entry to Spanish: ten
+  function names (`SUMA`, `PROMEDIO`, `SI`, ...), `;` between arguments and `,` as the decimal
+  separator (`formula/src/input.rs:14-36`, `i18n.rs:90-92`). Saved files keep the English syntax.
+- **A language the user picks in the app** (View > Interface language,
+  `ui-egui/src/ribbon.rs:1694-1708`, the command `app.language.set`, `ui-egui/src/lib.rs:323-333`)
+  applies at once and lasts until the frame reloads. Nothing is stored, so every start is in the
+  host's language again, or without one in the browser's. The list also offers Chinese, Japanese
+  and Korean, which the web build cannot draw: their names already show as boxes.
+
 ## Known gaps
 
 - **Files named like a new workbook are never saved back.** An opened `Book1.xlsx` (also
@@ -247,8 +284,10 @@ most 1 MB, unpacked with `DecompressionStream('deflate-raw')`), once per file.
   delegates.
 - `HOSTING.md` says preferences are kept in the frame's `localStorage`; the 0.5.0 build stores
   nothing there.
-- The interface follows the browser's language, except Chinese, Japanese and Korean, for which the
-  build has no fonts (`web.rs:41-49`).
+- The interface follows the host's language where GridCraft has it, else the browser's first
+  language (`navigator.language`, by its primary subtag); Chinese, Japanese and Korean, for which
+  the build has no fonts, start in English (`web.rs:41-49`). See
+  [Interface language](#interface-language).
 - Keyboard shortcuts reach the app after the user clicks into the frame.
 
 ## File types
@@ -276,13 +315,15 @@ Not offered: `xlsb` (a data import like ODS; it could be added the same way), th
 (fallback downloads, a foreign host, startup errors) is tested in `translator.spec.ts` and
 `pdfcraft.spec.ts`; this spec checks what depends on GridCraft.
 
-The spec has three tests, and its header lists them with their scenarios. The first two are the
-contract tests; the canary runs them apart from the `@ui` test.
+The spec has four tests, and its header lists them with their scenarios. The first two are the
+contract tests; the canary runs them apart from the `language` test (tagged `@language`) and the
+`@ui` test.
 
 | Test | What it checks |
 |---|---|
 | `contract` | An allowed host: the handshake with the served app version, then the open of an `.xlsx` GridCraft wrote. An edit saved with Ctrl+S arrives as the document under the opened name, with the edit; Save As (Ctrl+Shift+S) after another edit is the document again. The save of a new workbook (Ctrl+N, `Book1.xlsx`) arrives as a new file. Nothing becomes a browser download, also not after the deadlines for the host's confirmation and result. |
 | `saved-as` | `from-excel.xlsx`, and a GridCraft file with a customXml part added under an upper-case name (`CHANGED-ELSEWHERE.XLSX`, saved as `CHANGED-ELSEWHERE.xlsx`), are never replaced: the first save is a `document` that follows its own id, the next a `document` that follows the first (a copy). `macros.xlsm`, `data.ods` and `data.csv` save as `macros.xlsx`, `data (imported).xlsx` and `data.xlsx`, the document, twice. GridCraft's sales sample saves back unchanged as the document. An opened `Book1.xlsx` is never saved back, and neither is a new workbook's save under that name. A different `craftsuite-probe.xlsx` the user opens with File > Open (in Chromium also one dropped from the desktop) is never the document. |
+| `language` | The host's language under the browser locale `en-US`: with `lang=ru`, `ready` reports `ru` and the app frame's `navigator.language` is `ru`. GridCraft draws its labels into the canvas, so the rest is a picture: the ribbon's tab row is, byte for byte, the one a start without `lang` under the browser locale `ru-RU` shows (in a browser context of its own), and not the one of an English start. |
 | `ui` (`@ui`) | With the pointer: File > Save saves the document; Search Commands (the magnifier in the title bar), `file.exportPdf`, downloads `craftsuite-probe.pdf`, a new file. |
 
 A test with several scenarios (`saved-as`) runs each in a page of its own and reports every
@@ -293,8 +334,9 @@ cells with F2, the text and Enter. They wait for what the app shows: the window 
 the console when a file opens and when a workbook first changes (see [Opening](#what-the-web-build-does)),
 and a settled picture after Escape closed the import message box, which would otherwise take the
 next keys. Export as PDF is only in Search Commands, which only the pointer opens, so it is in the
-`ui` test; its click positions are in the `AT` table of the spec, measured on 0.5.0 at a 1400x900
-viewport with the locale `en-US`. When a new release fails the canary:
+`ui` test; its click positions are in the `AT` table of the spec, with the tab row the `language`
+test compares, measured on 0.5.0 at a 1400x900 viewport with the locale `en-US`. When a new
+release fails the canary:
 
 - **Contract tests fail.** The release changed something the translator relies on: the drop
   handling (`web.rs:74-90`, `ui-egui/src/lib.rs:571-584`), the title and save name rules
@@ -303,6 +345,12 @@ viewport with the locale `en-US`. When a new release fails the canary:
   towards new files, not towards overwriting: a save under a name the adapter does not expect, or
   of a file with a part the adapter does not know, arrives as an `export` or a copy. Sites that
   host the app should hold the release back until the adapter is fixed.
+- **The `language` test fails.** The report has the tab rows that did not compare as expected.
+  If the `ru-RU` start is Russian and the `lang=ru` start is not, the override no longer reaches
+  the app; if both are English, the release no longer takes its language from
+  `navigator.language` (`web.rs:41-50`, `ui-egui/src/i18n.rs:79-88`). Either way the adapter
+  needs another way in. If the pictures show something other than the tabs, the tab row moved:
+  re-measure `AT.tabRow`.
 - **Only the `@ui` test fails.** A menu item or the magnifier moved. Re-measure the positions in
   `AT`; the translator is not at fault.
 - **A shortcut changed upstream.** The tests that press it fail: Ctrl+S, Ctrl+Shift+S, Ctrl+N,

@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2026 The nextcloud-craftsuite-layer contributors
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// The translator inside the real LightCraft web build. See docs/apps/lightcraft.md. Three tests; a
+// The translator inside the real LightCraft web build. See docs/apps/lightcraft.md. Four tests; a
 // test with several scenarios runs each in its own page and reports every scenario that fails.
 //
 //   contract   allowed host whose app URL asks for browser storage and a benchmark run
@@ -21,6 +21,10 @@
 //              (File > Import Photos...) exports under that name as a new file again. An opened raw
 //              photo (DNG) is decoded (not shown from a preview) and exports as '<stem>.jpg', a
 //              new file
+//   language   the host names German (lang=de in the frame's fragment): ready reports de, which
+//              the adapter does only when LightCraft answered its Edit > Language command
+//              (app.language.german) with the code; the fragment is gone from the frame's address,
+//              and the photo opens in memory mode without render workers, as without a language
 //   ui (@ui)   the paths that need the pointer: File > Export..., a folder typed into the dialog,
 //              OK: a new file under the opened name; File > Export with Previous: another one
 //
@@ -30,8 +34,9 @@
 // The steps use its shortcuts (crates/engine/src/cmd/*.rs, crates/ui-egui/src/shortcuts.rs) and its
 // automation call, globalThis.lightcraft.command (index.html; apps/lightcraft-web/src/web.rs), which
 // runs the commands its menus run by id: app.export is what the Export dialog's OK runs. The
-// adapter relies on that call too (web.stats). Only the test tagged @ui also clicks with the
-// pointer: a moved menu item fails it without the translator being at fault.
+// adapter relies on that call too (web.stats, and Edit > Language for the host's language). Only
+// the test tagged @ui also clicks with the pointer: a moved menu item fails it without the
+// translator being at fault.
 //
 // With workers=0 LightCraft renders on the page's own thread, one picture per frame, and every
 // session starts by rendering the thumbnails of 24 demo photos: for the first minute or two a frame
@@ -93,6 +98,7 @@ interface HostRecord {
   started: { id: number; name: string }[];
   errors: { of: string; id: number | null; message: string }[];
   opened: { id: number; name: string } | null;
+  readies: { layerVersion: string; language: string | null }[]; // language 'absent': no field
 }
 type HostWindow = Window & {
   __host?: HostRecord;
@@ -137,7 +143,9 @@ const test = baseTest.extend<{ diagnostics: void }>({
   }, { auto: true }],
 });
 
-// Pinned: the @ui click positions depend on the layout, and LightCraft's labels on the language.
+// Pinned: the @ui click positions depend on the layout and on the language of LightCraft's labels.
+// LightCraft 0.6.0 ignores the browser's language (it starts in English unless the host names one,
+// as in the language test); the locale is pinned in case a release starts to follow it.
 test.use({ viewport: { width: 1400, height: 900 }, locale: 'en-US' });
 
 // The browser downloads of a page, from now on.
@@ -553,6 +561,29 @@ test('saved-as: exports under the opened file\'s name or type are new files, nev
     expectExport(save, 'probe-raw.jpg');
     expect(picture(bytes), 'a JPEG of the developed mosaic').toEqual(turned('jpeg', RAW));
     expectNoDownloads(downloads);
+  });
+});
+
+test('language: the host\'s language (de) reaches LightCraft through Edit > Language, and the photo opens in memory mode', { tag: '@language' }, async ({ page }) => {
+  test.slow(); // main-thread rendering, see the header
+  // The host frames the app with '#craftsuite-layer:lang=de'. LightCraft reads no language as it
+  // starts (in memory mode always English); the adapter's started() runs app.language.german.
+  const app = await openInHost(page, 'probe-photo.jpg', '&lang=de');
+
+  await test.step('ready reports de: LightCraft answered app.language.german with its code', async () => {
+    // The web build has no query for its interface language (ui.inspect is only on the desktop
+    // control channel), so the command's answer, which ready carries, is what tells.
+    expect.soft((await hostRecord(page)).readies.map((r) => r.language), 'language of each ready the host got').toEqual(['de']);
+  });
+
+  await test.step('memory mode without render workers, as without a language; the fragment is gone', async () => {
+    const url = new URL(app.url());
+    expect.soft(url.hash, 'fragment in the frame\'s address').toBe('');
+    expect.soft(url.searchParams.get('store'), 'store in the frame\'s URL').toBe('memory');
+    expect.soft(url.searchParams.get('workers'), 'workers in the frame\'s URL').toBe('0');
+    const stats = await lightcraft<WebStats>(app, 'web.stats');
+    expect.soft(stats.storage, 'storage LightCraft reports').toBe('memory');
+    expect.soft(stats.workers.alive, 'render workers LightCraft runs').toBe(0);
   });
 });
 

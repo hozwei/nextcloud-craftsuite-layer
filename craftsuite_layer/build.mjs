@@ -18,7 +18,7 @@ import { fileURLToPath } from 'node:url';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const dev = process.argv.includes('--dev');
-const entries = ['editor', 'files', 'admin'];
+const entries = ['editor', 'files', 'admin', 'aliases'];
 
 rmSync(path.join(here, 'js'), { recursive: true, force: true });
 const result = await build({

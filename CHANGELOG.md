@@ -13,6 +13,42 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-10-12
+
+### Added
+
+- The language a Craft app starts in, chosen by the host (`translators/core.js`, layer 0.3.0,
+  protocol version 1 unchanged): the host frames the app with `#craftsuite-layer:lang=<BCP 47
+  tag>`; the core reads it before the app runs, takes it out of the address, keeps it in the
+  frame's name for reloads, and hands it to the adapter's new optional member `language(tag,
+  util)`, with `util.matchLanguage()` and `util.preferLanguages()`. `ready` reports the applied
+  language in a new field `language`. Eight adapters apply it, each the way its app takes a
+  language: PdfCraft and PhotoCraft in their own preferences (a language the user picked in the
+  app stays), VectorCraft as `?lang`, GridCraft, CADCraft and FilmCraft through the browser's
+  language as the page reports it, LightCraft and EffectCraft through their automation call. Only
+  languages the web builds show properly are offered (`docs/apps/`). DesignCraft 0.6.0, WordCraft
+  0.5.0 and DeckCraft 0.5.0 read no language when they start. See docs/protocol.md, Host settings.
+- A test per Craft app that it starts in the host's language, tagged `@language`, and translator
+  tests of the fragment, the frame's name and the checks of the tag (`translator.spec.ts`, every
+  engine). The canary runs the `@language` tests with the `@ui` tests: they cannot fail its run.
+- File type icons in Files: the Nextcloud app shows the Craft apps' own icons
+  (`craftsuite_layer/img/types/`, MIT OR Apache-2.0, see `REUSE.toml`) for the types they open; see
+  [`craftsuite_layer/CHANGELOG.md`](craftsuite_layer/CHANGELOG.md) and docs/nextcloud-app.md.
+
+### Changed
+
+- docs/hosting.md, Updates: an updater counts a Craft release as tested only when a canary run
+  started after it came out and ended (the newest completed run of `canary.yml`, one API
+  request); the absence of an open issue is not enough, since GitHub may skip or delay scheduled
+  runs. A run ends within about two hours of its start. docs/development.md says what to do when
+  no run came.
+
+### Fixed
+
+- docs/apps/wordcraft.md said WordCraft follows the browser's language; 0.5.0 always starts in
+  English. docs/apps/vectorcraft.md said VectorCraft keeps its preferences in the browser; 0.9.0
+  keeps none there.
+
 ## [0.2.0] - 2026-10-12
 
 ### Added
@@ -184,6 +220,7 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Documentation: an index (`docs/README.md`), architecture, protocol, security, hosting,
   development, the Nextcloud app, and one page per Craft app.
 
-[Unreleased]: https://github.com/hozwei/nextcloud-craftsuite-layer/compare/v0.2.0...main
+[Unreleased]: https://github.com/hozwei/nextcloud-craftsuite-layer/compare/v0.3.0...main
+[0.3.0]: https://github.com/hozwei/nextcloud-craftsuite-layer/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/hozwei/nextcloud-craftsuite-layer/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/hozwei/nextcloud-craftsuite-layer/releases/tag/v0.1.0

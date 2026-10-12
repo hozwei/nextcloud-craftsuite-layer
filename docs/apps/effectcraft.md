@@ -16,8 +16,8 @@ depends on it, and how the adapter follows from it. The facts were checked again
 source and web build. Upstream may change any of them; the daily canary run (see
 [development.md](../development.md#continuous-integration)) is there to notice. Source
 references are to the `v0.8.0` tag; `index.html` and `sw.js` are in `apps/effectcraft-web/web/`,
-`host.js` in `apps/effectcraft-web/js/`, `app.rs`, `files.rs`, `api.rs`, `persist.rs` and
-`diskcache.rs` in `apps/effectcraft-web/src/`, the other paths are under `crates/`.
+`host.js` in `apps/effectcraft-web/js/`, `app.rs`, `files.rs`, `api.rs`, `persist.rs`, `store.rs`
+and `diskcache.rs` in `apps/effectcraft-web/src/`, the other paths are under `crates/`.
 
 ## What the web build does
 
@@ -53,10 +53,12 @@ references are to the `v0.8.0` tag; `index.html` and `sw.js` are in `apps/effect
   `empty` (a blank project; no session restored, none kept), `demo` (the demo project), `home`
   (the start screen), `storage=opfs|indexeddb|memory`, `noworkers`, `frameworkers=<n>`,
   `nogpuworkers` (`app.rs:150-152`, `189-194`, `239`, `256`), and `index.html` reads `nosw`. The
-  build's `HOSTING.md` also lists `?webgl` and `?cpu`; 0.8.0 reads neither. There is no `?file=`.
+  build's `HOSTING.md` also lists `?webgl` and `?cpu`; 0.8.0 reads neither. There is no `?file=`,
+  and none for the interface language (see [Interface language](#interface-language)).
 - The adapter sets `empty`, `nosw` and `storage=memory` itself, see
   [How the adapter classifies](#how-the-adapter-classifies). The address configured in Nextcloud
-  carries no query.
+  carries no query. The host's language comes as a fragment, which the core takes out of the
+  address before the adapter runs.
 
 **Opening**
 
@@ -245,6 +247,61 @@ Why:
   answers on its next frame (about 0.1 to 0.5 s in the tests); with no API, an error, or no answer
   within 10 s, the save is an `export`.
 
+## Interface language
+
+**How EffectCraft picks it.** From its setting `general.language` (`engine/src/prefs.rs:25-35`),
+which the web build keeps with its other settings in `config/prefs.json` in its browser storage
+(`store.rs:12-16`, `293-300`) and loads before the app runs (`app.rs:194`, `235`). The default,
+`system` (Match System), means English in the web build, which has no system-locale probe
+(`ui-egui/src/i18n.rs:60-72`). The page reads neither the browser's language nor a URL option for
+it (checked with the browser locales `es-ES` and `ja-JP`, with `navigator.languages` made Spanish,
+and with `?lang=es`). Under the adapter's `storage=memory` the store is empty at every start (a
+`Map` inside `host.js:81-89` that the page cannot fill), so without the host's language
+EffectCraft starts in English in Nextcloud, whatever the browser's or the user's language. The app
+reads the setting on every frame (`ui-egui/src/lib.rs:1784-1793`, `i18n.rs:18-28`): a change
+applies on the next one.
+
+**What the adapter does.** Nothing reaches EffectCraft's language before it runs, so the adapter
+uses its automation call: `effectcraft.execute('prefs.set', {key: 'general.language', value})`
+(`engine/src/commands/settings.rs:21-43`), which changes neither the project nor its undo
+history. When the host names a language, the adapter's `language` member looks it up in its
+`LANGUAGES` table (the same tag, else the same language and script: `es-ES` and `es-419` find
+`es`, `pt-PT` finds `pt-BR`), and `started()` sends that call with EffectCraft's code (`pt-br` for
+`pt-BR`) after its `info()` checks. `ready` waits for the answer and reports the tag only if
+EffectCraft took it. The call goes out as the loading screen goes away, and EffectCraft takes it on
+its next frame (about 0.1 s later in WebKit, 0.2 to 0.4 s in Chromium with software rendering on
+the test machine), so the first frames can still show English. If EffectCraft refuses
+the call (after a release renamed the setting or a code) or does not answer within 10 s, the start
+goes on without it: the adapter logs a warning, `ready` has `language: null`, and there is no
+startup error. Without a host language, or with one EffectCraft lacks, nothing is sent and `ready`
+has `language: null`. A reloaded frame gets the language again: the core keeps it in the frame's
+name, and the adapter sends the call at every start.
+
+**Languages.** The Nextcloud app's settings offer the keys of `LANGUAGES`: `en`, `es`, `pt-BR` and
+`uk`. EffectCraft 0.8.0 has seven languages, and its setting takes only `system` and their codes,
+`en`, `ja`, `zh-hans`, `zh-hant`, `uk`, `es` and `pt-br` (anything else, such as `de` or `es-ES`,
+is refused, `prefs.rs:619-625`). Left out are Japanese and both Chinese: the web build installs no
+font for their scripts (`ui-egui/src/theme.rs:379-386`), so their labels draw as boxes. There is no
+German, French, Italian or Russian; with such a language EffectCraft starts in English. A language
+a later release adds needs an entry in `LANGUAGES` and in the Nextcloud app's list first.
+
+**Partial translations.** Spanish and Brazilian Portuguese translate only the menu bar and its
+menus (`ui-egui/src/i18n.rs`). The panels, dialogs and tooltips stay English: their catalogs exist
+only for Japanese, both Chinese and Ukrainian (`ui-egui/src/i18n/ui.rs:42-55`). Ukrainian
+translates the menus and part of the panels. The name every new project saves under stays
+`Untitled Project.ecproj` (`app.rs:178`, `ui-egui/src/menus.rs:1167-1169`), and nothing else the
+adapter's rules read (`savedBy`, `project.summary`) depends on the language: they hold in every
+language.
+
+**A language the user picks.** Edit > Preferences > General… (Ctrl+Alt+;,
+`engine/src/menus.rs:658-659`) > Language offers Match System and all seven languages; a choice
+applies at once (Japanese and Chinese then draw as boxes). Under `storage=memory` it is kept in
+the frame's memory only: it lasts until the editor is closed or the frame reloads, and the next
+start is in the host's language again (in English without one). The host is not told; `ready`
+reported the language the app started in. Outside the integration, with its default storage,
+EffectCraft keeps the choice in the origin's browser storage and starts in it the next time; a
+frame with `storage=memory` never sees that choice.
+
 ## Known gaps
 
 - **Files named like a new project are never saved back.** An opened `Untitled Project.ecproj`
@@ -338,7 +395,9 @@ For the Nextcloud app's list:
 | `ecproj` | the project; Save replaces the file (one named `Untitled Project.ecproj` gets a new file per save; one a newer EffectCraft wrote gets a copy next to it) | yes | yes: no other app opens it |
 
 Match the extension in any letter case, as EffectCraft does. Nextcloud 34 and 35 do not know the
-type (`application/octet-stream`), so the app must pick EffectCraft by extension.
+type (`application/octet-stream`), so the app must pick EffectCraft by extension. For the
+EffectCraft icon in Files the Nextcloud app registers `application/x-effectcraft` for it
+([nextcloud-app.md](../nextcloud-app.md#file-type-icons)).
 
 Do not offer anything else:
 
@@ -357,28 +416,32 @@ Do not offer anything else:
 (fallback downloads, a foreign host, startup errors) is tested in `translator.spec.ts` and
 `pdfcraft.spec.ts`; this spec checks what depends on EffectCraft.
 
-The spec has three tests, and its header lists them with their scenarios. The first two are the
-contract tests; the canary runs them apart from the `@ui` test.
+The spec has four tests, and its header lists them with their scenarios. `contract` and `saved-as`
+are the contract tests; the canary runs them apart from the `language` test (tagged `@language`) and
+the `@ui` test.
 
 | Test | What it checks |
 |---|---|
 | `contract` | An allowed host: the handshake with the served app version; the frame's URL carries `empty`, `nosw` and `storage=memory`, the app reports memory storage and no restored session, and no service worker is registered. A new composition saved with Ctrl+S arrives as the document under the opened name, a project file as Save writes it with the edit, and so does a second one. Collect Files (from the command palette), under the opened name and without `savedBy`, Save Frame As (Ctrl+Alt+S), a project file under the opened name written while the project has unsaved changes (`file.saveCopy`) or saved to another folder (`file.save` with a path), both through `window.effectcraft` because no menu of the web build gives them a path, Save As (Ctrl+Shift+S) and the Save after it, and the save of a new project (Ctrl+Alt+N) arrive as new files. Nothing becomes a browser download, also not after the deadlines for the host's confirmation and result. |
 | `saved-as` | An opened `Untitled Project.ecproj` saves as a new file. A project a newer EffectCraft wrote, with `savedBy` after `schema`, saves as a copy: the first save is a document that follows its own id, the next one, after an edit, a document that follows the first; the XML form of such a project under a `.ecproj` name, written as only the app's lenient reader takes it (another attribute, a comment, an entity), saves as a copy too. The XML form of this version saves as the document, as JSON. A different project named like the opened one, opened with File > Open Project (Ctrl+O) or, in Chromium, dropped from the desktop, saves as an export after a first save as the document. With the adapter's `history.replaceState` blocked, so that the flags do not take effect, the host gets a startup error and nothing is opened. |
+| `language` | The host names Spanish (`lang=es`): `ready` reports `es`, EffectCraft's setting `general.language` is `es` (`prefs.get`), File > Save reads `Guardar` in its menus (`ui.menu.list`), and the probe opens as without a language (`project.summary`: its path, `Comp 1`). With `lang=de`, a language EffectCraft lacks, the host gets no error, `ready` reports no language, and EffectCraft stays in its own: `general.language` is `system`, File > Save reads `Save`. |
 | `ui` (`@ui`) | The File menu with the pointer: Save saves the document; Save As > Save a Copy… arrives as a new file. |
 
-A test with several scenarios (`saved-as`) runs each in a page of its own and reports every
-scenario that fails as `scenario failed: <title>`, not only the first. The drop from the desktop
-needs the DevTools protocol, so WebKit notes it as a skipped scenario. Each scenario loads the
-60 MB app, so `saved-as` runs with a tripled timeout (`test.slow()`).
+A test with several scenarios (`saved-as`, `language`) runs each in a page of its own and reports
+every scenario that fails as `scenario failed: <title>`, not only the first. The drop from the
+desktop needs the DevTools protocol, so WebKit notes it as a skipped scenario. Each scenario loads
+the 60 MB app, so `saved-as`, with seven, runs with a tripled timeout (`test.slow()`).
 
 The tests drive EffectCraft with its shortcuts from the command table
 (`engine/src/commands/file.rs`, `comp.rs`, `comp_more.rs`: Ctrl+N and Enter for a new composition,
 Ctrl+S, Ctrl+Shift+S, Ctrl+Alt+S, Ctrl+Alt+N, Ctrl+O) and its command palette (Edit > Quick Apply…,
 Ctrl+Shift+Space, `engine/src/commands/frontend.rs`, `ui-egui/src/panels/dialogs.rs:471-531`) for
-Collect Files…, which has no shortcut. Only the `ui` test also clicks with the pointer; its click
-positions are in the `AT` table of the spec, measured on 0.8.0 at a 1400x900 viewport with the
-locale `en-US` (File menu rows 26 px apart, in the order of `engine/src/menus.rs`). When a new
-release fails the canary:
+Collect Files…, which has no shortcut. The palette matches the labels in the app's language
+(`ui-egui/src/panels/dialogs.rs:488-493`), so only the `language` test has the host name a
+language, and it reads EffectCraft's state through `window.effectcraft` instead of typing. Only the
+`ui` test also clicks with the pointer; its click positions are in the `AT` table of the spec,
+measured on 0.8.0 at a 1400x900 viewport with the locale `en-US` and EffectCraft in English (File
+menu rows 26 px apart, in the order of `engine/src/menus.rs`). When a new release fails the canary:
 
 - **Contract tests fail.** The release changed something the translator relies on: the flags, the
   drop routing (`app.rs:61-102`), the download helper (`files.rs:85-132`), Save's format
@@ -387,6 +450,10 @@ release fails the canary:
   host the app should hold the release back until the adapter is fixed.
 - **Only the `@ui` test fails.** A menu item moved. Compare the File rows of
   `engine/src/menus.rs` with `AT` and re-measure; the translator is not at fault.
+- **Only the `language` test fails.** The release changed the setting `general.language` or its
+  codes (`engine/src/prefs.rs`), `prefs.set`, or the Spanish menu catalog (`ui-egui/src/i18n.rs`).
+  Update `LANGUAGES` in the adapter; until then EffectCraft starts in English whatever the host's
+  language, and opening and saving work as before (the adapter fails open for the language).
 - **A shortcut or label changed upstream.** The tests that use it fail. Check them against the
   command table and `menus.rs` before holding a release back.
 
@@ -404,9 +471,11 @@ project).
 EffectCraft has no embedding API for another origin. `window.effectcraft` (`index.html:50-84`,
 `api.rs`) is a same-origin control API (engine commands, `addFile`, `readFile`, `saveToBrowser`,
 `flush`) without `postMessage`, so the Nextcloud page cannot use it; the translator, which runs on
-the app's origin, uses `info()` and `execute('project.summary')`. Worth reporting upstream: a
-document identity in `.ecproj` (a creation stamp that every save keeps); Save As suggesting the
-current name; a ready signal (EffectCraft dispatches no `TrunkApplicationStarted`); the disk cache
-ignoring `storage=memory`; the service worker's update behaviour (cached pages with their old
-headers until the next release); and the `?webgl` and `?cpu` flags in `HOSTING.md`, which 0.8.0
-does not read.
+the app's origin, uses `info()`, `execute('project.summary')` and, for the host's language,
+`execute('prefs.set')`. Worth reporting upstream: a document identity in `.ecproj` (a creation
+stamp that every save keeps); Save As suggesting the current name; a ready signal (EffectCraft
+dispatches no `TrunkApplicationStarted`); the disk cache ignoring `storage=memory`; the service
+worker's update behaviour (cached pages with their old headers until the next release); the
+`?webgl` and `?cpu` flags in `HOSTING.md`, which 0.8.0 does not read; and a way to start in a
+language, such as a URL option or the browser's language for Match System (the web build has no
+system-locale probe, `ui-egui/src/i18n.rs:60-72`), so that the first frames are not English.

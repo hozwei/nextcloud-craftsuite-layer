@@ -257,6 +257,9 @@ For a download under the saved name it returns, in this order:
   [protocol.md](../protocol.md#errors)).
 - DeckCraft stores nothing in the browser: no `localStorage` (eframe's persistence is not
   enabled, `apps/deckcraft-web/src/main.rs:13`), no AutoRecover.
+- The interface is English only in 0.5.0 (no translations yet; upstream issue #15 asks to follow
+  the system language), so the Nextcloud app offers no start language for DeckCraft. Review >
+  Language marks the proofing language of text, not the interface language.
 - Keyboard shortcuts reach the app after the user clicks into the frame.
 
 ## File types
@@ -271,7 +274,8 @@ For the Nextcloud app's list:
 Match the extension in any letter case, as DeckCraft does. Nextcloud 34 and 35 map `pptx`,
 `potx` and `ppsx` to their Office MIME types (`resources/config/mimetypemapping.dist.json`) and do
 not know `deckcraft`, which arrives as `application/octet-stream`; the app must pick DeckCraft by
-extension.
+extension. For the DeckCraft icon in Files the Nextcloud app registers `application/x-deckcraft`
+for it ([nextcloud-app.md](../nextcloud-app.md#file-type-icons)).
 
 Do not offer anything else: `.slidecraft` (old files fail to load), `.pptm`, `.ppt` and `.odp`
 (DeckCraft does not read them), text and outline files and media (they go into the sample deck,

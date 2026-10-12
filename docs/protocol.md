@@ -60,13 +60,13 @@ host (Nextcloud page)                    translator (inside the Craft app frame)
 | Type | Fields | When |
 |---|---|---|
 | `hello` | `layerVersion` | When the adapter registers, then every second until an `init` is accepted, at most 30 times. Posted once per allowed origin with that origin as `targetOrigin`, so the browser delivers it only to an allowed parent. |
-| `ready` | `appVersion`, `layerVersion` | Once, after `init` was accepted and the app can take files: it has registered its drop target and, for an adapter with a `started` check, that check has passed. `appVersion` is the hosting's `data-app-version`, or `null`. |
+| `ready` | `appVersion`, `layerVersion`, `language` | Once, after `init` was accepted and the app can take files: it has registered its drop target and, for an adapter with a `started` check, that check has passed. `appVersion` is the hosting's `data-app-version`, or `null`. `language` is the language the app was started in on the host's behalf (see [Host settings](#host-settings)), as the adapter reports it, or `null`: no language was asked for, the app does not have it, the user chose another one in the app, or the adapter cannot set it. A translator before 0.3.0 sends no `language`. |
 | `delivered` | `id`, `name`, `size` | After an `open` was handed to the app. `id` is the host's open id, `name` the sanitised name. It means the drop was dispatched, not that the app could open the file. |
 | `save-started` | `id`, `name` | At once when the app starts a download that becomes a save, before the translator reads and hashes the file. `id` and `name` are those of the `save` that follows. It tells the host that a save is coming, so that it does not let the page be left while a large file is still being read. Hosts may ignore it. A `save` with the same `id` follows, or an `error` of `save` if the translator gives up on the save first (for example when it cannot read the file). |
 | `save` | `id`, `kind`, `openId`, `follows`, `name`, `size`, `data` | The app started a download. See [Saves](#saves). |
 | `error` | `of`, `id`, `message` | See [Errors](#errors). |
 
-`layerVersion` is the translator's version (currently `0.2.0`).
+`layerVersion` is the translator's version (currently `0.3.0`).
 
 ## Host to translator
 
@@ -299,6 +299,44 @@ the translator's `window.open`:
 Other targets, other features and `<a target>` links are not changed. Before the handshake
 `window.open` is left alone.
 
+## Host settings
+
+Some things the app must know before it starts, before any message can reach it: the language
+the app starts in. The host puts them into the fragment of the address it frames:
+
+```text
+https://craft.example.com/photocraft/#craftsuite-layer:lang=de
+```
+
+The fragment starts with `craftsuite-layer:`, followed by `key=value` pairs in the form of a URL
+query (`lang=pt-BR`, percent-encoded). The only key is `lang`: a BCP 47 language tag of a
+language, an optional script and an optional region (`de`, `pt-BR`, `zh-Hant`, `es-419`), at most
+35 characters. A fragment never reaches the hosting's server, and no Craft app reads it.
+
+The translator reads the fragment as it loads, before the adapter and the app's module run, and
+only when it is active as far as it can tell at that point (framed, an allowed origin configured,
+a secure context). It then:
+
+- takes the fragment out of the address (`history.replaceState`), so the app never sees it;
+- checks the tag (the pattern above, then the browser's `Intl.getCanonicalLocales`; `und` and
+  anything else that does not pass counts as no language);
+- keeps the settings in the frame's own name (`window.name`, `craftsuite-layer:lang=<tag>`), so
+  that later loads of the frame have them too: a reload, an app that reloads itself, a sign-in page
+  of the hosting that returns to the app without the fragment. A new fragment always wins; one
+  without a valid tag clears the name. Without a fragment, the name is read;
+- hands the tag (or `null`) to the adapter's `language` member (see
+  [translators/README.md](../translators/README.md#writing-an-adapter)), which applies it the way
+  its app takes a language (a URL switch, the browser's language as the page reports it, the
+  app's own preferences, or the app's automation call once it runs), matched against the
+  languages the app shows: `de-AT` starts an app that has `de` in German, `pt-PT` one that has
+  `pt-BR` in Brazilian Portuguese, `zh-TW` one that has `zh-Hant` in Traditional Chinese. An app
+  that has nothing close starts as it would without the host's language. Where the app keeps a
+  language the user picked in it, that choice stays (see the app's page in `docs/apps/`).
+
+`ready` reports the result in `language`. The settings are applied before the handshake, as the
+adapters' own address switches are, so any page that the hosting lets frame the app could set
+them; the worst outcome is another interface language (see [security.md](security.md)).
+
 ## What the host must do
 
 1. Frame only the Craft URL from server-side configuration. Never take it from the page URL.
@@ -358,3 +396,8 @@ The translator ignores messages with another `version`. A change that existing h
 translators would misread gets a new protocol version. New optional fields and new message types
 keep version 1, so both sides ignore what they do not know. `hello` and `ready` report the
 translator's `layerVersion` for diagnostics.
+
+[Host settings](#host-settings) came with translator 0.3.0 and keep version 1 too: a translator
+before 0.3.0 leaves the fragment in the address, where no Craft app reads it, and the app starts
+as it would without the setting (its `ready` has no `language`); a host that sends no fragment
+gets the app's own choice.

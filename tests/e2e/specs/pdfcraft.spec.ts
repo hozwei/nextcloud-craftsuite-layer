@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2026 The nextcloud-craftsuite-layer contributors
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// The translator inside the real PdfCraft web build. See docs/apps/pdfcraft.md. Five tests; a test
+// The translator inside the real PdfCraft web build. See docs/apps/pdfcraft.md. Six tests; a test
 // with several scenarios runs each in its own page and reports every scenario that fails.
 //
 //   contract   allowed host: handshake with the served app version, open; edits saved with Ctrl+S
@@ -17,6 +17,10 @@
 //              foreign host: no handshake, forged init/open ignored, Save is a download
 //   startup    the app cannot load: the translator notices and tells the host instead of leaving
 //              it waiting
+//   language   the host's language de: ready names it, PdfCraft's preferences hold it with the
+//              adapter's mark, and the palette finds the German 'Öffnen…' (Open…), which opens the
+//              file chooser; a language the user picked in the app (fr, stored while no PdfCraft
+//              runs) stays: the next start with de leaves it, and ready names no language
 //   ui (@ui)   the paths that need pointer clicks: the toolbar Save button saves the document; an
 //              Action Wizard result under the document's own name arrives as an export; an
 //              attachment named '../../Team/Budget 2026.pdf' arrives as 'Budget 2026.pdf';
@@ -25,8 +29,9 @@
 // A daily canary runs this file against every new PdfCraft release, so the steps that drive the
 // app (section "UI") are kept apart from the checks of what the host and the browser see
 // (section "Contract"). Steps use the keyboard and the command palette, with command labels from
-// PdfCraft's crates/engine/src/commands.rs. Only the test tagged @ui also clicks with the pointer:
-// a moved button fails it without the translator being at fault.
+// PdfCraft's crates/engine/src/commands.rs (the language test types a German one, from
+// crates/ui-egui/src/i18n/de.tsv). Only the test tagged @ui also clicks with the pointer: a moved
+// button fails it without the translator being at fault.
 
 import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
@@ -67,6 +72,7 @@ interface HostRecord {
   messages: { type: string; app: string; id: number | null; kind: string | null }[];
   saves: HostSave[];
   errors: { of: string; id: number | null; message: string }[];
+  readies: { layerVersion: string; language: string | null }[]; // language 'absent': no such field
 }
 type HostWindow = Window & {
   __host?: HostRecord;
@@ -252,6 +258,20 @@ async function untilHost(page: Page, what: string, done: (h: HostRecord) => bool
 // The first occurrence of each message type the host received, in order.
 async function messageTypes(page: Page) {
   return [...new Set((await hostRecord(page)).messages.map((m) => m.type))];
+}
+
+// The language of each ready message the host received (null: the app picks its own).
+async function readyLanguages(page: Page) {
+  return (await hostRecord(page)).readies.map((r) => r.language);
+}
+
+// PdfCraft's stored interface language (field language of its preferences, localStorage
+// 'pdfcraft') and the codes the adapter wrote (its mark, a JSON list), as the app frame sees them.
+function storedLanguage(app: Frame) {
+  return app.evaluate(() => ({
+    language: (JSON.parse(localStorage.getItem('pdfcraft') ?? 'null') as { language?: unknown } | null)?.language ?? null,
+    mark: localStorage.getItem('craftsuite-layer:pdfcraft:language'),
+  }));
 }
 
 // The n-th save (from 1) the host received, with the bytes it kept.
@@ -455,6 +475,35 @@ test('startup: an app that cannot load reports it to the host', async ({ page })
   const types = await messageTypes(page);
   expect.soft(types, 'message types the host got').not.toContain('ready');
   expect.soft(types, 'message types the host got').not.toContain('delivered');
+});
+
+test('language: the host\'s language starts PdfCraft in it, a language picked in the app stays', { tag: '@language' }, async ({ page, context }) => {
+  // Its own context: no scenario() here, which would clear the preferences the second step needs.
+  await test.step('lang=de: ready names de, the preferences hold it, and the interface is German', async () => {
+    const app = await openInHost(page, '?lang=de');
+    expect.soft(await readyLanguages(page), 'language of each ready').toEqual(['de']);
+    expect.soft(await storedLanguage(app), 'PdfCraft\'s stored language and the adapter\'s mark').toEqual({ language: 'de', mark: '["de"]' });
+    // Only the German interface has a command 'Öffnen…' (Open…, crates/ui-egui/src/i18n/de.tsv). The
+    // palette also matches English labels and command ids, none of which has an 'ö'.
+    const chooser = page.waitForEvent('filechooser', { timeout: 15_000 }).then(() => true, () => false);
+    await runCommand(page, app, 'Öffnen');
+    expect.soft(await chooser, 'the palette ran Öffnen… (Open… in German), which opens the file chooser').toBe(true);
+  });
+
+  await test.step('a language the user picked in the app (fr) stays: lang=de leaves it, ready names none', async () => {
+    // PdfCraft writes its preferences back as it loses the focus, also when its page closes: store
+    // the user's choice only while no PdfCraft runs, from a page of the app's origin without the
+    // app (Playwright shares that storage with the app's frame).
+    await page.close();
+    const plain = await context.newPage();
+    await plain.goto(`${APP_ORIGIN}/`); // 'not found', on the app's origin
+    await plain.evaluate(() => localStorage.setItem('pdfcraft', JSON.stringify({ language: 'fr' })));
+    await plain.close();
+    const again = await context.newPage();
+    const app = await openInHost(again, '?lang=de');
+    expect.soft(await readyLanguages(again), 'language of each ready').toEqual([null]);
+    expect.soft(await storedLanguage(app), 'PdfCraft\'s stored language and the adapter\'s mark').toEqual({ language: 'fr', mark: '["de"]' });
+  });
 });
 
 test('ui: toolbar Save, Action Wizard, attachments and About > Contributors with the pointer', { tag: '@ui' }, async ({ context }) => {

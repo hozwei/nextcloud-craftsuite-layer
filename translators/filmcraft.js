@@ -166,8 +166,18 @@
     };
   }
 
+  // The interface language: FilmCraft follows navigator.languages (preference 'system', which the
+  // web build never stores otherwise) on its first frame (ui-egui/src/lib.rs:640-657,
+  // ui-egui/src/i18n/mod.rs:91-123). Left out: Chinese, which the web build refuses for want of a font.
+  const LANGUAGES = { en: 'en', de: 'de', es: 'es', fr: 'fr', ja: 'ja', 'pt-BR': 'pt-br', ru: 'ru', uk: 'uk' };
+
   window.craftsuiteLayer.register({
     app: 'filmcraft',
+    language(tag, util) {
+      const key = util.matchLanguage(tag, LANGUAGES);
+      if (key) util.preferLanguages(LANGUAGES[key]);
+      return key;
+    },
     // The core's default drop target fits: the listener is on window, and the first <canvas> is
     // FilmCraft's (canvas#filmcraft_canvas).
     // Ready once the graphics run (#loading removed); failed when the page shows why they do not.

@@ -66,8 +66,10 @@ shortcut nor a palette reaches a command (`window.filmcraft`, `window.effectcraf
 `lightcraft.command`); LightCraft, which renders on the page's thread, also gets longer host
 deadlines (20 s for `app-ack` and `app-result` instead of 3 s). When only the `@ui` test fails after a release,
 re-measure those positions; the test reports every pointer path that failed
-(`scenario failed: <title>`), not only the first. The contract tests alone:
-`npm run test:e2e -- --grep-invert @ui`.
+(`scenario failed: <title>`), not only the first. The `language` test of each app that can start
+in a chosen language, tagged `@language`, starts it with a host language and checks that the app
+took it, through a translated label, its own API or a part of the screen compared with a start
+in that browser locale. The contract tests alone: `npm run test:e2e -- --grep-invert '@ui|@language'`.
 
 | Environment variable | Meaning |
 |---|---|
@@ -224,9 +226,9 @@ files of each build with `curl -I`, hashed and unhashed.
 ## Writing tests
 
 Every test runs once in each Playwright project that matches it, so the specs keep their tests
-few: a handful of scenario tests per spec, browsers only where the behaviour differs, and one
-`@ui` test per Craft app for the paths that need the pointer. `npm run test:e2e -- --list` shows
-every run, by project.
+few: a handful of scenario tests per spec, browsers only where the behaviour differs, one `@ui`
+test per Craft app for the paths that need the pointer, and one `@language` test for an app that
+can start in a chosen language. `npm run test:e2e -- --list` shows every run, by project.
 
 - A test is a scenario: its steps (`test.step`) check one behaviour after another, and a failure
   names the step that broke. Add a check as a step of the scenario that already sets up what it
@@ -285,7 +287,7 @@ Workflows live in `.github/workflows/`:
 | CI (`ci.yml`), `translators-and-tests` | pushes to `main`, pull requests, by hand | Lint, typecheck, the [hosting tests](#hosting-tests), and the end-to-end tests against the tested Craft versions |
 | CI, `nextcloud-app` | the same | `php -l` on PHP 8.2, 8.3, 8.4 and 8.5 (a deprecation fails too); on 8.2 also `appinfo/info.xml` against the App Store schema, `npm run l10n:check`, and the App Store package with the App Store's archive rules |
 | CI, `nextcloud-e2e` | the same | The project `nextcloud-chromium` in a Nextcloud started from the official images `nextcloud:34.0.4-apache` and `nextcloud:35.0.1-apache` (both on PHP 8.5), on SQLite, see [Testing in Nextcloud](#testing-in-nextcloud) |
-| Canary (`canary.yml`), `canary` | daily, by hand | Fetches the newest release of each Craft app and runs `translator-chromium` and every `<app>-<browser>` project against it: first the contract tests, then the `@ui` tests, then the `NON_BLOCKING` projects |
+| Canary (`canary.yml`), `canary` | daily, by hand | Fetches the newest release of each Craft app and runs `translator-chromium` and every `<app>-<browser>` project against it: first the contract tests, then the `@ui` and `@language` tests, then the `NON_BLOCKING` projects |
 | Canary, `nextcloud-next` | the same | Reads `package.json` and `version.php` of Nextcloud's development branch (raw files, no API). Fails when `package.json` no longer asks for `@nextcloud/files` 4.x, the major whose action registry the Files entries use, and warns when the branch's major version is above the `max-version` in `appinfo/info.xml`. Nothing else of the server is checked. |
 | Canary, `report` | after both, on `main` | Opens, comments on or closes the issues labelled `canary` and `canary-ui` (from the job `canary`) and `canary-nextcloud` (from `nextcloud-next`); each part acts only on its own job's result |
 | Release (`release.yml`), `release` | a pushed tag `v*` | Checks the versions, builds the release's assets and publishes the GitHub release, see [Releasing](#releasing) |
@@ -308,10 +310,13 @@ failed and is listed in the summary, so that a release that changes the timing g
   an issue labelled `canary` (or comments on the open one); the next passing run closes it. This
   happens before sites that wait a day take the release (see
   [hosting.md](hosting.md#updates)).
-- **Only `@ui` tests fail.** The run passes, and an issue labelled `canary-ui` tracks the
-  failure until the tests pass again. With a new release, the summary names the specs whose `AT`
-  pointer positions need updating. Raise `tested` only after that, because CI runs the `@ui`
-  tests against the tested versions.
+- **Only `@ui` or `@language` tests fail.** The run passes, and an issue labelled `canary-ui`
+  tracks the failure until the tests pass again. With a new release, the summary names the specs
+  whose `AT` pointer positions need updating, and those whose language test fails: the release
+  changed a label or screen area the test reads, or how the app takes its language (then the
+  adapter's `language` member needs a new way in; files still open and save, and the app starts
+  in its own language). Raise `tested` only after that, because CI runs these tests against the
+  tested versions.
 - **Everything passes.** The summary says which `tested` versions to raise, if any.
 - **The next Nextcloud release asks for another `@nextcloud/files` major.** The job
   `nextcloud-next` fails and an issue labelled `canary-nextcloud` says so (the next passing run
@@ -321,6 +326,13 @@ failed and is listed in the summary, so that a release that changes the timing g
   issue. The warning of `nextcloud-next` that the development branch is above `max-version` is a
   reminder: that release needs a row in the `nextcloud-e2e` matrix and a wider range before it
   ships.
+- **No run.** GitHub may skip a scheduled run, and turns the schedule off after 60 days without
+  activity in the repository; then no issue opens or closes. The first scheduled run, due on
+  12 October 2026, never started, and the canary first ran by hand that day. When the Actions
+  tab shows no run for a day (the Canary badge shows only the latest result, not when it ran),
+  start one there (Run workflow, branch `main`), and turn the schedule back on if GitHub turned it
+  off. Sites that update from the
+  canary check its latest run, not only its issues (see [hosting.md](hosting.md#updates)).
 
 Dependabot (`.github/dependabot.yml`) proposes updates once a week, for the npm packages at the
 root (the test tooling, and the libraries and esbuild that build the app's front end), the
@@ -364,7 +376,8 @@ changelog's section for the version, then a list of the assets) and creates the 
 
 Each asset is a plain download from
 `https://github.com/hozwei/nextcloud-craftsuite-layer/releases/download/v<version>/<asset>`, so
-that installations and release updaters need no GitHub API (and none of its rate limit).
+that installations and release updaters need no GitHub API (and none of its rate limit) to
+download them; only the check that the canary has run uses it ([hosting.md](hosting.md#updates)).
 
 ## Adding a Craft app
 
@@ -375,14 +388,18 @@ that installations and release updaters need no GitHub API (and none of its rate
 3. Add the app to `tests/e2e/craft-versions.json` (`repo` and `tested`). After
    `npm run craft:fetch`, the test server serves it at `/<app>/` with the adapter of the same
    name.
-4. Add `tests/e2e/specs/<app>.spec.ts`, a few scenario tests and one `@ui` test (see
-   [Writing tests](#writing-tests)), and the app to `apps` in `tests/e2e/playwright.config.ts`,
+4. Add `tests/e2e/specs/<app>.spec.ts`, a few scenario tests, one `@ui` test and, if the app can
+   start in a chosen language, one `@language` test (see [Writing tests](#writing-tests)), and the app to `apps` in `tests/e2e/playwright.config.ts`,
    which defines the projects `<app>-chromium` and `<app>-webkit`; the canary picks up projects
    by that name. List `<app>-webkit` in `NON_BLOCKING` in both workflows until it has passed on
    a GitHub runner.
 5. Add the app to `CraftApps::APPS` in `craftsuite_layer/lib/Service/CraftApps.php`: its name, the
-   extensions it opens and those it opens on a click in Files. The settings field, the
-   `<app>_url` key and the Files entries follow from that list. If another app already opens a
+   extensions it opens, those it opens on a click in Files, and `languages`, the BCP 47 tags of its
+   adapter's `LANGUAGES` table (`[]` if its web build reads no language). The settings field, the
+   `<app>_url` and `<app>_language` keys and the Files entries follow from that list. For its
+   icon in Files, add its file types to `MimeIcons::ICONS` (and to `FileTypes::MAPPINGS` where
+   Nextcloud has no type for them), its icon to `img/types/` with `MimeIcons::FILES`, and its
+   copyright to `REUSE.toml` and `img/types/LICENSE-MIT.txt`. If another app already opens a
    click type of the new one, decide which gets the click (`PREFERRED`). CI's Nextcloud job sets
    an address for every app in `craft-versions.json`; add the app to the Docker example under
    [Testing in Nextcloud](#testing-in-nextcloud) too.

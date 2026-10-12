@@ -112,12 +112,23 @@ before it changes anything, and the adapters do nothing without the core.
 | the `files` getters of `DataTransfer.prototype` and `HTMLInputElement.prototype` | adapters of PhotoCraft, WordCraft, GridCraft, DeckCraft, FilmCraft, EffectCraft | during a `drop` (only a trusted one counts as a file from the user), and for `<input type=file>` | notes the names of the files the user brings in; returns the same list |
 | `FileSystemFileHandle.prototype.getFile` | FilmCraft adapter | always | notes a project file the user picks; returns the same file |
 | the frame's address (`history.replaceState`) | adapters of LightCraft, FilmCraft, EffectCraft | once, as they load, only when the core is active | adds the app's own switches (`store=memory&workers=0`, `fresh`, `empty`, `nosw`, `storage=memory`), before the app reads them |
+| the frame's address and name (`history.replaceState`, `window.name`) | core | once, as it loads | takes the host's settings out of the fragment (`#craftsuite-layer:lang=<tag>`) and keeps them in the frame's name for later loads of the frame; only a language tag that passes the browser's own check gets through (see [protocol.md](protocol.md#host-settings)) |
+| the frame's address (`history.replaceState`) | VectorCraft adapter | once, as it loads | sets `lang=<code>` to the host's language, before the app reads it |
+| the `language` and `languages` getters of `Navigator.prototype` | adapters of GridCraft, CADCraft, FilmCraft | from load on, only with a host language the app has | report that language first, before the browser's own; every script in the frame sees them |
+| the app's own preferences in `localStorage` (`pdfcraft`, `photocraft.preferences`) | adapters of PdfCraft, PhotoCraft | once, as they load | set the interface language to the host's, unless the user picked one in the app; a key of their own (`craftsuite-layer:<app>:language`) notes what they wrote |
 
 The core also listens for `TrunkApplicationStarted`, the page's `load` event, and error events
 and unhandled rejections before the app has started, and defines `window.craftsuiteLayer`, which
-cannot be replaced. The CADCraft adapter only adds capturing `drop` and `change` listeners, and
-the LightCraft adapter passes LightCraft's own failure texts to `reportError`, which the core
-reports as startup errors. The PdfCraft, VectorCraft and DesignCraft adapters replace nothing.
+cannot be replaced. The CADCraft adapter adds capturing `drop` and `change` listeners (and, with a
+host language, the Navigator getters above), and the LightCraft adapter passes LightCraft's own failure texts to `reportError`, which the core
+reports as startup errors. The LightCraft and EffectCraft adapters set the host's language
+through the app's own automation call once it runs (`app.language.<name>`, `prefs.set
+general.language`). The DesignCraft adapter replaces nothing.
+
+The host's language is applied before the handshake, as the address switches are, so any page
+the hosting's `frame-ancestors` allows could pick it. The worst it can do is another interface
+language, and for PdfCraft and PhotoCraft a default language in that page's storage partition;
+it reaches no file.
 
 ## What the host must do
 
@@ -196,7 +207,24 @@ These rules apply to any host; the Nextcloud app follows them ([nextcloud-app.md
   [hosting.md](hosting.md) recommends; a Craft host that Nextcloud really serves shows as the
   request's host. It is checked when it is saved and on every open.
 - **Who sets the address.** Only administrators: on the settings page, with a recent password
-  confirmation, or with `occ`.
+  confirmation, or with `occ`. The same holds for the language each app starts in, which can only
+  be one of the app's languages or the user's Nextcloud language; the editor page hands it over in
+  the frame's fragment, which never reaches the Craft hosting's server.
+- **Its own entries in Nextcloud's MIME type configuration.** For the Craft icons, the app adds
+  MIME types to `config/mimetypemapping.json` and aliases to `config/mimetypealiases.json`, only
+  keys that nothing else defines (and `eps`, see [nextcloud-app.md](nextcloud-app.md#file-type-icons)),
+  written to a temporary file and renamed over the original under a lock, and removes those it
+  added, if unchanged, when it is disabled. The new types are not ones a browser renders: an SVG
+  compressed with gzip (`.svgz`) is sent for downloads as `application/octet-stream`, and no type
+  gets an `image/svg+xml` or HTML type. It changes no file in `core/`.
+- **Icons from the app's folder.** The app's icon provider answers only for the Craft types and
+  only for users the app is enabled for; it returns the address of a static image in the app's
+  `img/types/` (the Craft apps' own icons: no scripts, no external references, checked when they
+  were added) and passes everything else to Nextcloud's provider.
+- **Only for the groups the app is enabled for.** Nextcloud runs an app's listeners for every
+  user, also when the app is enabled only for some groups; the Files entries check the group
+  themselves, so other users get neither the entries nor their script (and Nextcloud gives them
+  no editor page).
 - **A page opened by a link asks first.** The editor page reads and frames the file at once only
   when the request carries the session's request token (`passesCSRFCheck()`, which also needs
   Nextcloud's SameSite=Strict cookie) or the browser reports `Sec-Fetch-Site: none` (a typed

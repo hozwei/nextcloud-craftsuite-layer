@@ -200,11 +200,77 @@ PhotoCraft for `psd`, `psb`, `pcraft`, `tga`, `png`, `jpg`, `jpeg`, `webp`, `gif
 `pcraft` and `tga`, which no common Nextcloud app opens; the Viewer opens `png`, `jpeg`, `gif`,
 `bmp`, `webp` and `ico`, and `heic`, `heif` and `tiff` when their preview providers are enabled.
 The app matches by extension, so types without a Nextcloud MIME type of their own (`psb`,
-`pcraft`: `application/octet-stream`) need no mapping. Left out on purpose: `pdn` (every save
+`pcraft`: `application/octet-stream`) need no mapping for that; for the PhotoCraft icon in Files
+it registers `application/x-photoshop` for `psb` and `application/x-photocraft` for `pcraft`
+([nextcloud-app.md](../nextcloud-app.md#file-type-icons)). Left out on purpose: `pdn` (every save
 becomes another new `.pcraft` file, see [Known gaps](#known-gaps)), the Affinity types (read-only
 import, untested), `svg` (VectorCraft), the raw types (the Camera Raw dialog needs the pointer,
 untested), the templates and the preset files. OpenRaster (`ora`), new in 0.7.0, is not offered
 either; it is untested.
+
+## Interface language
+
+**How PhotoCraft picks it**
+
+- Only from its own preferences: the JSON in the frame's `localStorage` under
+  `photocraft.preferences`, field `interface.language` (`apps/photocraft-web/src/web.rs:395-406`),
+  read once when the app is created, before its first frame (`crates/ui-egui/src/lib.rs:725`,
+  `prefs_ui.rs:129-146`).
+- The value is `auto` (the default, `crates/engine/src/prefs.rs:227-230`, `:262`) or a language
+  code (`de`, `pt-br`, ..., `crates/ui-egui/src/i18n/mod.rs:125-147`) in any letter case; a locale
+  tag works too (`de-AT` and `de_DE` give German, `pt-PT` Brazilian Portuguese), anything else
+  gives English (`i18n/mod.rs:194-201`, `222-252`). `auto` means the system's language, which the
+  web build does not know (`i18n/system.rs:55-58`): English.
+- The browser's language does not count: `navigator.languages` only decides which served fonts
+  are fetched first (`web.rs:187-197`). There is no URL parameter for the language. So without
+  the host's language (in Nextcloud, `photocraft_language` empty, see
+  [nextcloud-app.md](../nextcloud-app.md#configuring)), PhotoCraft shows the language the user
+  picked in it, else English.
+
+**What the adapter does**
+
+- With the host's language (see [protocol.md](../protocol.md#host-settings)), it writes
+  PhotoCraft's code for it into `interface.language` before PhotoCraft's module runs, keeping the
+  other preferences (with none stored, it writes only this one; PhotoCraft fills in the rest). It
+  notes the code in `craftsuite-layer:photocraft:language` in the same storage (its mark), and
+  `ready` reports the tag it applied (`de-AT` gives `de`, `pt-PT` gives `pt-BR`).
+- It writes only over a missing language, `auto` or its mark. Any other stored language is one
+  the user picked in PhotoCraft: it stays, and `ready` reports `null`.
+- Without a host language, or with one not offered here (such as `ja`), a language the adapter
+  wrote goes back to `auto` and the mark is removed; anything else stays as it is.
+- Unreadable preferences or blocked storage: nothing is written, `ready` reports `null`, and
+  PhotoCraft starts as it would without the layer.
+
+**Languages**
+
+- Offered (the keys of the adapter's `LANGUAGES` table): `en`, `cs`, `de`, `el`, `es`, `fr`,
+  `id`, `it`, `nl`, `pl`, `pt-BR` (PhotoCraft's `pt-br`), `ru` and `uk`.
+- Left out: `ja`, `ko`, `zh-Hans` and `zh-Hant`. The web build draws its interface with its own
+  fonts, Inter and JetBrains Mono (`HOSTING.md` of the web build), which have no Chinese, Japanese
+  or Korean glyphs, and loads no fallback for them on the web
+  (`crates/ui-egui/src/cjk_fonts.rs:3-19`, `:68-71`): their labels show as boxes.
+- None is known to be partial: each of the 16 catalogs (`crates/ui-egui/src/i18n/*.tsv`) claims
+  complete menus, which upstream's tests check for every menu label and every translated literal
+  of the interface (`i18n/mod.rs:711-776`). German, Greek, Russian, Ukrainian and Brazilian
+  Portuguese were seen in a frame, French on PhotoCraft's own page; the others were not looked at.
+- Save names do not depend on the language: File > New names a document `Untitled-1` in every
+  language. Only a template opens under the translated `Untitled-N`, which the adapter knows (see
+  [How the adapter classifies](#how-the-adapter-classifies)).
+
+**A language the user picks in PhotoCraft**
+
+- Edit > Preferences > Interface… > Language offers Auto and all 17 languages, the left-out ones
+  too (`crates/ui-egui/src/prefs_ui.rs:1353-1360`). On Apply or OK the interface switches at once
+  (`prefs_ui.rs:789-802`, `lib.rs:1327`), and PhotoCraft stores the choice in the same field,
+  merged with what the storage holds (`prefs_ui.rs:364-454`).
+- It differs from the adapter's mark, so it wins at every later start, whatever the host's
+  language; Auto hands the start back to the host's language. A choice equal to the host's
+  language at the time looks like the adapter's own (see [Known gaps](#known-gaps)).
+- The choice lives in the frame's storage (see [Hosting notes](#hosting-notes)). With the Craft
+  hosting on another site than Nextcloud, browsers partition it, apart from PhotoCraft opened on
+  its own site. In the same-site setup [hosting.md](../hosting.md#a-sign-in-in-front-of-the-apps)
+  recommends (`craft.example.com` next to `cloud.example.com`) they do not: the host's language,
+  and a choice made in either place, apply to both.
 
 ## Known gaps
 
@@ -258,6 +324,10 @@ either; it is untested.
 - **Saved means downloaded.** PhotoCraft marks the document saved when the download starts. If
   the host cannot store the file, the translator's fallback browser download is the copy the user
   keeps.
+- **A user's language equal to the host's.** PhotoCraft stores no sign of who picked a language,
+  so a user who picks the language the host sets at the time is taken for the host's default: a
+  later change of the host's language moves that user along (see
+  [Interface language](#interface-language)).
 
 ## Hosting notes
 
@@ -273,6 +343,8 @@ either; it is untested.
   `the app failed to load: ...` (see [protocol.md](../protocol.md#errors)).
 - Preferences live in the frame's `localStorage` (`photocraft.preferences`), brush presets in its
   IndexedDB. Browsers that partition or block third-party storage may forget them between visits.
+  The host's language goes into the preferences too, so with blocked storage PhotoCraft starts in
+  English (see [Interface language](#interface-language)).
 - Keyboard shortcuts reach the app after the user clicks into the frame.
 
 ## Tests
@@ -283,14 +355,16 @@ either; it is untested.
 (see [development.md](../development.md#continuous-integration)). The core's fallbacks and the
 inactive cases are tested with PdfCraft and the stub app, not here.
 
-The spec has four tests, and its header lists them with their scenarios. The first three are the
-contract tests; the canary runs them apart from the `@ui` test.
+The spec has five tests, and its header lists them with their scenarios. The first three are the
+contract tests; the canary runs them apart from the `language` test (tagged `@language`) and the
+`@ui` test.
 
 | Test | What it checks |
 |---|---|
 | `contract` | An allowed host, `probe.psd` opened: the handshake with the served app version, then the open. An edit (Invert) saved with Ctrl+S arrives as the document `probe.psd`, a PSD with the edit; a second edit (Desaturate) saved with Save As is the document again. Quick Export as PNG arrives as an export `probe.png`. Nothing becomes a browser download, also not after the deadlines for the host's confirmation and result. |
 | `another type` | `probe.png` opened: Ctrl+S arrives as the document `probe.psd` with the open's `openId`, and so does the second Ctrl+S; Quick Export as PNG, under the opened file's own name, is an export. A different `probe.psd` opened with File > Open, and in Chromium one dropped from the desktop, saves as an export. `Untitled-1.png` opened (the PNG fixture under that name): its own save and that of a new document (File > New, Enter), both `Untitled-1.psd`, arrive as exports. |
 | `startup` | An IndexedDB that never answers: PhotoCraft takes drops only after 10 s, and the host gets no error, then `ready` and `delivered`. |
+| `language` | The host's `de` (`lang=de`): `ready` reports `de`, the stored `interface.language` and the adapter's mark are `de`, and the palette runs `Öffnen` (File > Open in German), which opens the file picker. Then, with no PhotoCraft running, `fr` is stored as the user's own choice, and PhotoCraft starts again with the host's `de`: `ready` reports `null`, `fr` stays, and the palette runs `Ouvrir` (File > Open in French). |
 | `ui` (`@ui`) | The paths that need pointer clicks: File > Save in the menu bar saves the document; the Export button of the Export As dialog exports `probe.png`; the first name on About > Contributors (a link, with target `_blank` since 0.7.0) opens a new window and the editor stays. |
 
 A test with several scenarios (`another type`, `ui`) runs each in a page of its own and reports
@@ -320,21 +394,30 @@ frame and gets scroll arrows (the File menu since 0.7.0). Two things differ in W
   machine, so a click on the link that opens nothing and leaves the editor in the frame is tried
   once more, with a warning and a screenshot in the report.
 
+The `language` test types the German and French labels of File > Open instead
+(`crates/ui-egui/src/i18n/de.tsv`, `fr.tsv`): the palette puts the command whose shown label is
+exactly what was typed first (`palette.rs`), so `Öffnen` runs File > Open only in German and
+`Ouvrir` only in French. Its second start stores the user's `fr` before PhotoCraft runs, as a
+choice from an earlier visit would be. The other tests start without a language, so in English,
+which the `AT` positions need.
+
 When a new release fails the canary:
 
 - **Contract tests fail.** The release changed something the translator relies on (see
   [architecture.md](../architecture.md#upstream-coupling-points)): for PhotoCraft also the save
-  name, the drop target's delay or the way it reads user files. Sites that host the app should hold the release
-  back until the adapter or the core is fixed.
+  name, the drop target's delay, the way it reads user files or where it keeps its interface
+  language. Sites that host the app should hold the release back until the adapter or the core is
+  fixed.
 - **Only the `@ui` test fails.** A menu, dialog or button moved. For File > Save, compare the File
   rows of `menu_catalog.rs` with `FILE_MENU` (0.7.0 added Open EXR Parts above Save) and check
   whether the menu still scrolls; re-measure the other positions in `AT` for the paths it
   reports. The translator is not at fault.
 - **A command label or shortcut changed upstream.** The palette then runs another command or
   none, and the tests that use it fail: `Quick Export as PNG File` and the shortcuts for Invert,
-  Desaturate, Save As, File > Open and File > New in the contract tests, `About PhotoCraft` and
-  Export As (Ctrl+Alt+Shift+W) in the `@ui` test. Check them against `menu_catalog.rs` and update
-  the spec before holding a release back.
+  Desaturate, Save As, File > Open and File > New in the contract tests, the German and French
+  labels of File > Open in the `language` test, `About PhotoCraft` and Export As
+  (Ctrl+Alt+Shift+W) in the `@ui` test. Check them against `menu_catalog.rs` (and the catalogs in
+  `crates/ui-egui/src/i18n/`) and update the spec before holding a release back.
 
 ## Upstream
 

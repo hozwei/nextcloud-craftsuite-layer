@@ -253,7 +253,24 @@ updater should:
    canary's contract tests fail for the release (an open issue labelled `canary` in this
    repository says so), stay on the last good version until a fixed
    adapter is released. Failing `@ui` tests alone mean that the tests' click positions need
-   updating, not the translator.
+   updating, not the translator. Failing `@language` tests alone mean that the release may start
+   in its own language instead of the one the Nextcloud app asks for, until the adapter is fixed;
+   files still open and save. Both are tracked by an issue labelled `canary-ui`.
+
+   No open issue is not enough on its own: GitHub starts scheduled runs late when it is busy,
+   sometimes skips one (the first scheduled run of this repository, due on 12 October 2026,
+   never started), and turns the schedule off after 60 days without activity in the
+   repository. Treat a release as tested only when a canary run started after it was published
+   and ended with `success` or `failure` (a `cancelled` run, a timeout for example, tested
+   nothing): the newest completed run of `canary.yml` on `main`, with `run_started_at` and
+   `conclusion`, comes from
+   `https://api.github.com/repos/hozwei/nextcloud-craftsuite-layer/actions/workflows/canary.yml/runs?branch=main&status=completed&per_page=1`
+   (one request; the Canary badge in the [README](../README.md) shows only the latest result).
+   Unlike steps 1 and 2 this needs GitHub's API: send a token (`Authorization: Bearer`, 5,000
+   requests per hour) where the unauthenticated limit of 60 per hour is shared, retry later when it
+   fails, and alert when it fails for a day, instead of taking releases untested.
+   A run is due at 04:23 UTC and ends within about two hours of its start (its test job stops
+   after 110 minutes); GitHub's delay in starting it comes on top.
 
 `tests/e2e/tools/fetch-craft.mjs` implements steps 1 and 2 for the tests.
 

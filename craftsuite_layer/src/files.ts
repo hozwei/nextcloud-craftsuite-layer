@@ -6,7 +6,8 @@
 // its actions in a registry shared by every copy of @nextcloud/files 4.x on the page, so the
 // bundled copy registers into the one Files reads.
 //
-// Matching is by extension: Nextcloud has no MIME type for .designcraft, .vectorcraft or .idml.
+// Matching is by extension: Nextcloud has no MIME type for .designcraft, .vectorcraft or .idml,
+// except where lib/Service/FileTypes.php could add one.
 // For the extensions an app opens by default (no other app does), the entry is also what a click
 // on the file does; for the others (a PDF opens in the viewer) it is an entry in the menu.
 
@@ -21,7 +22,7 @@ interface CraftApp {
   default: string[];
 }
 
-// Our own icon (the app icon), not the Craft apps' logos: those are trademarks of their authors.
+// The layer's own icon (the app icon), the same for every Craft app: the entry names the app.
 const ICON = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path fill="currentColor" fill-rule="evenodd" d="M4.5 3h15A2.5 2.5 0 0 1 22 5.5v13a2.5 2.5 0 0 1-2.5 2.5h-15A2.5 2.5 0 0 1 2 18.5v-13A2.5 2.5 0 0 1 4.5 3ZM4 7v11.5a.5.5 0 0 0 .5.5h15a.5.5 0 0 0 .5-.5V7Z"/><path fill="currentColor" d="M6.5 9.75H14v-1.5l3.5 2.25-3.5 2.25v-1.5H6.5Zm11 5H10v-1.5L6.5 15.5l3.5 2.25v-1.5h7.5Z"/></svg>';
 
 function readState(): CraftApp[] {

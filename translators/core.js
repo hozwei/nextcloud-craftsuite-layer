@@ -15,11 +15,14 @@
  * is framed, an adapter registered, and the parent proved an allowed origin by answering `hello`
  * with `init`. Then it opens files the parent sends by simulating a drop, and turns the app's
  * downloads into `save` messages. The message protocol is described in docs/protocol.md.
+ *
+ * The host may also name the language the app should start in, in the frame's address
+ * ('#craftsuite-layer:lang=de'); the adapter applies it before the app's module runs.
  */
 (() => {
   'use strict';
 
-  const LAYER_VERSION = '0.2.0';
+  const LAYER_VERSION = '0.3.0';
   const PROTOCOL = 'craftsuite-layer';
   const PROTOCOL_VERSION = 1;
 
@@ -45,6 +48,36 @@
     log('inactive: the app is not served in a secure context (https)');
     return;
   }
+
+  // --- The host's settings for this frame: the language the app starts in. ---------------------
+  // The host frames '<address>#craftsuite-layer:lang=<BCP 47 tag>'. They are read here, before the
+  // adapter and the app's module run, taken out of the address, and kept in the frame's own name,
+  // so that later loads of this frame have them too: a reload, an app that reloads itself, or a
+  // sign-in page of the hosting that returns without the fragment. A fragment always wins; an
+  // empty or invalid one clears them. Only a language tag gets through (language, script, region:
+  // 'de', 'pt-BR', 'zh-Hant'), canonicalised by the browser.
+  const SETTINGS = 'craftsuite-layer:';
+  const languageTag = (raw) => {
+    if (typeof raw !== 'string' || raw.length > 35 || !/^[A-Za-z]{2,3}(-[A-Za-z]{4})?(-([A-Za-z]{2}|\d{3}))?$/.test(raw)) return null;
+    try {
+      const tag = Intl.getCanonicalLocales(raw)[0];
+      return tag && tag !== 'und' ? tag : null;
+    } catch {
+      return null;
+    }
+  };
+  let hostLanguage = null;
+  try {
+    if (location.hash.startsWith('#' + SETTINGS)) {
+      hostLanguage = languageTag(new URLSearchParams(location.hash.slice(1 + SETTINGS.length)).get('lang'));
+      history.replaceState(history.state, '', location.pathname + location.search);
+      window.name = hostLanguage ? SETTINGS + 'lang=' + hostLanguage : '';
+    } else if (typeof window.name === 'string' && window.name.startsWith(SETTINGS)) {
+      hostLanguage = languageTag(new URLSearchParams(window.name.slice(SETTINGS.length)).get('lang'));
+    }
+  } catch { /* no language: the app picks its own */ }
+  // What adapter.language() returned: the tag the app starts in, null, or a promise of either.
+  let languageResult = null;
 
   // Timeouts in ms from data-* attributes; anything but a positive, finite number means the default.
   const ms = (value, fallback) => { const n = Number(value); return Number.isFinite(n) && n > 0 ? n : fallback; };
@@ -164,10 +197,39 @@
       return null;
     }
   };
+  // Language and script of a tag, as the browser completes them ('de-AT' -> 'de-Latn').
+  const languageAndScript = (tag) => {
+    try {
+      const full = new Intl.Locale(tag).maximize();
+      return full.language + '-' + (full.script || '');
+    } catch {
+      return null;
+    }
+  };
   const util = {
     // True if `bytes` start with exactly the bytes last stored for `entry` (an incremental save).
     async extendsOpened(bytes, entry) {
       return bytes.length >= entry.length && sameBytes(await sha256(bytes.subarray(0, entry.length)), entry.hash);
+    },
+    // The key of `table` (BCP 47 tags of the languages the app shows: 'de', 'pt-BR', 'zh-Hant')
+    // that fits `tag`, or null: the same tag in any letter case, else the first with the same
+    // language and script ('de-AT' -> 'de', 'pt-PT' -> 'pt-BR', 'zh-TW' -> 'zh-Hant', 'zh' ->
+    // 'zh-Hans'; 'sr-Latn' never matches Cyrillic 'sr').
+    matchLanguage(tag, table) {
+      if (typeof tag !== 'string' || !tag) return null;
+      const keys = Object.keys(table);
+      const exact = keys.find((key) => key.toLowerCase() === tag.toLowerCase());
+      if (exact) return exact;
+      const wanted = languageAndScript(tag);
+      return (wanted && keys.find((key) => languageAndScript(key) === wanted)) || null;
+    },
+    // Makes the page report `code` as the browser's language: navigator.language, and first in
+    // navigator.languages, before the browser's own. For apps that read them as they start.
+    preferLanguages(code) {
+      const own = [...(navigator.languages || [])].filter((l) => l.toLowerCase() !== code.toLowerCase());
+      const list = Object.freeze([code, ...own]);
+      Object.defineProperty(Navigator.prototype, 'language', { configurable: true, enumerable: true, get() { return code; } });
+      Object.defineProperty(Navigator.prototype, 'languages', { configurable: true, enumerable: true, get() { return list; } });
     },
   };
 
@@ -357,7 +419,16 @@
       if (msg.type !== 'init' || !allowedOrigins.includes(event.origin)) return;
       hostOrigin = event.origin;
       if (startupFailed) send({ type: 'error', of: 'startup', message: startupMessage });
-      appReady.then(() => send({ type: 'ready', appVersion: config.appVersion || null, layerVersion: LAYER_VERSION }), () => undefined);
+      // `language`: the tag the app started in, as the adapter reported it (an adapter that sets
+      // it through the app's API knows that once started() has finished), or null.
+      appReady.then(async () => {
+        let language = null;
+        try {
+          const value = await Promise.race([Promise.resolve(languageResult), new Promise((resolve) => setTimeout(resolve, 5000, null))]);
+          language = typeof value === 'string' && value ? value : null;
+        } catch { /* null */ }
+        send({ type: 'ready', appVersion: config.appVersion || null, layerVersion: LAYER_VERSION, language });
+      }, () => undefined);
       return;
     }
     if (event.origin !== hostOrigin) return;
@@ -415,6 +486,17 @@
       register(candidate) {
         if (adapter || !candidate || typeof candidate.app !== 'string' || typeof candidate.classify !== 'function') return false;
         adapter = Object.freeze({ ...candidate });
+        // The host's language, or null (then an adapter that wrote one into the app's own
+        // preferences on an earlier start takes it back). Now, before the app's module runs.
+        if (typeof adapter.language === 'function') {
+          try {
+            languageResult = adapter.language(hostLanguage, util);
+            // A promise that fails before the app starts would count as a failed start.
+            if (languageResult && typeof languageResult.then === 'function') Promise.resolve(languageResult).catch(() => undefined);
+          } catch (err) {
+            log('could not apply the language', hostLanguage, err);
+          }
+        }
         startHandshake();
         return true;
       },

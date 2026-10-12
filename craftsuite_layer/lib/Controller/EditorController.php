@@ -115,6 +115,8 @@ class EditorController extends Controller {
 			'app' => $app,
 			'appName' => CraftApps::APPS[$app]['name'],
 			'appUrl' => $appUrl,
+			// The language the app is to start in (a BCP 47 tag), or null to let it decide.
+			'language' => $this->craftApps->startLanguage($app),
 			'file' => [
 				'id' => $node->getId(),
 				'name' => $node->getName(),

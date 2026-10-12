@@ -7,7 +7,8 @@
 //                 opens the editor, which gets the file into PdfCraft; a PNG has "Open in
 //                 PhotoCraft" in its menu only (a click opens the Viewer), while a click on a PSD,
 //                 which no other app opens, opens PhotoCraft; both open the editor at once, and
-//                 it removes the request token from the address
+//                 it removes the request token from the address; a PSD and a .pcraft (stored with
+//                 the type the app registered) show PhotoCraft's icon, a PNG and a PDF Nextcloud's
 //   link          a link to a PSD that another site opens in a popup (/f/<id>: Files then opens
 //                 the file by itself, without a click of the user) gets the question first
 //   default       with DesignCraft configured, a click on a .designcraft file opens DesignCraft
@@ -17,7 +18,11 @@
 //   settings      the admin page refuses unusable addresses (http, a Nextcloud host, a host a
 //                 Content-Security-Policy cannot name, an address with a ?query) with a reason per
 //                 field and saves nothing; usable ones are saved, also after Nextcloud's password
-//                 dialog
+//                 dialog; the apps that can start in a chosen language have a choice of it ('user'
+//                 or one of theirs), the others none; a language an app does not have is refused,
+//                 and the editor frames the app with the user's language ('user' and
+//                 ?forceLanguage=de: '#craftsuite-layer:lang=de'); a .dxf shows the icon of the
+//                 app that opens it on a click
 //   shares        for a second user, no administrator: a file shared without permission to
 //                 download has no entry and the editor page refuses it; a read-only share opens,
 //                 and a save becomes a new file in the user's folder, the original unchanged; the
@@ -45,6 +50,8 @@ const DXF = readFileSync(new URL('../fixtures/cadcraft/craftsuite-probe.dxf', im
 const CRAFT = `http://127.0.0.2:${Number(process.env.CRAFTSUITE_PORT_BASE || 8701) + 1}`;
 // Every app on the settings page, in its order (CraftApps::APPS): the settings test restores them all.
 const APPS = ['pdfcraft', 'photocraft', 'vectorcraft', 'designcraft', 'wordcraft', 'gridcraft', 'deckcraft', 'cadcraft', 'lightcraft', 'filmcraft', 'effectcraft'];
+// The apps the settings let start in a chosen language (CraftApps::APPS 'languages').
+const LANGUAGE_APPS = ['pdfcraft', 'photocraft', 'vectorcraft', 'gridcraft', 'cadcraft', 'lightcraft', 'filmcraft', 'effectcraft'];
 const SETTINGS = `${NC}/index.php/settings/admin/craftsuite_layer`;
 
 test.setTimeout(180_000);
@@ -52,6 +59,15 @@ test.setTimeout(180_000);
 const openFolder = (page: Page, folder: Folder) => page.goto(`${NC}/index.php/apps/files/files?dir=${encodeURIComponent('/' + folder.name)}`);
 
 const row = (page: Page, name: string) => page.locator(`[data-cy-files-list-row-name="${name}"]`);
+
+// Where Nextcloud's icon of a MIME type is for the page's user: Files shows a file without a
+// preview with /core/mimeicon, which redirects to the icon (lib/Service/MimeIcons.php).
+async function iconOf(page: Page, mime: string): Promise<string> {
+  const res = await page.request.get(`${NC}/index.php/core/mimeicon?mime=${encodeURIComponent(mime)}`, { maxRedirects: 0 });
+  expect(res.status(), `the icon of ${mime}`).toBe(303);
+  return res.headers().location ?? '';
+}
+const CRAFT_ICON = (app: string) => new RegExp(`/craftsuite_layer/img/types/${app}\\.(svg|png)\\?v=`);
 
 // The entries of a file's action menu. Read in the page: Playwright's own queries over the whole
 // Files page ran into "Maximum call stack size exceeded" in Nextcloud 34.
@@ -87,9 +103,11 @@ async function untraced<T>(page: Page, action: () => Promise<T>): Promise<T> {
   }
 }
 
-// Saves the settings form. With a password: Nextcloud's own password dialog asks for it first.
-async function saveSettings(page: Page, values: Record<string, string>, password?: string): Promise<number> {
+// Saves the settings form: addresses, and languages the apps start in. With a password: Nextcloud's
+// own password dialog asks for it first.
+async function saveSettings(page: Page, values: Record<string, string>, password?: string, languages: Record<string, string> = {}): Promise<number> {
   for (const [app, url] of Object.entries(values)) await page.locator(`#craftsuite-layer-${app}`).fill(url);
+  for (const [app, language] of Object.entries(languages)) await page.locator(`#craftsuite-layer-${app}-language`).selectOption(language);
   const response = page.waitForResponse((r) => r.url().endsWith('/apps/craftsuite_layer/settings'));
   await page.locator('#craftsuite-layer-admin button[type=submit]').click();
   if (password !== undefined) {
@@ -100,9 +118,11 @@ async function saveSettings(page: Page, values: Record<string, string>, password
   return (await response).status();
 }
 
-// The addresses as the settings test found them. Saved again after it in a context of its own,
-// so that also a test that timed out (and lost its page) leaves them as the other specs need them.
+// The addresses and languages as the settings test found them. Saved again after it in a context of
+// its own, so that also a test that timed out (and lost its page) leaves them as the other specs
+// need them.
 let found: Record<string, string> | null = null;
+let foundLanguages: Record<string, string> = {};
 
 test.afterEach(async ({ browser }) => {
   if (!found) return;
@@ -111,9 +131,10 @@ test.afterEach(async ({ browser }) => {
     const page = await context.newPage();
     await login(page);
     await page.goto(SETTINGS);
-    expect(await saveSettings(page, found), 'the addresses found saved again').toBe(200);
+    expect(await saveSettings(page, found, undefined, foundLanguages), 'the addresses and languages found saved again').toBe(200);
     for (const app of APPS) await expect(page.locator(`#craftsuite-layer-${app}`)).toHaveValue(found[app]);
     found = null;
+    foundLanguages = {};
   } finally {
     await context.close();
   }
@@ -130,6 +151,18 @@ test('files entry: Open in PdfCraft opens the editor; a click opens PhotoCraft f
   await page.keyboard.press('Escape');
   expect(await menu(page, 'notes.txt'), 'a text file has none').not.toContain('Open in PdfCraft');
   await page.keyboard.press('Escape');
+
+  await test.step('icons: a PSD and a .pcraft show PhotoCraft\'s icon, a PNG and a PDF keep Nextcloud\'s', async () => {
+    // The row of a file without a preview asks /core/mimeicon for its type.
+    await expect(row(page, 'picture.psd').locator('img').first()).toHaveAttribute('src', /\/core\/mimeicon\?mime=application%2Fx-photoshop/);
+    expect(await iconOf(page, 'application/x-photoshop')).toMatch(CRAFT_ICON('photocraft'));
+    // Nextcloud has no type for .pcraft: the app registered one (lib/Service/FileTypes.php).
+    await folder.put('layers.pcraft', Buffer.from('PK'));
+    expect(await folder.contentType('layers.pcraft')).toBe('application/x-photocraft');
+    expect(await iconOf(page, 'application/x-photocraft')).toMatch(CRAFT_ICON('photocraft'));
+    expect(await iconOf(page, 'image/png')).toMatch(/\/core\/img\/filetypes\/image\.svg$/);
+    expect(await iconOf(page, 'application/pdf')).toMatch(/\/core\/img\/filetypes\/application-pdf\.svg$/);
+  });
 
   // A PNG opens in the Viewer as before: PhotoCraft only in the menu. A PSD, which no other app
   // opens, opens in PhotoCraft on a click (the default action).
@@ -180,7 +213,7 @@ test('link: a PSD that another site opens with a link asks before it opens', asy
 });
 
 test('default and settings: unusable addresses are refused, a .designcraft and a .dxf open on a click', async ({ page, request }) => {
-  const folder = await newFolder(request, { 'layout.designcraft': Buffer.from('{}'), 'drawing.dxf': DXF });
+  const folder = await newFolder(request, { 'layout.designcraft': Buffer.from('{}'), 'drawing.dxf': DXF, 'probe.pdf': PROBE });
   await login(page);
   trackDialogs(page); // nothing may keep the page from going to the folder at the end
   await page.goto(SETTINGS);
@@ -190,6 +223,9 @@ test('default and settings: unusable addresses are refused, a .designcraft and a
   const values: Record<string, string> = {};
   for (const app of APPS) values[app] = await page.locator(`#craftsuite-layer-${app}`).inputValue();
   found = values;
+  const languageFields = await page.locator('#craftsuite-layer-admin select[data-app]').evaluateAll((selects) => selects.map((s) => (s as HTMLSelectElement).dataset.app));
+  expect(languageFields, 'the apps with a choice of the language they start in').toEqual(LANGUAGE_APPS);
+  for (const app of LANGUAGE_APPS) foundLanguages[app] = await page.locator(`#craftsuite-layer-${app}-language`).inputValue();
   const at = (app: string) => `${CRAFT}/${app}/`;
 
   // A click on a file in Files, and the editor page it opens.
@@ -214,9 +250,11 @@ test('default and settings: unusable addresses are refused, a .designcraft and a
   await expect(hint('pdfcraft')).toHaveText('Use an https:// address without user name, password, ?query or #fragment (http:// only on localhost).');
   await expect(page.locator('.craftsuite-admin__status')).toHaveText(/Nothing was saved/);
 
-  await test.step('with CADCraft\'s address empty, VectorCraft takes the click on a .dxf', async () => {
+  await test.step('with CADCraft\'s address empty, VectorCraft takes the click on a .dxf, and gives it its icon', async () => {
     expect(await saveSettings(page, { pdfcraft: values.pdfcraft, photocraft: values.photocraft, designcraft: at('designcraft'), vectorcraft: at('vectorcraft'), cadcraft: '' }), 'saved').toBe(200);
     await expect(page.locator('.craftsuite-admin__status')).toHaveText('Saved');
+    expect(await folder.contentType('drawing.dxf')).toBe('image/vnd.dxf');
+    expect(await iconOf(page, 'image/vnd.dxf')).toMatch(CRAFT_ICON('vectorcraft'));
     await click('drawing.dxf', 'vectorcraft');
   });
 
@@ -228,9 +266,40 @@ test('default and settings: unusable addresses are refused, a .designcraft and a
     await expect(page.locator('.craftsuite-admin__status')).toHaveText('Saved');
   });
 
-  // CADCraft is preferred for a .dxf when both are configured (CraftApps::PREFERRED).
+  // CADCraft is preferred for a .dxf when both are configured (CraftApps::PREFERRED), also for its icon.
   await click('drawing.dxf', 'cadcraft');
+  expect(await iconOf(page, 'image/vnd.dxf')).toMatch(CRAFT_ICON('cadcraft'));
   await click('layout.designcraft', 'designcraft');
+
+  await test.step('the language an app starts in: the user\'s, or one the app has; the editor hands it over in the frame\'s address', async () => {
+    await page.goto(SETTINGS);
+    await expect(page.locator('#craftsuite-layer-wordcraft-language')).toHaveCount(0);
+    // Each language by its own name, the choices of the app first.
+    expect(await page.locator('#craftsuite-layer-gridcraft-language option').evaluateAll((options) => options.map((o) => [(o as HTMLOptionElement).value, o.textContent])))
+      .toEqual([['', "App's default"], ['user', "User's Nextcloud language"], ['en', 'English'], ['es', 'Español'], ['pt-BR', 'Português (Brasil)'], ['ru', 'Русский']]);
+    expect(await saveSettings(page, {}, undefined, { pdfcraft: 'user', gridcraft: 'ru' }), 'saved').toBe(200);
+    // A language the app does not have is refused (also through the endpoint), and nothing is saved.
+    const refused = await page.evaluate(async (url) => {
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', requesttoken: document.head.dataset.requesttoken ?? '' },
+        body: JSON.stringify({ languages: { pdfcraft: 'de', gridcraft: 'de', wordcraft: 'user' } }),
+      });
+      return { status: res.status, body: await res.json() as { languageErrors?: Record<string, string> } };
+    }, `${NC}/index.php/apps/craftsuite_layer/settings`);
+    expect(refused.status).toBe(400);
+    expect(Object.keys(refused.body.languageErrors ?? {}).sort()).toEqual(['gridcraft', 'wordcraft']);
+    await page.goto(SETTINGS);
+    await expect(page.locator('#craftsuite-layer-pdfcraft-language')).toHaveValue('user');
+    await expect(page.locator('#craftsuite-layer-gridcraft-language')).toHaveValue('ru');
+    // 'user' is the language Nextcloud shows the user its pages in, here forced to German.
+    await page.goto(`${editUrl(await folder.fileId('probe.pdf'), 'pdfcraft')}&forceLanguage=de`);
+    await expect(appView(page)).toHaveAttribute('src', `${values.pdfcraft}#craftsuite-layer:lang=de`);
+    await page.goto(SETTINGS);
+    expect(await saveSettings(page, {}, undefined, { pdfcraft: '', gridcraft: '' }), 'saved').toBe(200);
+    await page.goto(editUrl(await folder.fileId('probe.pdf'), 'pdfcraft'));
+    await expect(appView(page)).toHaveAttribute('src', values.pdfcraft);
+  });
 });
 
 test('shares: no download permission, no Craft app; a read-only file is saved as a new one', async ({ page, request, playwright }) => {
@@ -304,4 +373,5 @@ test('german: the entry, the editor and the settings page are translated', async
 
   await page.goto(`${SETTINGS}?forceLanguage=de`);
   await expect(page.locator('#craftsuite-layer-admin h2')).toHaveText('Adressen der Craft-Apps');
+  await expect(page.locator('.craftsuite-admin__head')).toContainText('Startsprache');
 });

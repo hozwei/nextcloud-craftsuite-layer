@@ -251,8 +251,20 @@
   });
   watchFiles(HTMLInputElement.prototype, (input) => input.type === 'file' && !imagesOnly(input.accept));
 
+  // The interface language: GridCraft reads navigator.language (only the first preference, by
+  // its primary subtag) when the app is created, and stores no choice on the web
+  // (crates/ui-egui/src/i18n.rs:64-88). BCP 47 tag -> what navigator.language has to say. Its
+  // Spanish only switches the formula function names; zh, ja and ko the web build itself drops
+  // (no font, apps/gridcraft-web/src/web.rs:41-50).
+  const LANGUAGES = { en: 'en', es: 'es', 'pt-BR': 'pt', ru: 'ru' };
+
   window.craftsuiteLayer.register({
     app: 'gridcraft',
+    language(tag, util) {
+      const key = util.matchLanguage(tag, LANGUAGES);
+      if (key) util.preferLanguages(LANGUAGES[key]);
+      return key;
+    },
     // The name Save gives the opened file. Also notes whether a save under the opened name would
     // replace a file GridCraft did not write. 'X.XLSX' saves as 'X.xlsx': only the letter case
     // differs, and a host may take that for the opened file (it is one on a file system that

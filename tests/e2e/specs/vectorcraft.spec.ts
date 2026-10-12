@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2026 The nextcloud-craftsuite-layer contributors
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// The translator inside the real VectorCraft web build. See docs/apps/vectorcraft.md. Four tests;
+// The translator inside the real VectorCraft web build. See docs/apps/vectorcraft.md. Five tests;
 // a test with several scenarios runs each in its own page and reports every scenario that fails.
 //
 //   contract      allowed host: handshake with the served app version; the file sent right after
@@ -19,8 +19,11 @@
 //                 Ctrl+S. Untitled-1.vectorcraft from the desktop app (stored title 'Untitled-1',
 //                 a creation time) saves as the document, and a new document (File > New) saved
 //                 under the same name is an export
-//   startup      no WebGPU and no WebGL2: the host gets VectorCraft's own reason as an error of
+//   startup       no WebGPU and no WebGL2: the host gets VectorCraft's own reason as an error of
 //                 startup instead of waiting
+//   language      the host's fr (in the frame's fragment): the adapter puts lang=fr into the
+//                 frame's address before VectorCraft reads it, the fragment is gone, the loading
+//                 text is French although the browser is en-US, and 'ready' reports fr
 //   ui (@ui)      the paths that need pointer clicks: File > Save and the OK button of the Save
 //                 As dialog save the document; File > Export > Export As SVG... and the OK button
 //                 of SVG Options give an export; VectorCraft's own link (About > Contributors)
@@ -82,12 +85,15 @@ interface HostRecord {
   messages: { type: string; app: string; id: number | null; kind: string | null }[];
   saves: HostSave[];
   errors: { of: string; id: number | null; message: string }[];
+  readies: { layerVersion: string; language: string | null }[]; // language 'absent': ready had none
 }
 type HostWindow = Window & {
   __host?: HostRecord;
   __appVersions?: unknown[]; // see recordAppVersions()
   CRAFTSUITE_TEST?: { versions?: Record<string, string> }; // the test server's config.js
 };
+// What the language test records in the app frame (see recordLoadingTexts()).
+type AppWindow = Window & { __loadingTexts?: string[] };
 
 const test = baseTest.extend<{ diagnostics: void }>({
   // On failure, attach what the app and the host said in each page of the test: a canary failure
@@ -128,10 +134,10 @@ function trackDownloads(page: Page) {
 
 // For a test with several independent scenarios: each runs as a step in a page of its own, and a
 // failure is reported (as a soft error) without stopping the scenarios after it, so one run lists
-// every scenario that broke. The app starts without what an earlier page stored (preferences,
-// Data Recovery copies, which would put a Recover Documents dialog over the opened file), as in
-// a fresh browser. The page of a passed scenario is closed; a failed one stays open for the
-// diagnostics.
+// every scenario that broke. The app starts without what an earlier page stored (Data Recovery
+// copies, which would put a Recover Documents dialog over the opened file; the web build stores
+// no preferences), as in a fresh browser. The page of a passed scenario is closed; a failed one
+// stays open for the diagnostics.
 async function scenario(context: BrowserContext, title: string, body: (page: Page, downloads: Download[]) => Promise<void>) {
   const errorsBefore = test.info().errors.length;
   let page: Page | undefined;
@@ -313,6 +319,21 @@ async function recordAppVersions(page: Page) {
       const msg = event.data as { protocol?: string; type?: string; appVersion?: unknown } | null;
       if (event.origin === appOrigin && msg?.protocol === 'craftsuite-layer' && msg.type === 'ready') versions.push(msg.appVersion);
     });
+  }, APP_ORIGIN);
+}
+
+// The page writes its loading text in the language the app starts in, as the module starts, and
+// removes it once the graphics run (apps/vectorcraft-web/src/web.rs:153-166, 129-133): record
+// every text #vectorcraft_loading shows in the app frame. Call before loading the page.
+async function recordLoadingTexts(page: Page) {
+  await page.addInitScript((appOrigin) => {
+    if (location.origin !== appOrigin) return; // init scripts also run in the host page
+    const texts: string[] = ((window as AppWindow).__loadingTexts = []);
+    const record = () => {
+      const text = document.getElementById('vectorcraft_loading')?.textContent?.replace(/\s+/g, ' ').trim();
+      if (text && texts[texts.length - 1] !== text) texts.push(text);
+    };
+    new MutationObserver(record).observe(document, { subtree: true, childList: true, characterData: true });
   }, APP_ORIGIN);
 }
 
@@ -553,13 +574,27 @@ test('startup: without WebGPU and WebGL2 the host gets the reason instead of wai
   const { errors } = await hostRecord(page);
   expect.soft(errors.map((e) => e.of), 'errors the host got').toEqual(['startup']);
   // web.rs shows 'VectorCraft failed to start: <reason>' and 'A browser with WebGPU or WebGL2 is
-  // required.' in #vectorcraft_loading; the adapter passes them on.
+  // required.' in #vectorcraft_loading; the adapter passes them on. They are in the language the
+  // app starts in (web.rs:303), so this test runs without a host language, in the en-US browser.
   expect.soft(errors.find((e) => e.of === 'startup')?.message,
     'the adapter passed on VectorCraft\'s own message, not only the startup timeout')
     .toMatch(/^the app failed to start: VectorCraft failed to start: .* A browser with WebGPU or WebGL2 is required\.$/);
   const types = await messageTypes(page);
   expect.soft(types, 'message types the host got').not.toContain('ready');
   expect.soft(types, 'message types the host got').not.toContain('delivered');
+});
+
+test('language: the host\'s fr reaches VectorCraft as ?lang=fr before it starts, and it starts in French', { tag: '@language' }, async ({ page }) => {
+  // The browser stays en-US (see test.use), so French can only come from the host: the adapter
+  // puts lang=fr into the frame's address before the module reads it.
+  await recordLoadingTexts(page);
+  const app = await openInHost(page, `?target=vectorcraft&name=${NATIVE}&lang=fr`);
+  expect.soft((await hostRecord(page)).readies[0]?.language, 'the language ready reported').toBe('fr');
+  const href = await app.evaluate(() => location.href);
+  expect.soft(href, 'the frame\'s address has the adapter\'s lang=fr').toMatch(/[?&]lang=fr(&|$)/);
+  expect.soft(href, 'the frame\'s address has lost the host\'s fragment').not.toContain('#');
+  expect.soft(await app.evaluate(() => (window as AppWindow).__loadingTexts), 'the texts of #vectorcraft_loading')
+    .toContain('Chargement de VectorCraft…');
 });
 
 test('ui: File menu, dialog buttons and About > Contributors with the pointer', { tag: '@ui' }, async ({ context }) => {

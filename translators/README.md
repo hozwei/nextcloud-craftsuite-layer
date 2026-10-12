@@ -56,6 +56,10 @@ means the default. A valid `data-drop-target-timeout` wins over the adapter's
 `dropTargetTimeout`; an invalid or empty one leaves the adapter's value in place. What happens
 when one expires is described in [docs/protocol.md](../docs/protocol.md#timeouts).
 
+Per frame, the host can also name the language the app starts in, in the fragment of the address
+it frames (`#craftsuite-layer:lang=de`); see
+[Host settings](../docs/protocol.md#host-settings). The hosting configures nothing for it.
+
 Each allowed origin must be an origin, not a URL: `https://` (or `http://` on `localhost`,
 `127.x.x.x` or `[::1]`, for tests), no user name or password, no path other than `/`, no query or
 fragment. Entries that break these rules are ignored with a console warning. Entries are
@@ -104,9 +108,19 @@ An adapter is a classic script loaded right after `core.js`. It registers once:
 | `identity(bytes)` | no | For apps that give new documents the same names (`Untitled-1`): a string that tells documents apart, read from a file's bytes (`Uint8Array`), such as a creation stamp the app writes once and keeps; `null` if the bytes have none. May return a promise; a rejection, like anything but a non-empty string, counts as `null`. The core reads it from the opened file and from each stored `document` save (keeping the previous one if a save has none). A save whose identity and the file's are both known and differ is `export` without calling `classify`. An adapter may also use it as a mark of the opened file rather than a document id (EffectCraft marks a file a newer EffectCraft wrote). |
 | `continuesExports` | no | `true` for an app that goes on editing from the bytes of a save that came out as `export` under the opened file's name (PdfCraft's Save rewrites the whole file after redaction or Sanitize, then appends to it). A later save that `classify` calls `export` but whose bytes extend such an export becomes `document` (unless the host did not store that export: `ok: false`, or no answer in time), with `follows` naming that export (see [docs/protocol.md](../docs/protocol.md#continued-exports)). |
 | `dropTargetTimeout` | no | Milliseconds the app may take after its start to register its drop target, if more than the default 3000. A valid `data-drop-target-timeout` of the hosting takes precedence; an invalid or empty one does not. |
+| `language(tag, util)` | no | Makes the app start in the host's language (see [Host settings](../docs/protocol.md#host-settings)). Called once, synchronously, inside `register()`, so before the app's module runs; `tag` is the checked BCP 47 tag, or `null` when the host named none (then an adapter that wrote a language into the app's own preferences on an earlier start takes it back). Returns the key of its table it applied (the tag `ready` reports), `null`, or a promise of either for an app that takes the language only through its API once it runs (the adapter sets it in `started()`, before `ready`, and bounds that call itself; after `started()` the core waits at most 5 s more for the promise). Never fail the start for it: on any problem the app starts in its own language. |
 
 `util.extendsOpened(bytes, entry)` resolves to `true` if `bytes` start with exactly the bytes last
 stored for `entry`, which is what an incremental save looks like.
+
+`util.matchLanguage(tag, table)` returns the key of `table` (BCP 47 tags of the languages the app
+shows, mapped to the app's own codes) that fits `tag`: the same tag in any letter case, else the
+first key with the same language and script (`de-AT` finds `de`, `pt-PT` finds `pt-BR`, `zh-TW`
+finds `zh-Hant`; `sr-Latn` never finds a Cyrillic `sr`), else `null`.
+
+`util.preferLanguages(code)` makes the page report `code` as the browser's language:
+`navigator.language`, and first in `navigator.languages`, before the browser's own. For apps that
+read the browser's language as they start; it applies to every script in the frame.
 
 `register` returns `false` if an adapter is already registered or the object lacks `app` or
 `classify`. The registry (`window.craftsuiteLayer`) cannot be replaced, and only the first
@@ -123,6 +137,10 @@ Rules for adapters:
   `history.replaceState` as it loads, before the app's module reads `location.search`, and only
   when the core is active. The Nextcloud app refuses app addresses with a query, so the adapter's
   switches are the only ones. Check in `started()` that they took effect where the app tells.
+- Offer in `language` only languages the app's web build shows properly (some draw missing
+  glyphs for want of a font), list the same tags in the Nextcloud app (`CraftApps::APPS`,
+  `languages`) and on the app's page, and leave a language the user picked inside the app alone
+  where the app keeps it.
 - Document the app's browser-facing behaviour in `docs/apps/<app>.md`, including known gaps.
 - Add the app to `tests/e2e/craft-versions.json`, a spec under `tests/e2e/specs/` with a few
   scenario tests (see [docs/development.md](../docs/development.md#writing-tests)), and a
@@ -133,5 +151,5 @@ Rules for adapters:
 
 ## Version
 
-`core.js` reports its version (`layerVersion`, currently `0.2.0`) in `hello` and `ready`, and
+`core.js` reports its version (`layerVersion`, currently `0.3.0`) in `hello` and `ready`, and
 speaks protocol version 1.

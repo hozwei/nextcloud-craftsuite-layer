@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2026 The nextcloud-craftsuite-layer contributors
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// The translator inside the real PhotoCraft web build. See docs/apps/photocraft.md. Four tests; a
+// The translator inside the real PhotoCraft web build. See docs/apps/photocraft.md. Five tests; a
 // test with several scenarios runs each in its own page and reports every scenario that fails.
 //
 //   contract      allowed host, an opened PSD: handshake with the served app version, open; an
@@ -18,6 +18,11 @@
 //                 'Untitled-1.psd', are new files
 //   startup      a preset storage (IndexedDB) that never answers delays PhotoCraft's drop target
 //                 by 10 s: the host gets no error, and the file opens once the app takes drops
+//   language      the host's de: ready reports de, PhotoCraft's stored preference and the
+//                 adapter's mark are de, and PhotoCraft shows German (its command palette runs
+//                 'Öffnen', File > Open, which opens the file picker). A language the user picked
+//                 in PhotoCraft (fr, stored while no PhotoCraft runs) stays at the next start with
+//                 the host's de: ready reports none, and PhotoCraft shows French ('Ouvrir')
 //   ui (@ui)      the paths that need pointer clicks: File > Save in the menu bar saves the
 //                 document; the Export button of the Export As dialog exports a new file;
 //                 PhotoCraft's own link (About > Contributors) opens a new window, the editor stays
@@ -53,6 +58,10 @@ const SHORT_RESULT = 3000;
 // Where `npm run craft:fetch` records the selected builds, as in server/serve.mjs.
 const SELECTED = path.resolve(fileURLToPath(new URL('../../..', import.meta.url)),
   process.env.CRAFT_BUILDS_DIR || '.craft-builds', 'selected.json');
+// In the app frame's localStorage: PhotoCraft's preferences (its interface language in
+// interface.language), and the code the adapter wrote there last (translators/photocraft.js).
+const PREFS_KEY = 'photocraft.preferences';
+const LANGUAGE_MARK = 'craftsuite-layer:photocraft:language';
 
 // What the test host records in window.__host (tests/e2e/host/host.js).
 interface HostSave {
@@ -71,6 +80,7 @@ interface HostRecord {
   messages: { type: string; app: string; id: number | null; kind: string | null }[];
   saves: HostSave[];
   errors: { of: string; id: number | null; message: string }[];
+  readies: { layerVersion: string; language: string | null }[]; // language 'absent' without the field
 }
 type HostWindow = Window & {
   __host?: HostRecord;
@@ -263,6 +273,17 @@ async function openFromDisk(page: Page, app: Frame, file: string) {
   });
 }
 
+// Runs File > Open from the command palette by its label in one language and tells whether the
+// browser's file picker opened. The palette matches the shown and the English labels, and puts a
+// command whose shown label is exactly what was typed first (palette.rs menu_hits, exact_bonus):
+// 'Öffnen' runs File > Open only in German, 'Ouvrir' only in French (ui-egui i18n/de.tsv, fr.tsv);
+// in another language it runs another command or none, and no file picker opens.
+async function filePickerFrom(page: Page, app: Frame, label: string) {
+  const chooser = page.waitForEvent('filechooser', { timeout: 10_000 }).then(() => true, () => false);
+  await runCommand(page, app, label, PALETTE);
+  return chooser;
+}
+
 // A user's drag and drop of a file from the desktop onto the middle of the app. Only Chromium
 // can send such a trusted drop (DevTools protocol), see chromiumOnly().
 async function dropFromDesktop(page: Page, app: Frame, file: string) {
@@ -284,6 +305,15 @@ async function dropFromDesktop(page: Page, app: Frame, file: string) {
 // ---------------------------------------------------------------------------------------------
 
 const hostRecord = (page: Page): Promise<HostRecord> => page.evaluate(() => (window as HostWindow).__host!);
+
+// The interface language in PhotoCraft's stored preferences, which it reads once as it starts,
+// and the adapter's mark, as the app frame sees them.
+function storedLanguage(app: Frame) {
+  return app.evaluate(({ prefsKey, markKey }) => {
+    const prefs = JSON.parse(localStorage.getItem(prefsKey) ?? 'null') as { interface?: { language?: unknown } } | null;
+    return { language: prefs?.interface?.language ?? null, mark: localStorage.getItem(markKey) };
+  }, { prefsKey: PREFS_KEY, markKey: LANGUAGE_MARK });
+}
 
 // The host record keeps only type, app, id and kind of each message, so record the appVersion of
 // each ready message the host page receives. Call before loading the page.
@@ -539,6 +569,36 @@ test('startup: a preset storage that never answers delays the drop target, the h
   expect(Date.now() - loaded, 'the storage never answered, so PhotoCraft waited for it').toBeGreaterThanOrEqual(9_000);
   expect.soft((await hostRecord(page)).errors, 'errors the host got (the drop target came after the core\'s default 3 s)').toEqual([]);
   expect.soft(await messageTypes(page), 'message types the host got, in order').toEqual(['hello', 'ready', 'delivered']);
+});
+
+test('language: the host\'s de starts PhotoCraft in German, a language the user picked in it stays', { tag: '@language' }, async ({ page, context }) => {
+  // PhotoCraft never takes its language from the browser (en-US here, see test.use), only from its
+  // stored preferences, which the adapter writes before PhotoCraft reads them. The second start
+  // builds on what the first one stored, so both run in this test, one after the other.
+  await test.step('lang=de: ready reports de, the stored preference is de, PhotoCraft shows German', async () => {
+    const app = await openInHost(page, PROBE_PSD, '&lang=de');
+    expect.soft((await hostRecord(page)).readies[0]?.language, 'the language ready reported').toBe('de');
+    expect.soft(await storedLanguage(app), 'PhotoCraft\'s stored language and the adapter\'s mark').toEqual({ language: 'de', mark: 'de' });
+    expect(await filePickerFrom(page, app, 'Öffnen'), 'the palette ran \'Öffnen\' (File > Open in German): the file picker opened').toBe(true);
+  });
+
+  // No PhotoCraft runs from here until the next start, which finds the user's choice stored.
+  await page.close();
+
+  await test.step('a language the user picked (fr) stays: ready reports none, PhotoCraft shows French', async () => {
+    const next = await context.newPage();
+    // The choice as Edit > Preferences > Interface stores it, from an earlier visit: written into
+    // the frame's storage before anything runs there.
+    await next.addInitScript(({ appOrigin, prefsKey }) => {
+      if (location.origin !== appOrigin) return;
+      const prefs = JSON.parse(localStorage.getItem(prefsKey) ?? '{}') as { interface?: object };
+      localStorage.setItem(prefsKey, JSON.stringify({ ...prefs, interface: { ...prefs.interface, language: 'fr' } }));
+    }, { appOrigin: APP_ORIGIN, prefsKey: PREFS_KEY });
+    const app = await openInHost(next, PROBE_PSD, '&lang=de');
+    expect.soft((await hostRecord(next)).readies[0]?.language, 'the language ready reported').toBeNull();
+    expect.soft(await storedLanguage(app), 'the user\'s fr stays, and the adapter\'s mark still has de').toEqual({ language: 'fr', mark: 'de' });
+    expect(await filePickerFrom(next, app, 'Ouvrir'), 'the palette ran \'Ouvrir\' (File > Open in French): the file picker opened').toBe(true);
+  });
 });
 
 test('ui: File > Save, the Export As dialog and About > Contributors with the pointer', { tag: '@ui' }, async ({ context }) => {

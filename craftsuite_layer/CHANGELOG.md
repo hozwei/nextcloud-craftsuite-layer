@@ -14,6 +14,37 @@ Each GitHub release takes its text from the section whose heading matches the ve
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-10-12
+
+### Added
+
+- The language each Craft app starts in, next to its address on the settings page and as
+  `occ config:app:set craftsuite_layer <app>_language`: the app's own choice (the default), the
+  user's Nextcloud language, or one of the app's languages. The editor page hands it to the
+  translator in the frame's address; it needs the translators of layer 0.3.0 or later in the
+  hosting. For PdfCraft, PhotoCraft, VectorCraft, GridCraft, CADCraft, LightCraft, FilmCraft and
+  EffectCraft; DesignCraft, WordCraft and DeckCraft always start in English.
+- The Craft apps' icons for the file types they open, where Nextcloud has only a general icon:
+  PhotoCraft for `.psd`, `.psb`, `.pcraft` and `.tga`, VectorCraft for `.vectorcraft`,
+  `.drawcraft`, `.ai`, `.eps`, `.svgz`, `.emf` and `.wmf`, DesignCraft for `.designcraft` and
+  `.idml`, DeckCraft for `.deckcraft`, CADCraft for `.dxf` (VectorCraft without CADCraft),
+  LightCraft for camera raws, FilmCraft for `.fcproj` and EffectCraft for `.ecproj`. In the file
+  list and grid of Files, the file pickers, versions and public shares; only for users the app is
+  enabled for and only for Craft apps with an address. The app takes the place of Nextcloud's icon
+  provider for these types; it changes no file of Nextcloud's code (`core/`); the MIME types below
+  go into `config/`.
+- MIME types for the extensions Nextcloud 34 and 35 do not know (and `image/x-eps` for `.eps`, and
+  the Office type for `.dotm`), added to `config/mimetypemapping.json` with aliases in
+  `config/mimetypealiases.json` when the app is enabled or updated, with existing files retyped;
+  removed again, with the files' earlier types, when it is disabled. The app notes its entries in
+  the new key `file_types`.
+
+### Fixed
+
+- The Files entries ("Open in …") appeared also for users outside the groups the app is enabled
+  for, whose editor page Nextcloud does not serve. They now appear only for users the app is
+  enabled for.
+
 ## [0.2.0] - 2026-10-12
 
 ### Added

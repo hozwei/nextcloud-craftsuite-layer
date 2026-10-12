@@ -153,7 +153,8 @@ nothing, and the app keeps its stored library as without the layer.
 **`started()`.** The core sends `ready` once the app registered its `drop` listener and the
 adapter's `started()` has resolved. `started()` asks the app `web.stats` and resolves only if
 `storage` is `memory` and no render worker runs. Otherwise the host gets a startup error and no
-file is handed over (fail closed). Startup errors from `started()`:
+file is handed over (fail closed). When the host named a language, `started()` sets it first (see
+[Interface language](#interface-language)). Startup errors from `started()`:
 
 | `message` | Cause |
 |---|---|
@@ -185,6 +186,50 @@ save of the opened file whose later versions could replace a copy.
 The adapter has no `savedName`, `identity`, `dropTarget`, `continuesExports` or
 `dropTargetTimeout`: the core's defaults fit. (Without `TrunkApplicationStarted` the core's
 drop-target timer never runs.)
+
+## Interface language
+
+**How LightCraft picks it.** The interface language is part of LightCraft's UI state
+(`ui-egui/src/state.rs:283-284`), which the page keeps in the library's `ui.json`: read when the
+app starts (`web.rs:431-434`), written back within a second of a change (`web.rs:528-541`).
+Without a `ui.json` it comes from the environment variable `LIGHTCRAFT_LANGUAGE`
+(`ui-egui/src/i18n.rs:151-153`), which the web build never has: English. The page reads neither
+the browser's language nor a URL option for it (checked with a German browser and `?lang=de`). In
+memory mode every start has a new library without a `ui.json`, so without the host's language
+LightCraft starts in English in Nextcloud, whatever the browser's or the user's language.
+
+**What the adapter does.** The only way in is the automation call: each entry of Edit > Language
+is a command, `app.language.english`, `app.language.german`, ... (`ui-egui/src/menus.rs:16-27`),
+which switches the interface at once and answers with LightCraft's code, such as `"de"`
+(`menus.rs:274-280`). When the host names a language, the adapter's `language` member looks it up
+in its `LANGUAGES` table (the same tag, else the same language and script: `de-AT` finds `de`,
+`pt-PT` `pt-BR`, `zh-TW` and `zh-HK` `zh-Hant`, `zh` and `zh-CN` `zh-Hans`), and `started()` runs
+that command before `web.stats`. `ready` reports the tag only if LightCraft answered with a code.
+LightCraft answers on its next frame (20 to 70 ms after the command, in Chromium and WebKit on
+the test machine), so the first frame or two can still show English. If LightCraft rejects the
+command (for example after a release renamed it) or does not answer within 10 s, the start goes on
+without it: the adapter logs a warning, `ready` has `language: null`, and there is no startup
+error (a command that runs late still switches the app). Without a host language nothing is
+sent. A reloaded frame gets the language again: the core keeps it in the frame's name.
+
+**Languages.** The Nextcloud app's settings offer the keys of `LANGUAGES`: `en`, `de`, `es`,
+`fr`, `ja`, `pt-BR`, `ru`, `uk`, `zh-Hans` and `zh-Hant`, every language LightCraft 0.6.0 has
+(`ui-egui/src/i18n.rs:118-129`). None is left out: all ten render in the web build, Chinese and
+Japanese too (the page loads its Simplified Chinese face at every start, `index.html:29`, and
+Traditional Chinese uses it as well). A language LightCraft does not have, such as Italian or
+Korean, has no command and no entry: the app starts in English. A language a later release adds
+needs an entry in `LANGUAGES` and in the Nextcloud app's list first. No language is complete:
+LightCraft's own count (`docs/localization-parity.md` in its repository) has Ukrainian at 99%,
+German at 91%, French, Japanese, both Chinese, Spanish and Brazilian Portuguese at 85 to 88% and
+Russian at 74%. What a catalog lacks, and technical error messages, show in English.
+
+**A language the user picks.** Edit > Language and Settings > General > Language
+(`ui-egui/src/panels/settings.rs:105-108`) switch the interface at once. In memory mode the
+choice goes into the `ui.json` of the library in the frame's memory: it lasts until the editor is
+closed or the frame reloads, and the next start is in the host's language again (in English
+without one). The host is not told; `ready` reported the language the app started in. Outside the
+integration LightCraft keeps the choice in its stored library and starts in it the next time, as
+without the layer.
 
 ## Known gaps
 
@@ -238,11 +283,15 @@ For the Nextcloud app's list:
 | `dng`, `cr2`, `cr3`, `nef`, `nrw`, `arw`, `raf`, `orf`, `rw2`, `rwl`, `pef`, `srw` | the raw photo, decoded; exports are new files next to it | yes | yes: no common Nextcloud app opens camera raws |
 | `jpg`, `jpeg`, `png`, `tif`, `tiff`, `webp` | the photo; exports are new files next to it | yes | no: the Viewer opens them, and PhotoCraft offers them too |
 
-Match the extension in any letter case. Nextcloud 34 and 35 give `arw`, `cr2`, `dng`, `erf`, `iiq`,
-`kdc`, `nef`, `orf`, `pef`, `raf` and `rw2` the type `image/x-dcraw`
+Match the extension in any letter case. Nextcloud 34 and 35 give `arw`, `cr2`, `dcr`, `dng`, `erf`,
+`iiq`, `k25`, `kdc`, `mef`, `nef`, `orf`, `pef`, `raf`, `rw2`, `sr2`, `srf` and `xrf` the type
+`image/x-dcraw`
 (`resources/config/mimetypemapping.dist.json`), which the Viewer does not open; the other raws
 are `application/octet-stream`. So the raws clash with no other app, and the Nextcloud app must
-pick LightCraft by extension.
+pick LightCraft by extension. For the LightCraft icon in Files it registers `image/x-dcraw` for
+`cr3`, `nrw`, `rwl` and `srw` too ([nextcloud-app.md](../nextcloud-app.md#file-type-icons)). As
+Nextcloud picks icons by type, the icon also shows on the raws Nextcloud types `image/x-dcraw`
+that are not offered: `dcr`, `erf`, `iiq`, `k25`, `kdc`, `mef`, `sr2`, `srf` and `xrf`.
 
 Not offered:
 
@@ -290,13 +339,15 @@ Not offered:
 (fallback downloads, a foreign host) is tested in `translator.spec.ts` and `pdfcraft.spec.ts`;
 this spec checks what depends on LightCraft.
 
-The spec has three tests, and its header lists them with their scenarios. The first two are the
-contract tests; the canary runs them apart from the `@ui` test.
+The spec has four tests, and its header lists them with their scenarios. `contract` and `saved-as`
+are the contract tests; the canary runs them apart from the `language` test (tagged `@language`) and
+the `@ui` test.
 
 | Test | What it checks |
 |---|---|
 | `contract` | An allowed host whose app URL asks for `store=opfs&workers=3&reset&bench`: the frame runs with `store=memory&workers=0`, and `web.stats` reports memory and no workers. The handshake with the served app version, then the open of a JPEG. After an edit (Rotate Right), Ctrl+S sends nothing; Export arrives as an export under the opened name, a JPEG with the edit; after a second edit, Export with Previous (Ctrl+E) arrives as an export again, with both edits; a demo photo exported under the opened name is an export too. The browser's storage stays empty, and nothing becomes a browser download, also not after the deadlines for the host's confirmation and result (20 s each here, not 3 s as in the other specs: the translator's timers run on the page's thread, which LightCraft blocks for seconds at a time, and a frame longer than the result deadline right after an export made the translator give the save up). When memory mode cannot be set (`history.replaceState` blocked), the host gets `the app would keep the photo in browser storage (...)` and never sends the photo; an aborted `.wasm` reaches the host as `the app failed to load: ... LightCraft failed to load: ...` within 30 s. |
 | `saved-as` | An opened TIFF exported as TIFF arrives under its own name as an export (not as the document, and not as a copy that the next export would replace); a different TIFF with the same name, brought in with File > Import Photos…, exports under that name as an export too. An opened DNG is decoded as a raw photo (`photo.inspect` has no `preview_only`) and exports as `probe-raw.jpg` at the mosaic's size, an export. |
+| `language` | The host names German (`lang=de`): `ready` reports `de`, which the adapter does only when LightCraft answered `app.language.german` with its code (the web build has no query for its interface language, so that answer is the check). The fragment is gone from the frame's address, and the photo opens in memory mode without render workers (`web.stats`), as without a language. |
 | `ui` (`@ui`) | The paths that need the pointer: File > Export…, a folder typed into the dialog, OK: an export under the opened name; File > Export with Previous: another export. |
 
 A test with several scenarios runs each in a page of its own and reports every scenario that
@@ -318,8 +369,9 @@ test first waits until LightCraft has rendered everything it queued (`web.stats`
 each target for a frame before it clicks. Its click positions are in the `AT` table of the spec,
 measured on 0.6.0 at a **1400x1400** viewport with the locale `en-US`: the Export dialog is taller
 than the frame at 1400x900, and egui centres it in the frame, so its positions depend on the
-frame's height. The File menu has no scroll arrows at that size. When a new release fails the
-canary:
+frame's height. The File menu has no scroll arrows at that size. They are English positions, so
+the `ui` test runs without a host language (German labels are wider and move the menus). When a
+new release fails the canary:
 
 - **Contract tests fail.** The release changed something the translator relies on: the URL
   options `store` and `workers`, `web.stats` or the automation call (the host then gets a startup
@@ -328,6 +380,10 @@ canary:
   fixed.
 - **Only the `@ui` test fails.** A menu item or the dialog moved. Re-measure the positions in
   `AT`; the translator is not at fault.
+- **Only the `language` test fails.** The release renamed or dropped a command of Edit >
+  Language (`ui-egui/src/menus.rs`). Update `LANGUAGES` in the adapter; until then LightCraft
+  starts in English whatever the host's language, and opening and exporting work as before (the
+  adapter fails open for the language).
 - **A shortcut or command changed upstream.** The tests that use it fail: Ctrl+], Ctrl+S, Ctrl+E,
   Left and Ctrl+Shift+I, and the commands `app.export`, `photo.inspect` and `web.stats`. Check
   them against the files above before holding a release back.
@@ -352,6 +408,8 @@ and export paths would no longer depend on drops and downloads; see
 - render workers that work in memory mode (passing the photo's bytes), so that `workers=0` is no
   longer needed;
 - a start in memory mode without the demo photos, for embedding;
+- a URL option for the interface language at start (as VectorCraft's `?lang=`), so that the
+  first frames are in it and no command is needed;
 - Export on the web without a folder;
 - a ready signal (such as `TrunkApplicationStarted`) and an error event on a failed load, start
   or panic, and a panic message that does not claim a stored library in memory mode;

@@ -13,18 +13,25 @@ use OCP\IConfig;
 use OCP\IL10N;
 use OCP\IRequest;
 use OCP\IURLGenerator;
+use OCP\L10N\IFactory;
 
 /**
  * The Craft apps this layer can open, which files each opens, and where an administrator says
  * they are hosted (the settings page, or occ config:app:set craftsuite_layer <app>_url).
  *
  * Files are matched by extension, never by MIME type: Nextcloud stores application/octet-stream
- * for extensions it does not know (.designcraft, .vectorcraft, .idml), and adding MIME types
- * would mean editing the server's config/mimetypemapping.json. The Files entry (src/files.ts)
- * gets these lists from the listener's initial state, so they exist only here.
+ * for extensions it does not know (.designcraft, .vectorcraft, .idml) until FileTypes has added
+ * types for them, which it may not (a read-only config folder, an administrator's own entry). The
+ * Files entry (src/files.ts) gets these lists from the listener's initial state, so they exist
+ * only here.
  *
  * The address must come from here, never from a request: the editor page sends file contents to
  * that origin (docs/security.md).
+ *
+ * Each app may also have a language it starts in (<app>_language): '' lets the app decide as it
+ * does without the layer, 'user' takes the user's Nextcloud language, anything else must be one of
+ * the app's 'languages'. The editor page hands it to the translator in the frame's address
+ * (docs/protocol.md), whose adapter applies it.
  */
 class CraftApps {
 	/**
@@ -35,35 +42,52 @@ class CraftApps {
 	 * docs/apps/<app>.md has the reasons, including the types left out on purpose (such as .pdn,
 	 * whose saves PhotoCraft writes as new .pcraft files every time). SoundCraft is missing on
 	 * purpose: its web build can neither open nor save files.
+	 *
+	 * 'languages': the BCP 47 tags of the interface languages the app's adapter can start it in,
+	 * as the tested version shows them (docs/apps/<app>.md; the adapter's LANGUAGES table must have
+	 * the same keys). Empty for apps whose web build reads no language at start.
 	 */
 	public const APPS = [
-		'pdfcraft' => ['name' => 'PdfCraft', 'extensions' => ['pdf'], 'default' => []],
+		'pdfcraft' => [
+			'name' => 'PdfCraft',
+			'extensions' => ['pdf'],
+			'default' => [],
+			'languages' => ['en', 'ar', 'bg', 'cs', 'de', 'es', 'fr', 'hu', 'it', 'ja', 'pl', 'pt-BR', 'ru', 'uk'],
+		],
 		'photocraft' => [
 			'name' => 'PhotoCraft',
 			'extensions' => ['psd', 'psb', 'pcraft', 'tga', 'png', 'jpg', 'jpeg', 'webp', 'gif', 'bmp', 'tif', 'tiff', 'ico', 'heic', 'heif'],
 			'default' => ['psd', 'psb', 'pcraft', 'tga'],
+			'languages' => ['en', 'cs', 'de', 'el', 'es', 'fr', 'id', 'it', 'nl', 'pl', 'pt-BR', 'ru', 'uk'],
 		],
 		'vectorcraft' => [
 			'name' => 'VectorCraft',
 			'extensions' => ['vectorcraft', 'drawcraft', 'ai', 'eps', 'svgz', 'dxf', 'svg', 'emf', 'wmf', 'pdf'],
 			// Not 'ai': Nextcloud's PDF viewer (shipped, enabled by default) opens it on a click.
 			'default' => ['vectorcraft', 'drawcraft', 'eps', 'svgz', 'dxf'],
+			'languages' => ['en', 'cs', 'de', 'es', 'fr', 'it', 'ja', 'pt-BR', 'ru', 'uk'],
 		],
-		'designcraft' => ['name' => 'DesignCraft', 'extensions' => ['designcraft', 'idml'], 'default' => ['designcraft', 'idml']],
+		// DesignCraft 0.6.0 always starts in English (it reads no language at start).
+		'designcraft' => ['name' => 'DesignCraft', 'extensions' => ['designcraft', 'idml'], 'default' => ['designcraft', 'idml'], 'languages' => []],
 		// Saves of Word files from other programs become a copy next to them (docs/apps/wordcraft.md).
-		'wordcraft' => ['name' => 'WordCraft', 'extensions' => ['docx', 'docm', 'dotx', 'dotm', 'doc', 'dot', 'odt', 'rtf'], 'default' => []],
-		'gridcraft' => ['name' => 'GridCraft', 'extensions' => ['xlsx', 'xlsm', 'ods', 'csv'], 'default' => []],
-		'deckcraft' => ['name' => 'DeckCraft', 'extensions' => ['deckcraft', 'pptx', 'potx', 'ppsx'], 'default' => ['deckcraft']],
+		// WordCraft 0.5.0 always starts in English.
+		'wordcraft' => ['name' => 'WordCraft', 'extensions' => ['docx', 'docm', 'dotx', 'dotm', 'doc', 'dot', 'odt', 'rtf'], 'default' => [], 'languages' => []],
+		// GridCraft's Spanish only switches the names of formula functions.
+		'gridcraft' => ['name' => 'GridCraft', 'extensions' => ['xlsx', 'xlsm', 'ods', 'csv'], 'default' => [], 'languages' => ['en', 'es', 'pt-BR', 'ru']],
+		// DeckCraft 0.5.0 is English only.
+		'deckcraft' => ['name' => 'DeckCraft', 'extensions' => ['deckcraft', 'pptx', 'potx', 'ppsx'], 'default' => ['deckcraft'], 'languages' => []],
 		// 'dxf' is also VectorCraft's default; CADCraft wins it when both are configured (PREFERRED).
-		'cadcraft' => ['name' => 'CADCraft', 'extensions' => ['dxf'], 'default' => ['dxf']],
+		'cadcraft' => ['name' => 'CADCraft', 'extensions' => ['dxf'], 'default' => ['dxf'], 'languages' => ['en', 'uk']],
 		// Every result is a new file: LightCraft exports, it never saves a photo back.
 		'lightcraft' => [
 			'name' => 'LightCraft',
 			'extensions' => ['dng', 'cr2', 'cr3', 'nef', 'nrw', 'arw', 'raf', 'orf', 'rw2', 'rwl', 'pef', 'srw', 'jpg', 'jpeg', 'png', 'tif', 'tiff', 'webp'],
 			'default' => ['dng', 'cr2', 'cr3', 'nef', 'nrw', 'arw', 'raf', 'orf', 'rw2', 'rwl', 'pef', 'srw'],
+			'languages' => ['en', 'de', 'es', 'fr', 'ja', 'pt-BR', 'ru', 'uk', 'zh-Hans', 'zh-Hant'],
 		],
-		'filmcraft' => ['name' => 'FilmCraft', 'extensions' => ['fcproj'], 'default' => ['fcproj']],
-		'effectcraft' => ['name' => 'EffectCraft', 'extensions' => ['ecproj'], 'default' => ['ecproj']],
+		'filmcraft' => ['name' => 'FilmCraft', 'extensions' => ['fcproj'], 'default' => ['fcproj'], 'languages' => ['en', 'de', 'es', 'fr', 'ja', 'pt-BR', 'ru', 'uk']],
+		// EffectCraft's Spanish and Portuguese translate only the menu bar.
+		'effectcraft' => ['name' => 'EffectCraft', 'extensions' => ['ecproj'], 'default' => ['ecproj'], 'languages' => ['en', 'es', 'pt-BR', 'uk']],
 	];
 
 	/**
@@ -79,11 +103,58 @@ class CraftApps {
 		private IURLGenerator $urlGenerator,
 		private IRequest $request,
 		private IL10N $l,
+		private IFactory $l10nFactory,
 	) {
 	}
 
 	public static function key(string $app): string {
 		return $app . '_url';
+	}
+
+	public static function languageKey(string $app): string {
+		return $app . '_language';
+	}
+
+	/** The stored start language of the app ('', 'user' or a tag), as typed. */
+	public function storedLanguage(string $app): string {
+		if (!isset(self::APPS[$app]) || self::APPS[$app]['languages'] === []) {
+			return '';
+		}
+		return trim($this->appConfig->getValueString(Application::APP_ID, self::languageKey($app), ''));
+	}
+
+	/** Why $value cannot be the start language of $app, or null if it can. */
+	public function languageProblem(string $app, string $value): ?string {
+		if ($value === '' || ($value === 'user' && (self::APPS[$app]['languages'] ?? []) !== [])
+			|| in_array($value, self::APPS[$app]['languages'] ?? [], true)) {
+			return null;
+		}
+		return $this->l->t('%s cannot be started in this language.', [self::APPS[$app]['name'] ?? $app]);
+	}
+
+	/**
+	 * The language the app is to start in for the current user, as a BCP 47 tag, or null to let the
+	 * app decide. 'user' is the language Nextcloud shows its own pages in for this user (and this
+	 * request: ?forceLanguage and force_language count too); the adapter matches it against what
+	 * the app has, and leaves the app's own choice if it has nothing close.
+	 */
+	public function startLanguage(string $app): ?string {
+		$value = $this->storedLanguage($app);
+		if ($value === '' || $this->languageProblem($app, $value) !== null) {
+			return null;
+		}
+		return $value === 'user' ? self::languageTag($this->l10nFactory->findLanguage()) : $value;
+	}
+
+	/**
+	 * A Nextcloud language code as a BCP 47 tag ('de' -> 'de', 'de_DE' -> 'de-DE', 'pt_BR' ->
+	 * 'pt-BR', 'es_419' -> 'es-419', 'sr@latin' -> 'sr-Latn'), or null for anything else.
+	 */
+	public static function languageTag(string $code): ?string {
+		if (preg_match('/^([a-z]{2,3})(?:_([A-Z]{2}|[0-9]{3}))?(@latin)?$/', $code, $m) !== 1) {
+			return null;
+		}
+		return $m[1] . (isset($m[3]) && $m[3] !== '' ? '-Latn' : '') . (isset($m[2]) && $m[2] !== '' ? '-' . $m[2] : '');
 	}
 
 	/** Lower-case extension of a file name without the dot, '' if it has none. */

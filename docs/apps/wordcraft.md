@@ -85,8 +85,8 @@ are to the `v0.5.0` tag; `web.rs` is `apps/wordcraft-web/src/web.rs`, the other 
 - New documents come from File > New (Ctrl+N), the templates, Mailings > Envelopes and Labels:
   no file name, an empty title (`engine/src/cmd/file.rs:108-119`), so they save as
   `Document1.docx`, every time (no counter). `Document1` is translated with the interface
-  language, which follows the browser's: `Documento1` (es, pt-BR), `Dokument1` (et, sr-Latn),
-  `文書 1` (ja), `Документ1` (sr, uk), `文档1` (zh-Hans), `文件1` (zh-Hant)
+  language, which the user can switch in File > Options: `Documento1` (es, pt-BR), `Dokument1`
+  (et, sr-Latn), `文書 1` (ja), `Документ1` (sr, uk), `文档1` (zh-Hans), `文件1` (zh-Hant)
   (`ui-egui/src/i18n/*.tsv`). The sample document keeps its title
   `The Open Studio Handbook` (`engine/src/sample.rs:32`). Each gets a creation time of its own on
   its first save.
@@ -303,7 +303,13 @@ Everything else is `export`. In detail:
   (see [protocol.md](../protocol.md#errors)).
 - `HOSTING.md` says preferences are kept in the frame's `localStorage`; the build stores nothing
   there (eframe's persistence is not enabled). It uses no service worker.
-- The interface language follows the browser's, and with it the name of new documents.
+- The web build always starts in English, whatever the browser's language: its language
+  setting starts as Automatic, which asks `sys-locale`, built without its `js` feature, so on the
+  web it finds no language (`crates/ui-egui/src/i18n/mod.rs:186-203`,
+  `crates/ui-egui/Cargo.toml`). It reads no `?lang` and stores no choice: File > Options >
+  Interface language switches it until the page is reloaded. The Nextcloud app therefore offers no
+  start language for WordCraft. Enabling `sys-locale`'s `js` feature upstream would let it follow
+  the browser's language, and the layer's `util.preferLanguages()` with it.
 - Keyboard shortcuts reach the app after the user clicks into the frame.
 
 ## File types
@@ -317,8 +323,10 @@ For the Nextcloud app's list:
 
 No default action: Nextcloud Office and ONLYOFFICE open these types on a click where they are
 installed, and a lossy editor should not take that click. WordCraft stays in the action menu, as
-PdfCraft does for PDF. Nextcloud knows MIME types for all of them; the app matches by extension
-anyway, in any letter case.
+PdfCraft does for PDF. Nextcloud knows MIME types for all of them but `dotm`, for which the
+Nextcloud app registers its Office type (`application/vnd.ms-word.template.macroEnabled.12`, see
+[nextcloud-app.md](../nextcloud-app.md#file-type-icons)), so that it shows Nextcloud's document
+icon like the others; the app matches by extension anyway, in any letter case.
 
 Do not offer anything else: `txt`, `md` (Nextcloud Text opens them), `html`, `htm` and `tex`
 open but save as a new `.docx`, `json` is WordCraft's document model for agents, `csv` and `tsv`

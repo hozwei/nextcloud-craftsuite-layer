@@ -121,9 +121,9 @@ lint-changelog:
 
 lint-xml:
 	@if command -v $(XMLLINT) >/dev/null 2>&1; then \
-		$(XMLLINT) --nonet --noout appinfo/info.xml $(wildcard img/*.svg); \
+		$(XMLLINT) --nonet --noout appinfo/info.xml $(wildcard img/*.svg img/types/*.svg); \
 		if [ -n "$(INFO_XSD)" ]; then $(XMLLINT) --nonet --noout --schema '$(INFO_XSD)' appinfo/info.xml; fi; \
-		echo "XML well-formed: appinfo/info.xml $(wildcard img/*.svg)"; \
+		echo "XML well-formed: appinfo/info.xml $(wildcard img/*.svg img/types/*.svg)"; \
 	elif [ -n "$(INFO_XSD)" ]; then \
 		echo "INFO_XSD is set, but $(XMLLINT) was not found" >&2; exit 1; \
 	else \

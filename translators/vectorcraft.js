@@ -124,8 +124,29 @@
     return typeof created === 'number' && Number.isFinite(created) ? String(created) : null;
   };
 
+  // The interface language: VectorCraft takes ?lang=<code> first, then navigator.languages,
+  // when its module starts (apps/vectorcraft-web/src/web.rs:153-166), and its web build stores no
+  // choice. BCP 47 tag -> VectorCraft's code; left out: zh-Hans and zh-Hant, which the web build
+  // draws with missing glyphs.
+  const LANGUAGES = { en: 'en', cs: 'cs', de: 'de', es: 'es', fr: 'fr', it: 'it', ja: 'ja', 'pt-BR': 'pt-br', ru: 'ru', uk: 'uk' };
+
   window.craftsuiteLayer.register({
     app: 'vectorcraft',
+    // The host's language as ?lang in the frame's address, before the module reads it. Without a
+    // match the address stays exactly as it is, a host's own ?lang included; a reloaded frame gets
+    // the same language again (the core keeps it in the frame's name).
+    language(tag, util) {
+      const key = util.matchLanguage(tag, LANGUAGES);
+      if (!key) return null;
+      try {
+        const url = new URL(location.href);
+        url.searchParams.set('lang', LANGUAGES[key]);
+        if (url.href !== location.href) history.replaceState(history.state, '', url.href);
+      } catch {
+        return null;
+      }
+      return key;
+    },
     // How long the core waits from the app's start (TrunkApplicationStarted) for the first `drop`
     // listener. In VectorCraft that is the pointer listener, added just before the graphics start,
     // so this wait does not include them. It does include the startup fonts, which the page fetches

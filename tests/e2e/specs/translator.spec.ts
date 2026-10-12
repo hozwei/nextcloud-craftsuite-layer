@@ -19,28 +19,32 @@
 //   3 inactive: at top level and under a foreign host (forged init and open) Save stays an
 //     ordinary download and nothing reaches the host
 //   4 load failures: each way the app can fail to load is reported to the host
+//   5 host settings: the language in the frame's fragment reaches the adapter, matched to the
+//     languages the app shows, before the app runs; the app's address loses the fragment, the
+//     frame's name keeps the setting for a reload, and ready reports the language; anything but a
+//     language tag clears it; at top level the fragment stays where it is
 // Chromium only:
-//   5 names: opens (also several sent together) and downloads get plain, short basenames without
+//   6 names: opens (also several sent together) and downloads get plain, short basenames without
 //     direction overrides or invisible format characters; an opened file is the document under
 //     its cleaned name; reopening a name replaces the document; a save whose identity differs
 //     from the stored one is an export
-//   6 app frame: the addEventListener hook is gone, the layer API is sealed, links that would
+//   7 app frame: the addEventListener hook is gone, the layer API is sealed, links that would
 //     replace the editor open a new window, which gets no opener; javascript: and data: links
 //     open nothing; a reloaded frame starts over
-//   7 host answers: a stored save is done; a late result does not replace a reopened file; any
+//   8 host answers: a stored save is done; a late result does not replace a reopened file; any
 //     result but ok: true, or none in time, falls back once; a confirmation replaces the
 //     confirmation deadline with the result deadline, and every confirmation restarts it; after a
 //     rewritten save the host was sent, the saves after it follow it as the document (continuesExports),
 //     after one it did not store, not
-//   8 protocol (bare host): before the handshake Save and window.open are left alone and only an
+//   9 protocol (bare host): before the handshake Save and window.open are left alone and only an
 //     init of this protocol and version counts; hello stops after 30 tries, an init still counts
 //     after that; ready comes once; only well-formed opens of this version are delivered
-//   9 startup: a missing drop target (also for each open), a hang and a failure before init are
+//  10 startup: a missing drop target (also for each open), a hang and a failure before init are
 //     reported; a late drop target clears the failure; an open waits for the drop target
-//  10 hosting attributes: the allowlist takes origins in any case and with a trailing slash and
+//  11 hosting attributes: the allowlist takes origins in any case and with a trailing slash and
 //     skips invalid entries; with none valid the translator stays inactive; without an app
 //     version ready says appVersion null
-//  11 hosting attributes: anything but a positive, finite timeout means the default (for the
+//  12 hosting attributes: anything but a positive, finite timeout means the default (for the
 //     drop target, the adapter's dropTargetTimeout if it has one); a valid one wins
 //
 // Two hosts frame the stub on the allowed origin:
@@ -540,6 +544,59 @@ test('load failures: each way the app can fail to load is reported to the host',
       await page.close();
     });
   }
+});
+
+test('host settings: the language in the frame\'s fragment reaches the adapter before the app, and a reload keeps it', { tag: '@cross-browser' }, async ({ page, context }) => {
+  // The test adapter 'shows' these languages and also makes the page report the one it applies as
+  // the browser's (util.preferLanguages), which the stub notes as it starts, after the translator.
+  const shows = { 'app-adapter': 'stub', 'app-language': 'en,pt-BR,zh-Hant', 'app-prefer': '1' };
+  const calls = (frame: Frame) => value<{ tag: string | null; key: string | null; href: string; name: string }[]>(frame, 'window.__stubLanguage ?? []');
+  const readies = () => value<{ language: string | null }[]>(page, '__host.readies');
+  const frame = await openDelivered(page, { lang: 'pt-PT', ...shows });
+
+  await test.step('pt-PT reaches the adapter as the app\'s pt-BR before the app runs; the address loses the fragment, the name keeps it', async () => {
+    expect(await calls(frame)).toEqual([{ tag: 'pt-PT', key: 'pt-BR', href: expect.not.stringContaining('#'), name: 'craftsuite-layer:lang=pt-PT' }]);
+    expect(await value(frame, '__stub.startHref')).not.toContain('#');
+    expect(await value(frame, '__stub.startLanguages.slice(0, 2)')).toEqual(['pt-BR', 'pt-BR']);
+    expect(await readies()).toEqual([expect.objectContaining({ language: 'pt-BR' })]);
+  });
+
+  await test.step('a reloaded frame has the language again, from its name', async () => {
+    const token = await value<string>(frame, '__stub.token');
+    await frame.evaluate(() => { setTimeout(() => location.reload()); });
+    await until(frame, `window.__stub && __stub.token !== ${JSON.stringify(token)} && __stub.docs.length === 1`);
+    expect(await calls(frame)).toEqual([expect.objectContaining({ tag: 'pt-PT', key: 'pt-BR' })]);
+    await expect.poll(readies).toEqual([expect.objectContaining({ language: 'pt-BR' }), expect.objectContaining({ language: 'pt-BR' })]);
+  });
+
+  await test.step('only a language tag gets through; anything else clears the setting', async () => {
+    const cases: [string, string | null, string | null][] = [
+      ['zh-TW', 'zh-TW', 'zh-Hant'], // the same language and script
+      ['de-AT', 'de-AT', null], // a language the app does not show: the app decides
+      ['de"><img src=x>', null, null],
+      ['de_DE', null, null],
+      ['und', null, null],
+      ['x'.repeat(36), null, null],
+      ['', null, null],
+    ];
+    for (const [i, [lang, tag, key]] of cases.entries()) {
+      const token = await value<string>(frame, '__stub.token');
+      const src = `${APP}/stub/?${new URLSearchParams({ adapter: 'stub', language: 'en,pt-BR,zh-Hant', n: String(i) })}#craftsuite-layer:lang=${encodeURIComponent(lang)}`;
+      await page.evaluate((url) => { (document.getElementById('app') as HTMLIFrameElement).src = url; }, src);
+      await until(frame, `window.__stub && __stub.token !== ${JSON.stringify(token)} && window.__stubLanguage`);
+      expect.soft(await calls(frame), JSON.stringify(lang)).toEqual([{ tag, key, href: expect.not.stringContaining('#'), name: tag ? `craftsuite-layer:lang=${tag}` : '' }]);
+    }
+  });
+
+  await test.step('at top level the translator is inactive and the fragment stays', async () => {
+    const top = await context.newPage();
+    await top.goto(`${APP}/stub/?adapter=stub&language=en,de#craftsuite-layer:lang=de`);
+    await until(top, 'window.__stub && __stub.started');
+    expect(await value(top, '({ hash: location.hash, calls: window.__stubLanguage ?? null })')).toEqual({ hash: '#craftsuite-layer:lang=de', calls: null });
+    await top.close();
+  });
+
+  expect(await errors(page)).toEqual([]);
 });
 
 // === Chromium only ===================================================================================

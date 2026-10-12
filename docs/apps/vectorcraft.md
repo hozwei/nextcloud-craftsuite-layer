@@ -39,8 +39,9 @@ upstream repository at tag `v0.9.0`. Upstream may change any of them; the daily 
   pointer listener exists in that case too.
 - If the graphics are lost later, the app starts them again on a new canvas element that
   replaces the old one, with the same documents (`web.rs:257-263`, `324-340`).
-- The page reads `?webgl` (forces WebGL2) and `?lang=<code>` (`web.rs:142-175`). It does not
-  read `?file=` or `?cpu` (the latter is listed in the build's `HOSTING.md`).
+- The page reads `?webgl` (forces WebGL2) and `?lang=<code>` (`web.rs:142-175`, see
+  [Interface language](#interface-language)). It does not read `?file=` or `?cpu` (the latter is
+  listed in the build's `HOSTING.md`).
 
 **Opening**
 
@@ -138,7 +139,8 @@ in VectorCraft is the pointer listener that comes before the graphics. The adapt
 holds `ready` back until `#vectorcraft_loading` is gone, which happens only after eframe
 installed its own `drop` listener. When the element shows `<p>` lines instead, `started()`
 rejects with `the app failed to start: <the lines>`, and the host gets that as an error of
-`startup` (see [protocol.md](../protocol.md#errors)) instead of waiting. After 120 seconds
+`startup` (see [protocol.md](../protocol.md#errors)) instead of waiting. The lines are in the
+language the app starts in (see [Interface language](#interface-language)). After 120 seconds
 without either it rejects with `the app did not start in time`, but with the default
 `data-startup-timeout` (60 seconds) the core has reported `the app did not get ready in time`
 before.
@@ -219,6 +221,53 @@ Examples, all checked with 0.9.0 in Chromium and WebKit:
 | `Untitled-1.vectorcraft` from the desktop app (stored title `Untitled-1`, a creation time) | `Untitled-1.vectorcraft` | `document` (replaces the original) |
 | the same, then File > New and its first Save | `Untitled-1.vectorcraft` (no creation time) | `export` |
 
+## Interface language
+
+**In the web build.** VectorCraft draws its interface in the language set in Edit > Preferences…
+(Ctrl+K) > User Interface > Language: Auto by default, the system's language
+(`crates/engine/src/lib.rs:527-529`, `747`, `crates/ui-egui/src/lib.rs:893-899`). The page works
+that out once, as the module starts and before the first frame: the first of `?lang=<code>` in its
+address, `navigator.languages` and `navigator.language` that names one of its languages, else
+English (`apps/vectorcraft-web/src/web.rs:153-172`, `crates/ui-egui/src/i18n/mod.rs:241-307`).
+A region is cut off (`de-AT` is German; Chinese without a script picks one by region), but
+neither `pt` nor `pt-PT` finds `pt-br`. Only the first `lang=` counts, taken as written; an empty
+or unknown one falls through to the browser's languages. A `lang` that arrives after the module
+started (at `TrunkApplicationStarted`, for example) changes nothing. The same step writes the
+loading text in that language, and the lines shown when the graphics cannot start are
+translated too (`web.rs:163-165`, `303`), so the host's error of `startup` carries them in that
+language (French: `Le démarrage de VectorCraft a échoué : ...`).
+
+**`language()`.** The adapter puts the host's language into the frame's address as
+`lang=<VectorCraft's code>` (`history.replaceState`) inside `register()`, so before the module
+reads it, and returns the key it applied, which `ready` reports (see
+[protocol.md](../protocol.md#host-settings)). It matches the host's tag against its `LANGUAGES`
+table (`de-AT` finds `de`, `pt-PT` finds `pt-BR`) and passes VectorCraft's own code. With a tag
+that has no match, or no host language, it leaves the address as it is, so VectorCraft starts as
+without the setting: in the browser's languages, or in a `lang` the host put into the address
+itself (the Nextcloud app's addresses have no query). A reloaded frame starts in the host's
+language again (the translator keeps it in the frame's name). VectorCraft also
+follows `navigator.languages`, so `util.preferLanguages()` would do should `?lang` go away.
+
+**Languages.** The Nextcloud app offers the keys of `LANGUAGES`: `en`, `cs`, `de`, `es`, `fr`,
+`it`, `ja`, `pt-BR`, `ru` and `uk`. VectorCraft's other two are left out because the web build
+draws them with missing glyphs: Simplified Chinese (`zh-hans`) in many labels, menu titles
+included, and Traditional Chinese (`zh-hant`) in the title of the Help menu. Czech translates
+only the menus (panels and dialogs stay English), and Brazilian Portuguese the menus and most
+labels but no status or error messages, the loading text included
+(`crates/ui-egui/src/i18n/mod.rs:90-91`, `145-155`); the other languages translate the whole
+interface. Japanese, Russian and Ukrainian draw without missing glyphs.
+
+**A language picked in the app.** Preferences > User Interface > Language (Auto and VectorCraft's
+twelve languages, `crates/ui-egui/src/prefs_dialog.rs:334-340`) switches the interface at once.
+The web build stores no preferences (see [Hosting notes](#hosting-notes)), so the choice lasts
+until the frame reloads, and the next start is in the host's language again (or the browser's);
+the host is not told. Should VectorCraft keep the choice one day, it would win over the host's
+language, which only stands in for Auto.
+
+The rest of the adapter does not depend on the language: the names the Save As dialog suggests
+come from the document's title or file name, and new documents are `Untitled-<n>` in every
+language (`crates/engine/src/lib.rs:1014-1020`).
+
 ## Known gaps
 
 - **The first Save asks.** The dialog is VectorCraft's own and inside the canvas; the user has to
@@ -274,7 +323,11 @@ What VectorCraft 0.9.0 opens as a document from a drop (`OPEN_EXTS` in
 `load.rs:50-89`), and what the Nextcloud app offers (`CraftApps::APPS` in
 `craftsuite_layer/lib/Service/CraftApps.php`): "open with" is the entry "Open in VectorCraft" in
 the action menu of Files. The MIME types are those of Nextcloud 34 and 35; types without one
-arrive as `application/octet-stream`, so the app matches by extension.
+arrive as `application/octet-stream`, so the app matches by extension. For the VectorCraft icon in
+Files the Nextcloud app registers types for `vectorcraft` and `drawcraft`
+(`application/x-vectorcraft`), `eps` (`image/x-eps`, instead of the `application/postscript` it
+shares with `.ps`), `svgz` (`image/svg+xml-compressed`), `wmf` (`image/wmf`) and `dxf`
+(`image/vnd.dxf`) ([nextcloud-app.md](../nextcloud-app.md#file-type-icons)).
 
 | Extensions | Nextcloud MIME type | In VectorCraft | Offer |
 |---|---|---|---|
@@ -319,8 +372,12 @@ office documents, and whether an office integration claims them was not checked.
   registered no drop target` before `ready` follows, so the adapter sets `dropTargetTimeout` to
   30 seconds (see [How the adapter works](#how-the-adapter-works)). A site that sets
   `data-drop-target-timeout` on the script tag overrides that and should not go below it.
-- Preferences and Data Recovery copies live in the frame's `localStorage`. Browsers that
-  partition or block third-party storage may forget them between visits.
+- Data Recovery copies live in the frame's `localStorage`
+  (`apps/vectorcraft-web/src/web.rs:443-492`); browsers that partition or block third-party
+  storage may forget them between visits. Preferences are not stored at all, although
+  `HOSTING.md` says they are kept there: the web build has no store for them (`web.rs:394-441`;
+  eframe's persistence is not enabled), so a choice made in Edit > Preferences, the interface
+  language too, lasts until the frame reloads.
 - Keyboard shortcuts reach the app after the user clicks into the frame.
 
 ## Tests
@@ -329,14 +386,16 @@ office documents, and whether an office integration claims them was not checked.
 `vectorcraft-chromium` and `vectorcraft-webkit`. The fixtures in
 [`tests/e2e/fixtures/vectorcraft/`](../../tests/e2e/fixtures/vectorcraft/) are written by its
 `make-fixtures.mjs`: a native file, a renamed one (gzip, another stored title, an image after the
-JSON) and an SVG. The spec has four tests, and its header lists them with their scenarios. The
-first three are the contract tests; the canary runs them apart from the `@ui` test.
+JSON) and an SVG. The spec has five tests, and its header lists them with their scenarios. The first
+three are the contract tests; the canary runs them apart from the `language` test (tagged
+`@language`) and the `@ui` test.
 
 | Test | What it checks |
 |---|---|
 | `contract` | An allowed host: the handshake with the served app version, then the open, which the host sends the moment `ready` arrives; that the file really opened shows in the save, which holds the opened drawing. An edit saved with Ctrl+S and Enter in the Save As dialog arrives as the document; a second Ctrl+S saves without asking, as the document again. Save as PDF arrives as an export. Nothing becomes a browser download, also not after the deadlines for the host's confirmation and result. |
 | `another name` | An SVG saves as `probe.vectorcraft`, the document, twice, while Export As SVG under the opened name stays an export. A renamed native file saves under its stored title, as the document; saved under its opened name instead (typed over the suggestion in the Save As dialog), it is the document too, also on the second Ctrl+S. `Untitled-1.vectorcraft` as the desktop app writes it (stored title `Untitled-1`, a creation time; made from the native fixture in the spec) saves as the document, keeping its creation time, and a new document (File > New) saved under the same name arrives as an export. |
 | `startup` | Without WebGPU and WebGL2: the host gets one error, of `startup`, with VectorCraft's own message, and no `ready`. |
+| `language` | The host's `fr`, in the frame's fragment, with the browser at `en-US`: `ready` reports `fr`, the frame's address has `lang=fr` and no fragment, and the loading text, recorded in the frame as it changes, was `Chargement de VectorCraft…`. The other tests run without a host language: the `startup` test expects VectorCraft's English message, and the `@ui` positions were measured in English. |
 | `ui` (`@ui`) | The paths that need pointer clicks: File > Save and OK in the Save As dialog save the document; File > Export > Export As SVG and OK in SVG Options give an export; the link to a contributor in About > Contributors opens a new window and the editor stays. |
 
 The tests drive VectorCraft with the keyboard and the command palette (Ctrl+Shift+/); a name
@@ -361,6 +420,10 @@ re-measure. When a new release fails the canary:
   `started()`), and a save of the expected name arriving as `export` means `savedName()` no longer
   matches the suggested name (check the stored title and the native format) or, in the
   `Untitled-1.vectorcraft` scenario, that Save no longer keeps the creation time.
+- **Only the `language` test fails.** The release no longer takes `?lang` before its module
+  starts, or words its French loading text differently (then only the test needs the new text).
+  Check `detect_language()` in `apps/vectorcraft-web/src/web.rs` and the adapter's `language()`;
+  until then the host's language has no effect, while opening and saving are not affected.
 - **Only the `@ui` test fails.** A menu entry or dialog button moved. Re-measure the positions in
   `AT` that its message names (for a moved File title, `FILE` alone); the translator is not at
   fault.

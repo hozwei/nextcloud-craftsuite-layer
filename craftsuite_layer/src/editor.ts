@@ -49,6 +49,8 @@ interface EditorState {
   app: string;
   appName: string;
   appUrl: string;
+  // The language the app is to start in (a BCP 47 tag), or null: the app decides.
+  language?: string | null;
   file: { id: number; name: string; mime: string; url: string; updatable: boolean };
   folderUrl: string;
   filesUrl: string;
@@ -866,7 +868,10 @@ function start(state: EditorState, iframe: HTMLIFrameElement): void {
   });
 
   // From here on the frame loads; a frame that never loads must not keep the page waiting either.
-  iframe.src = state.appUrl;
+  // The language goes to the translator in the fragment (docs/protocol.md, Host settings): the
+  // hosting never sees it, the translator takes it out before the app runs, and an older
+  // translator leaves it alone (no app reads it). The configured address has no fragment.
+  iframe.src = state.appUrl + (state.language ? '#craftsuite-layer:lang=' + encodeURIComponent(state.language) : '');
   window.setTimeout(() => {
     if (!helloSeen && root?.dataset.state === 'loading') {
       setStatus('loading', t('craftsuite_layer', '{app} has not answered yet. If its site asks you to sign in, sign in there, then reload this page.', { app: appName }),

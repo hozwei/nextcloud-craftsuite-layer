@@ -26,13 +26,13 @@ The app is not in the Nextcloud App Store. Each
 `craftsuite_layer-<version>.tar.gz`, with the checksums in `SHA256SUMS`. Both are plain
 downloads from
 `https://github.com/hozwei/nextcloud-craftsuite-layer/releases/download/v<version>/<asset>`.
-For version 0.2.0:
+For version 0.3.0:
 
 ```sh
-v=0.2.0
+v=0.3.0
 base=https://github.com/hozwei/nextcloud-craftsuite-layer/releases/download/v$v
 curl -fL --remote-name-all "$base/craftsuite_layer-$v.tar.gz" "$base/SHA256SUMS"
-sha256sum -c --ignore-missing SHA256SUMS      # craftsuite_layer-0.2.0.tar.gz: OK
+sha256sum -c --ignore-missing SHA256SUMS      # craftsuite_layer-0.3.0.tar.gz: OK
 ```
 
 `--ignore-missing` skips the line of the hosting bundle, which `SHA256SUMS` lists too. The
@@ -60,13 +60,20 @@ make -C craftsuite_layer appstore     # craftsuite_layer/build/artifacts/craftsu
 ## Configuring
 
 Each Craft app needs the address it is hosted at. An app without an address has no entry in
-Files. Only administrators set the addresses, on the settings page or with `occ`.
+Files. Only administrators set the addresses, on the settings page or with `occ`. They can also
+set the language each Craft app starts in.
 
 **Settings page.** Administration settings > Craft apps has one field per Craft app, with the
-file types it opens. Saving checks every field and saves nothing if one address cannot be used;
-an empty field removes that address. Saving needs a recent password confirmation. A stored
-address that can no longer be used (for example after Nextcloud got a new trusted domain) is
-shown with the reason.
+file types it opens, and next to it the language the app starts in. Saving checks every field and
+saves nothing if one cannot be used; an empty address removes it. Saving needs a recent password
+confirmation. A stored address or language that can no longer be used (for example after
+Nextcloud got a new trusted domain) is shown with the reason.
+
+**Only for some groups.** To offer the Craft apps to some users only (for example those the Craft
+hosting lets sign in), enable the app for their groups: `occ app:enable -g <group> [-g <group>]
+craftsuite_layer`, or the group setting of the app in Nextcloud's app management. Users outside
+these groups get no entries in Files (from 0.3.0 on; Nextcloud runs the app's code for every user
+and the app checks the group itself) and no editor page.
 
 **occ.** The keys are `<app>_url`:
 
@@ -81,6 +88,37 @@ occ config:app:delete craftsuite_layer designcraft_url      # no DesignCraft ent
 `occ` does not check the address. An address that cannot be used leaves its app without an entry
 in Files, and the editor page says why. The app declares one key per app in Nextcloud's config
 lexicon: a key it does not know, such as a typo, is not stored, and Nextcloud logs a warning.
+
+**The language an app starts in.** The keys are `<app>_language`, for the apps that can be
+started in a chosen language. The value is empty (the default: the app decides, as it does
+without Nextcloud), `user` (the language Nextcloud shows the user its own pages in) or one of the
+app's languages as a BCP 47 tag:
+
+| App | Languages (tested version) |
+|---|---|
+| PdfCraft | `en` `ar` `bg` `cs` `de` `es` `fr` `hu` `it` `ja` `pl` `pt-BR` `ru` `uk` |
+| PhotoCraft | `en` `cs` `de` `el` `es` `fr` `id` `it` `nl` `pl` `pt-BR` `ru` `uk` |
+| VectorCraft | `en` `cs` `de` `es` `fr` `it` `ja` `pt-BR` `ru` `uk` |
+| GridCraft | `en` `es` `pt-BR` `ru` |
+| CADCraft | `en` `uk` |
+| LightCraft | `en` `de` `es` `fr` `ja` `pt-BR` `ru` `uk` `zh-Hans` `zh-Hant` |
+| FilmCraft | `en` `de` `es` `fr` `ja` `pt-BR` `ru` `uk` |
+| EffectCraft | `en` `es` `pt-BR` `uk` |
+
+```sh
+occ config:app:set craftsuite_layer pdfcraft_language --value=user
+occ config:app:set craftsuite_layer photocraft_language --value=de
+occ config:app:delete craftsuite_layer photocraft_language   # PhotoCraft decides again
+```
+
+DesignCraft, WordCraft and DeckCraft have no such key: their tested versions read no language when
+they start and always start in English. With `user`, an app that does not have the user's
+language, or anything close (`de-AT` finds `de`, `pt-PT` finds `pt-BR`), starts as it would
+without the setting. Several apps translate only part of their interface into some of these
+languages, and where an app keeps a language the user picked in it (PdfCraft, PhotoCraft,
+CADCraft), that choice stays; the app pages in [apps/](apps/) have the details. The editor page
+hands the language to the translator in the frame's address ([protocol.md](protocol.md#host-settings)),
+so it needs translator 0.3.0 or later in the hosting; an older one ignores it.
 
 **Rules for the address.** It must use `https` (plain `http` only on `localhost`, `127.x.x.x` or
 `[::1]`, for development) and have no user name, password, `?query` or `#fragment`. Several Craft
@@ -143,9 +181,9 @@ on the file does.
 SoundCraft has no entry: its web build can neither open nor save files.
 
 - **By extension, in any letter case.** Nextcloud stores `application/octet-stream` for
-  extensions it does not know, such as `.designcraft`, `.vectorcraft` and `.idml`; matching by
-  MIME type would mean editing the server's `config/mimetypemapping.json`. Matching by
-  extension needs no change on the server.
+  extensions it does not know, such as `.designcraft`, `.vectorcraft` and `.idml`. The app adds
+  types for them (see [File type icons](#file-type-icons)), but where it cannot, and for files not
+  scanned since, the type says nothing; the extension always does.
 - **A click only where no common Nextcloud app opens the type.** A PDF stays with the PDF
   viewer, a PNG or SVG with the Viewer; their entries are in the action menu. The PDF viewer also
   opens `.ai` (Illustrator files are PDF-compatible), so `.ai` is in the menu only. Office files
@@ -175,6 +213,91 @@ address. The entry uses the file's
 (or pressed a key) to open the file, the entry adds the session's request token
 (`&requesttoken=…`), which lets the editor open at once (see below); Files also runs the entry
 by itself, for a link to the file, and then it adds none.
+
+### File type icons
+
+Files shows a file whose type a Craft app opens, and for which Nextcloud has only a general icon
+(the plain file or the image icon), with that app's icon, as desktops show the program a file
+belongs to:
+
+| Icon | File types |
+|---|---|
+| PhotoCraft | `psd`, `psb`, `pcraft`, `tga` |
+| VectorCraft | `vectorcraft`, `drawcraft`, `ai`, `eps`, `svgz`, `emf`, `wmf`; `dxf` when CADCraft has no address |
+| DesignCraft | `designcraft`, `idml` |
+| DeckCraft | `deckcraft` |
+| CADCraft | `dxf` |
+| LightCraft | the camera raws (`dng`, `cr2`, `cr3`, `nef`, `nrw`, `arw`, `raf`, `orf`, `rw2`, `rwl`, `pef`, `srw`) |
+| FilmCraft | `fcproj` |
+| EffectCraft | `ecproj` |
+
+Office files, PDFs and common images keep Nextcloud's icons, and a file with a preview (a photo,
+or a PSD where the administrator enabled Nextcloud's Photoshop previews) shows the preview.
+
+- **Only for users the app is enabled for**, and only for Craft apps with an address. Everyone
+  else sees Nextcloud's icons. On a public share page the icons show only if the app is enabled
+  for everyone.
+- **Where.** In the file list and the grid of Files (also Recent, Favorites, shares, search
+  within Files), in the file pickers, for versions, on public share pages and in the Dashboard's
+  Favorite files widget. Unified search, Activity, Recommended files (on the Dashboard and in
+  Files) and Talk show Nextcloud's icons: they take theirs elsewhere.
+- **By type, not by extension.** Nextcloud picks an icon by a file's MIME type. Camera raws share
+  one type, `image/x-dcraw`, so the LightCraft icon also shows on the raw formats LightCraft is
+  not offered for (`dcr`, `erf`, `iiq`, `k25`, `kdc`, `mef`, `sr2`, `srf`, `xrf`), and `.ai`,
+  which the PDF viewer opens on a click, shows the VectorCraft icon of its menu entry.
+- **New file types.** Nextcloud 34 and 35 store `application/octet-stream` for most of these
+  extensions, so they could not get an icon of their own. The app therefore adds MIME types for
+  them to Nextcloud's `config/mimetypemapping.json`, as Nextcloud's Maps app does for its types:
+
+  | Extension | Type |
+  |---|---|
+  | `psb` | `application/x-photoshop` (as `psd`) |
+  | `pcraft` | `application/x-photocraft` |
+  | `vectorcraft`, `drawcraft` | `application/x-vectorcraft` |
+  | `eps` | `image/x-eps` (Nextcloud's `application/postscript` is shared with `.ps`) |
+  | `svgz` | `image/svg+xml-compressed` (downloads as `application/octet-stream`) |
+  | `wmf` | `image/wmf` |
+  | `dxf` | `image/vnd.dxf` |
+  | `designcraft` | `application/vnd.designcraft+zip` |
+  | `idml` | `application/vnd.adobe.indesign-idml-package` |
+  | `deckcraft` | `application/x-deckcraft` |
+  | `cr3`, `nrw`, `rwl`, `srw` | `image/x-dcraw` (as the other raws) |
+  | `fcproj` | `application/x-filmcraft` |
+  | `ecproj` | `application/x-effectcraft` |
+  | `dotm` | `application/vnd.ms-word.template.macroEnabled.12` (WordCraft; Nextcloud shows its document icon, like for `.docm`) |
+
+  For the new `application/*` types it adds Nextcloud's plain file icon as their alias to
+  `config/mimetypealiases.json`, so that users without the Craft icons see these files as before.
+  Both files apply to all users and survive server updates. So for everyone: `.dxf`, `.svgz`,
+  `.wmf`, `.psb` and the raws above change from Nextcloud's plain file icon to its image icon and
+  count as images in Files' type filter, `.dotm` gets the document icon, these files are served
+  with their new type, and `.eps` files lose the previews of Nextcloud's Postscript preview
+  provider where an administrator enabled it (it previews `application/postscript` only). The app adds only entries that
+  Nextcloud and the administrator do not define (except `eps`), notes them in its own
+  configuration (`file_types`), and gives existing files the new types in one pass over the file
+  cache. Nextcloud does this on every enable and app update (the app's repair steps).
+- **Taking them back.** Disabling the app (also `occ app:remove`, and Nextcloud's own disabling of
+  an incompatible app during a server update) removes its entries that are still unchanged and
+  gives those files their earlier types back; Files shows Nextcloud's icons again at once.
+  Deleting the app's folder by hand, or `occ app:remove --keep-data`, removes nothing: the entries
+  stay, which does no harm (Nextcloud then shows its plain file or image icon for these types).
+- **No changes to Nextcloud's own files.** The icons stay in the app's folder (`img/types/`); the
+  app does not copy files into `core/` (which every server update replaces) and does not run
+  `occ maintenance:mimetype:update-js`, so Nextcloud's integrity check stays clean. Pages that
+  pick icons in the browser get the new aliases from a small script of the app.
+- **How.** Nextcloud has no API for icons of apps. The app puts its own icon provider in place
+  of Nextcloud's (`OCP\Preview\IMimeIconProvider`), through a method of Nextcloud's server
+  container that is deprecated since Nextcloud 20 and internal in Nextcloud 36. Should a version
+  drop it, Files shows Nextcloud's icons again; nothing else changes.
+- **AIO.** Nextcloud All-in-One's update removes the files in `config/` other than `config.php`
+  (as its update script reads) and disables and enables the apps around the update, so the app
+  adds its entries again then and retypes the files.
+- **A read-only `config/`.** Where it cannot be written, the types are not added: Files keeps
+  Nextcloud's icons for the extensions above it does not know, and the app logs a warning.
+
+The icons are the Craft apps' own (MIT OR Apache-2.0; the app ships them under MIT, with the
+notices in `img/types/LICENSE-MIT.txt`), shown unchanged except for the crop their own packaging
+uses for small sizes.
 
 ## The editor page
 

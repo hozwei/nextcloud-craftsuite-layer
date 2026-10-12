@@ -180,6 +180,55 @@ once; once a second file counts under the opened file's name, every save under t
 (trusted or not, also one that misses the canvas), and so does every pick, also of a file CADCraft
 then cannot open.
 
+## Interface language
+
+The Nextcloud app can name the language an app starts in (its setting *Starts in*). The editor
+page passes it in the frame's address, and the core hands it to the adapter's `language` member
+before the app's module runs (see [protocol.md](../protocol.md#host-settings)).
+
+- **How CADCraft picks it.** Once, as the app is created (`main.rs:81-87`): it copies
+  `navigator.languages` (`main.rs:83-84`), then reads its stored preferences, `cadcraft.prefs` in
+  the frame's `localStorage` (`main.rs:85-87`, `ui-egui/src/lib.rs:42`, `:284-295`). A stored
+  `interfaceLanguage` of `en` or `uk` is the language; `auto`, any other value, a missing field
+  and missing or unreadable preferences mean Auto, the default (`ui-egui/src/i18n/mod.rs:11-20`,
+  `:41-48`). Auto takes the first entry of `navigator.languages` whose primary subtag (before `-`,
+  `_`, `.` or `@`, in any letter case) is `en` or `uk`, else English (`i18n/mod.rs:50-56`,
+  `:71-75`): `uk-UA` gives Ukrainian, so does `de-AT` followed by `uk-UA`, and `de-DE` gives
+  English. `navigator.language` is not read, and neither is the address: there is no URL switch
+  (the only query flags are `webgl` and `sample`, see [Hosting notes](#hosting-notes)). Every
+  frame is drawn in that language (`ui-egui/src/lib.rs:208-210`, `:408-410`), but the browser's
+  languages are read only that once, until the frame reloads.
+- **What the adapter does.** Its `language` member finds the host's language in its `LANGUAGES`
+  table (`uk-UA` finds `uk`, `en-GB` finds `en`) and makes the frame report that code as the
+  browser's language: `navigator.languages` starts with it, followed by the browser's own, and
+  `navigator.language` returns it (getters on `Navigator.prototype`). CADCraft's Auto then picks
+  it. `ready` reports the tag, or `null` when `cadcraft.prefs` holds a choice of the other
+  language, which CADCraft shows instead. The adapter writes nothing into CADCraft's preferences.
+  For any other language, and without one, it changes nothing and reports `null`: CADCraft
+  follows the browser's languages (or a stored choice), as without the layer.
+- **The languages offered** are `en` and `uk`, the keys of `LANGUAGES` (CADCraft's list in the
+  Nextcloud app's settings too): all that CADCraft 0.5.0 has (`i18n/mod.rs:66-69`). None is left
+  out. The fonts egui bundles draw Ukrainian, so no font of the browser is needed (upstream's
+  `docs/localization.md`); checked in Chromium and WebKit.
+- **Partial translations.** Ukrainian covers what CADCraft marks for translation (957 entries in
+  `ui-egui/src/i18n/uk.tsv`): the menus, commands, tool groups and tooltips, the Start page, the
+  tabs, the status bar's controls, object snaps, drafting prompts, property labels and dialogs. A
+  text without an entry stays English. Not translated (upstream's `docs/localization.md`,
+  *Translation coverage*): the command line's keywords and input, the command history and the
+  engine's messages, which stay English, and names, which stay as they are: `Drawing<N>`,
+  `Bracket`, layers, blocks and styles. So the shortcuts, the typed commands, the save names and
+  the DXF writer that the adapter and the tests rely on are the same in both languages.
+- **A language the user picks in the app** (Edit > Interface Language: Auto (system language),
+  English or Українська; `ui-egui/src/menus.rs:45`, `dialogs.rs:404-415`, the command
+  `ui.language`, `menus.rs:73-79`) applies at once. eframe stores it with the other preferences in
+  `cadcraft.prefs` when the app loses the focus or its page is hidden, and every 30 s (eframe
+  0.36.2 `src/web/app_runner.rs:194-199`, `:237-249`; its save on close listens for an event named
+  `onbeforeunload`, which never fires, `src/web/events.rs:423`). English or Українська then wins
+  over the host's language at every later start; `ready` reports `null` when the two differ. Auto
+  counts as no choice, also when eframe stored it by itself: the next start has the host's
+  language again. A browser that blocks or clears the frame's storage loses the choice, and the
+  next start has the host's language.
+
 ## Known gaps
 
 - **JSON commands with the opened name.** A drawing saved with `saveas {"path": "<opened name>"}`
@@ -253,8 +302,10 @@ then cannot open.
   fail, and the host gets `the app failed to load: ...`; a Content-Security-Policy that blocks the
   inline script leads to `the app did not start in time` (see [protocol.md](../protocol.md#errors)).
 - Preferences (theme, interface language, default save format) are kept in the frame's
-  `localStorage` under `cadcraft.prefs` (`main.rs:34-37`, `ui-egui/src/lib.rs:273-281`). Browsers
-  that partition third-party storage may forget them, which is harmless. A stored default save
+  `localStorage` under `cadcraft.prefs` (`main.rs:34-37`, `ui-egui/src/lib.rs:273-295`), written
+  whenever the app loses the focus and every 30 s (see [Interface language](#interface-language)).
+  A browser that blocks or clears the frame's storage forgets them, which is harmless: the
+  interface language then follows the host's setting or the browser again. A stored default save
   format of DWG makes saves of new drawings fail (see above).
 - Keyboard shortcuts reach the app after the user clicks into the frame.
 
@@ -268,7 +319,9 @@ For the Nextcloud app's list:
 
 Match the extension in any letter case; CADCraft decides by the content. Nextcloud 34 and 35 have
 no MIME type for `dxf` (`resources/config/mimetypemapping.dist.json`), so it arrives as
-`application/octet-stream`, and no Viewer or Office app claims it.
+`application/octet-stream`, and no Viewer or Office app claims it. The Nextcloud app registers
+`image/vnd.dxf` for it, for the CADCraft icon in Files
+([nextcloud-app.md](../nextcloud-app.md#file-type-icons)); it still picks the app by extension.
 
 Do not offer anything else: `dwg` (the web build can neither read nor write DWG, although its
 file picker lists it), and `svg`, `png` and `pdf`, which CADCraft only writes.
@@ -280,13 +333,15 @@ file picker lists it), and `svg`, `png` and `pdf`, which CADCraft only writes.
 downloads, a foreign host, startup errors, how copies follow each other) is tested in
 `translator.spec.ts` and `pdfcraft.spec.ts`; this spec checks what depends on CADCraft.
 
-The spec has three tests, and its header lists them with their scenarios. The first two are the
-contract tests; the canary runs them apart from the `@ui` test.
+The spec has four tests, and its header lists them with their scenarios. The first two are the
+contract tests; the canary runs them apart from the `language` test (tagged `@language`) and the
+`@ui` test.
 
 | Test | What it checks |
 |---|---|
 | `contract` | An allowed host: the handshake with the served app version, then the open of a DXF that CADCraft wrote. A text added on the command line and saved with Ctrl+S arrives as the document under the opened name, a CADCraft DXF with the fixture's marker and the edit; Save As (Ctrl+Shift+S) after another edit is the document again. An SVG export (`saveas` with a typed path) and the save of a new drawing (Ctrl+N, `Drawing2.dxf`) arrive as new files. Nothing becomes a browser download, also not after the deadlines for the host's confirmation and result. |
 | `saved-as` | Saves that must not replace the opened file. `foreign.dxf` (another program's) and `newer-cadcraft.dxf` (CADCraft's layout with an MLINE, `$FINGERPRINTGUID` and another application's xdata) are copies: the first save arrives as the document following its own id (a new file), the second as the document following the first, both with the edit and without what CADCraft drops. An opened `Drawing2.dxf` and `Bracket.dxf` are never saved back, and the new drawing (Ctrl+N) or the sample (`ui.sample`) saved under that name arrives as a new file. A drawing dropped as `craftsuite-probe.dxf`, or picked with File > Open… as `craftsuite-probe` followed by U+0085 (which CADCraft trims and saves as `craftsuite-probe.dxf`), next to the opened `craftsuite-probe.dxf` arrives as a new file, where the same Ctrl+S was the document before. |
+| `language` | The host's language under the browser locale `en-US`: with `lang=uk`, `ready` reports `uk` and the app frame's `navigator.languages` starts with `uk`. CADCraft draws its labels into the canvas, so the rest is a picture: the menu bar is, byte for byte, the one a start without `lang` under the browser locale `uk-UA` shows (in a browser context of its own), and not the one of a start without `lang` under `en-US`, where `ready` reports `null` and the frame sees the browser's own languages. With English stored as the user's choice in `cadcraft.prefs` (written from another page of the app's origin in the frame, while no CADCraft runs), `lang=uk` gives `ready` with `null` and that English menu bar. |
 | `ui` (`@ui`) | Menus with the pointer, on the opened fixture: File > Save saves the document; Help > Open Sample Drawing, then File > Save, arrives as a new file `Bracket.dxf`. |
 
 A test with several scenarios (`saved-as`) runs each in a page of its own and reports every
@@ -297,8 +352,9 @@ words run commands and a Space ends a word (`text 2,6 0.5 0`, then the text, the
 `ui.sample`). A line with JSON parameters goes in as one text input through eframe's hidden text
 field. A drop from the desktop is simulated with a drop event on the canvas, as the translator's
 own drop; the adapter counts every drop. Only the `ui` test clicks with the pointer; its click
-positions are in the `AT` table of the spec, measured on 0.5.0 at a 1400x900 viewport with the
-locale `en-US` (the same in Chromium and WebKit). When a new release fails the canary:
+positions are in the `AT` table of the spec, with the menu bar the `language` test compares,
+measured on 0.5.0 at a 1400x900 viewport with the locale `en-US` (the same in Chromium and
+WebKit). When a new release fails the canary:
 
 - **Contract tests fail.** The release changed something the translator relies on: the drop
   routing (`upload.rs`, `ui-egui/src/lib.rs:322-332`), the title and save name
@@ -308,6 +364,14 @@ locale `en-US` (the same in Chromium and WebKit). When a new release fails the c
   copies instead of documents: update the lists in `translators/cadcraft.js` after checking that
   0.5.0's reader keeps what the new writer adds. The rules fail towards new files, not towards
   overwriting. Sites that host the app should hold the release back until the adapter is fixed.
+- **The `language` test fails.** The report has the menu bars that did not compare as expected.
+  If the `uk-UA` start is Ukrainian and the `lang=uk` start is not, the override no longer reaches
+  the app; if both are English, the release no longer takes its language from
+  `navigator.languages` (`main.rs:81-87`, `ui-egui/src/i18n/mod.rs:50-75`). Either way the adapter
+  needs another way in. If the start with English stored is Ukrainian, the release keeps the
+  user's choice elsewhere (`ui-egui/src/lib.rs:42`, `:273-295`), and the adapter's check for a
+  stored choice must follow. If the pictures show something other than the menu labels, the menu
+  bar moved: re-measure `AT.menuBar`.
 - **Only the `@ui` test fails.** A menu item moved. Re-measure the positions in `AT`; the
   translator is not at fault.
 - **A shortcut changed upstream.** The tests that press it fail: Ctrl+S, Ctrl+Shift+S, Ctrl+N and

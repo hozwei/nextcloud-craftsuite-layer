@@ -62,6 +62,15 @@ Files are matched by extension, in any letter case. The tested version is the Cr
 tests pass with; a daily canary run tests each newer release. The Nextcloud app's texts are in
 English and German. Details: [docs/nextcloud-app.md](docs/nextcloud-app.md).
 
+Files shows the files a Craft app opens with that app's icon where Nextcloud has only a general
+one (a `.psd` with PhotoCraft's, a `.dxf` with CADCraft's), for the users the app is enabled for
+([docs/nextcloud-app.md](docs/nextcloud-app.md#file-type-icons)).
+
+An administrator can also choose the language each Craft app starts in: the user's Nextcloud
+language, or a fixed one the app has. Eight of the apps can be started that way; DesignCraft,
+WordCraft and DeckCraft start in English
+([docs/nextcloud-app.md](docs/nextcloud-app.md#configuring)).
+
 ## Requirements
 
 - **Nextcloud 34** (PHP 8.2 to 8.5) or **Nextcloud 35** (PHP 8.3 to 8.5), and access to the
@@ -87,7 +96,7 @@ The app is not in the Nextcloud App Store. Each
 | `SHA256SUMS` | The checksums of both |
 
 ```sh
-v=0.2.0
+v=0.3.0
 base=https://github.com/hozwei/nextcloud-craftsuite-layer/releases/download/v$v
 curl -fL --remote-name-all "$base/craftsuite_layer-$v.tar.gz" \
   "$base/craftsuite-layer-hosting-$v.tar.gz" "$base/SHA256SUMS"
@@ -311,5 +320,7 @@ their respective owners and are used here only to say what this project works wi
 
 The Craft apps are not part of this repository. They are developed by storytold in their own
 repositories, such as [github.com/storytold/pdfcraft](https://github.com/storytold/pdfcraft),
-under their own licenses. Whoever hosts the apps downloads their published web builds, and so do the tests
+under their own licenses. The Nextcloud app shows the Craft apps' own icons for their file types
+(`craftsuite_layer/img/types/`, from those repositories, MIT OR Apache-2.0, used under MIT with
+the notices in `craftsuite_layer/img/types/LICENSE-MIT.txt`). Whoever hosts the apps downloads their published web builds, and so do the tests
 when they run.

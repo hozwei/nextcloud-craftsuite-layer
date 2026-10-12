@@ -68,7 +68,10 @@ serves does see the file it edits (see [security.md](security.md#trust-model)).
 2. The editor page frames the Craft URL from the server-side admin configuration. The URL is
    never taken from the page URL, or a crafted link could send the user's file anywhere. The
    page's Content-Security-Policy allows framing only that origin
-   (`addAllowedFrameDomain`, on the editor page only).
+   (`addAllowedFrameDomain`, on the editor page only). If the administrator chose a language for
+   the app, the page adds it as a fragment (`#craftsuite-layer:lang=de`); the translator takes it
+   out and has the adapter apply it before the app starts
+   ([protocol.md](protocol.md#host-settings)).
 3. The page reads the file with WebDAV as the logged-in user and keeps its ETag.
 4. Handshake: the translator sends `hello` to the allowed origins, the page answers `init`, the
    translator answers `ready` once the app can take files: the app has registered its drop
@@ -150,6 +153,15 @@ The message details are in [protocol.md](protocol.md), the page's rules in
   hidden, and no share attribute that turns downloads off. It opens the editor page with `?app=`.
 - The extension lists exist only in `lib/Service/CraftApps.php`. The Files entries, the settings
   page and the config lexicon take them from there.
+- The Craft icons for file types: `lib/Service/MimeIcons.php` takes the place of the server's
+  `IMimeIconProvider` (registered in `Application::register()`), which answers Files' requests for
+  the icon of a file without a preview, and returns the icon in `img/types/` of the Craft app that
+  opens the type, for users the app is enabled for; everything else goes to Nextcloud's provider.
+  `lib/Service/FileTypes.php` gives the extensions Nextcloud does not know MIME types of their own
+  in `config/mimetypemapping.json` (with aliases in `config/mimetypealiases.json`), from the app's
+  install and post-migration repair steps, and takes them back in its uninstall step, which runs on
+  every disable. `src/aliases.ts` hands those aliases to pages that pick icons in the browser.
+  See [nextcloud-app.md](nextcloud-app.md#file-type-icons).
 
 ## Design decisions
 
@@ -165,7 +177,7 @@ The message details are in [protocol.md](protocol.md), the page's rules in
 | A save in another file type is a new file next to the original | The apps save in their own format (PhotoCraft writes a PSD for an opened PNG). Writing it over the original would change the original's type. Later saves of the same open replace the new file, so one document stays one file. |
 | Inactive unless framed by an allowed origin over https | Outside the integration, the app behaves exactly as without the translator. |
 | Hashes of opened files, not copies | Large scans would otherwise be held in memory two or three times. |
-| Files matched by extension, not MIME type | Nextcloud has no MIME type for `.designcraft`, `.vectorcraft` or `.idml`; adding one means changing the server's configuration. |
+| Files matched by extension, not MIME type | Nextcloud has no MIME type for `.designcraft`, `.vectorcraft` or `.idml`. The app adds them for its icons, but only where `config/` can be written and nothing else defines them, and files keep their old type until they are retyped; the extension is always there. |
 | Free names compared in any letter case; characters Windows forbids replaced | Sync clients on Windows and macOS cannot hold two names that differ only in case, and Windows clients cannot hold `<>:"\|?*`. |
 
 ## Upstream coupling points
@@ -195,6 +207,9 @@ What the layer relies on, and what happens if an upstream release changes it:
 | Received shares are mounted as `ISharedStorage` with `IShare::canDownload()` (Nextcloud 34), and Files reads the `share-attributes` WebDAV property | refusing files shared without permission to download, on the server and in Files | A file shared that way could reach the Craft app. The test `shares` in `nextcloud-files.spec.ts` checks both and fails. |
 | `window.OC.PasswordConfirmation`, Nextcloud's password dialog (deprecated since Nextcloud 28) | the password confirmation on the settings page | Saves skip the dialog; once the last confirmation is older than 30 minutes, the server answers 403 and the page asks to confirm the password. The settings test forces the dialog and fails. |
 | Files runs a file action's `exec` within the user's click, and its own opening of a `/f/<id>` or `?openfile=true` link without one; `navigator.userActivation` tells them apart | the request token that lets the editor page open at once | Without user activation (or without `navigator.userActivation`) every open asks first; nothing is handed over unasked. |
+| Nextcloud's server container still has `registerService` (deprecated since Nextcloud 20, internal in 36), and its `OCP\Preview\IMimeIconProvider` is `OC\Preview\MimeIconProvider` | the Craft icons in Files: `lib/Service/MimeIcons.php` takes the provider's place and passes everything but the Craft types to Nextcloud's | Without them the app does not replace anything, and Files shows Nextcloud's icons; nothing else changes. Re-test with every Nextcloud major. |
+| Files shows a file without a preview with `/core/mimeicon`, or `/core/preview` with `mimeFallback`, both answered by the server's `IMimeIconProvider` (`usePreviewImage` in Files 34 and 35) | the Craft icons in Files | Files shows Nextcloud's icons again; the icon checks in `nextcloud-files.spec.ts` fail. |
+| How each app takes its interface language at start: the preferences in `localStorage` of PdfCraft (`pdfcraft`, `language`) and PhotoCraft (`photocraft.preferences`, `interface.language`), VectorCraft's `?lang`, the browser's language as GridCraft, CADCraft and FilmCraft read it, LightCraft's `app.language.<name>` commands and EffectCraft's preference `general.language`, each with its own language codes | the language the administrator chose for the app | The app starts in its own language; the adapters never fail the start for it. `ready` still names the language where the adapter sets it before the app runs (PdfCraft, PhotoCraft, VectorCraft, GridCraft, CADCraft, FilmCraft); only LightCraft's and EffectCraft's adapters, which check the app's answer, then report `null`. Each app's `language` test fails, also in the canary (where it does not decide the run). A new language in a release is offered only once it is added to the adapter's table and to `CraftApps::APPS`. |
 
 Most changes fail towards a download or a new file, not towards overwriting. The tests run
 against the tested version of each app on every change and against the newest releases every
@@ -227,9 +242,9 @@ Pull request #2263 proposes `window.photocraft` and a `postMessage` API enabled 
 | What | Where | Current |
 |---|---|---|
 | Protocol | `version` in every message | 1 |
-| Translator | `LAYER_VERSION` in `translators/core.js`, reported as `layerVersion` in `hello` and `ready` | 0.2.0 |
-| Nextcloud app | `<version>` in `craftsuite_layer/appinfo/info.xml` | 0.2.0, Nextcloud 34 and 35 |
-| Release | the tag `v<version>` | v0.2.0 |
+| Translator | `LAYER_VERSION` in `translators/core.js`, reported as `layerVersion` in `hello` and `ready` | 0.3.0 |
+| Nextcloud app | `<version>` in `craftsuite_layer/appinfo/info.xml` | 0.3.0, Nextcloud 34 and 35 |
+| Release | the tag `v<version>` | v0.3.0 |
 | Tested app versions | `tests/e2e/craft-versions.json` | PdfCraft 0.6.0, PhotoCraft 0.7.0, VectorCraft 0.9.0, DesignCraft 0.6.0, WordCraft 0.5.0, GridCraft 0.5.0, DeckCraft 0.5.0, CADCraft 0.5.0, LightCraft 0.6.0, FilmCraft 0.6.0, EffectCraft 0.8.0 |
 
 The translator and the Nextcloud app share one version number, and a release carries both: the

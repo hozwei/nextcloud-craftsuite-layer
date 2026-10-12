@@ -74,6 +74,12 @@ export class Folder {
     return res.text();
   }
 
+  // The MIME type Nextcloud stored for a file.
+  async contentType(name: string): Promise<string> {
+    const xml = await this.propfind(`${this.url}/${encodeURIComponent(name)}`, '0', '<d:getcontenttype/>');
+    return /<d:getcontenttype>([^<]*)</.exec(xml)?.[1] ?? '';
+  }
+
   async fileId(name: string): Promise<number> {
     const xml = await this.propfind(`${this.url}/${encodeURIComponent(name)}`, '0', '<oc:fileid/>');
     return Number(/<oc:fileid>(\d+)</.exec(xml)?.[1]);

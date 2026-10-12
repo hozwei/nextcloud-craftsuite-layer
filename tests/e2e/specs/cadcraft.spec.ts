@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2026 The nextcloud-craftsuite-layer contributors
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// The translator inside the real CADCraft web build. See docs/apps/cadcraft.md. Three tests; a test
+// The translator inside the real CADCraft web build. See docs/apps/cadcraft.md. Four tests; a test
 // with several scenarios runs each in its own page and reports every scenario that fails.
 //
 //   contract   allowed host: handshake with the served app version, open of a DXF that CADCraft
@@ -18,6 +18,11 @@
 //              drawing the user brings in that saves under the opened name (dropped as
 //              'craftsuite-probe.dxf', or picked with File > Open as 'craftsuite-probe' followed
 //              by U+0085) makes that name's saves new files
+//   language   the host's language (lang=uk) under the browser locale en-US: ready reports 'uk',
+//              the app frame's navigator.languages starts with 'uk', and the menu bar is the one a
+//              start under the browser locale uk-UA shows, not the one of a start without lang
+//              (English, ready reports null); with English stored as the user's choice in
+//              CADCraft's preferences, lang=uk gives ready null and the English menu bar
 //   ui (@ui)   menus with the pointer: File > Save saves the document; Help > Open Sample Drawing,
 //              then File > Save, arrives as a new file 'Bracket.dxf'
 //
@@ -26,6 +31,8 @@
 // "Contract"). The steps use CADCraft's shortcuts (crates/engine/src/cmd/file.rs) and its command
 // line (crates/ui-egui/src/cmdline.rs), where typed words run commands. Only the test tagged @ui
 // also clicks with the pointer: a moved menu item fails it without the translator being at fault.
+// The language test compares pictures of the menu bar at a fixed place, which a moved menu bar
+// fails in the same way.
 //
 // The fixtures are in fixtures/cadcraft/: craftsuite-probe.dxf was saved by CADCraft 0.5.0 (a
 // circle and a text with PROBE_MARKER), make-fixtures.mjs writes the others.
@@ -48,6 +55,10 @@ const FOREIGN_MARKER = 'CRAFTSUITE-FOREIGN-cc02';
 const NOT_KEPT = ['MLINE', '$FINGERPRINTGUID', 'ACME_APP'];
 // How every DXF CADCraft 0.5.0 writes starts (crates/io/src/dxf_write.rs): R2000, CRLF.
 const CADCRAFT_HEAD = '  0\r\nSECTION\r\n  2\r\nHEADER\r\n  9\r\n$ACADVER\r\n  1\r\nAC1015\r\n';
+// English chosen in Edit > Interface Language, as CADCraft 0.5.0 stores it in the frame's
+// localStorage, the other preferences at their defaults (crates/ui-egui/src/lib.rs prefs_json).
+const PREFS_KEY = 'cadcraft.prefs';
+const ENGLISH_CHOSEN = '{"interfaceLanguage":"en","saveFormat":"dxf","theme":"dark"}';
 const portBase = Number(process.env.CRAFTSUITE_PORT_BASE || 8701);
 const HOST = `http://127.0.0.1:${portBase}/`;
 const APP_ORIGIN = `http://127.0.0.2:${portBase + 1}`;
@@ -77,6 +88,7 @@ interface HostRecord {
   messages: { type: string; app: string; id: number | null; kind: string | null }[];
   saves: HostSave[];
   errors: { of: string; id: number | null; message: string }[];
+  readies: { layerVersion: string; language: string | null }[]; // language 'absent': no such field
 }
 type HostWindow = Window & {
   __host?: HostRecord;
@@ -143,12 +155,15 @@ async function scenario(context: BrowserContext, title: string, body: (page: Pag
 
 type Box = { x: number; y: number; width: number; height: number };
 
-// Pointer targets (measured on CADCraft 0.5.0), relative to the app frame at the pinned viewport.
-// This is the only layout knowledge in this file; when a release moves something, fix it here.
+// Pointer targets and the menu bar (measured on CADCraft 0.5.0), relative to the app frame at the
+// pinned viewport. This is the only layout knowledge in this file; when a release moves something,
+// fix it here.
 const AT = {
   // The menu bar below the toolbar: File, the first entry, and Help, the last.
   fileMenu: (b: Box) => ({ x: b.x + 17, y: b.y + 43 }),
   helpMenu: (b: Box) => ({ x: b.x + 465, y: b.y + 43 }),
+  // The menu bar's labels: File to Help in English, Файл to Довідка (up to x 680) in Ukrainian.
+  menuBar: (b: Box) => ({ x: b.x, y: b.y + 33, width: 700, height: 20 }),
   // File menu: Save, the fifth row (after New Drawing…, Open…, Close and Close All).
   fileSave: (b: Box) => ({ x: b.x + 40, y: b.y + 166 }),
   // Help menu: Open Sample Drawing, the first row.
@@ -339,6 +354,25 @@ function expectNoDownloads(downloads: Download[]) {
   expect(downloads.map((d) => d.suggestedFilename()), 'browser downloads').toEqual([]);
 }
 
+// The menu bar as the page shows it (PNG). CADCraft draws its labels into the canvas, so the
+// language it shows is only in the picture.
+async function menuBar(page: Page) {
+  const box = await page.locator('#app').boundingBox();
+  if (!box) throw new Error('the app frame is not visible');
+  return page.screenshot({ clip: AT.menuBar(box), caret: 'initial', scale: 'css' });
+}
+
+// Whether the menu bar of a start is, byte for byte, the one of `other` (same: true) or not. When
+// not as expected, both pictures are attached to the report.
+async function compareMenuBars(shown: Buffer, other: Buffer, otherStart: string, same: boolean) {
+  const equal = shown.equals(other);
+  if (equal !== same) {
+    await test.info().attach('menu bar of this start', { body: shown, contentType: 'image/png' });
+    await test.info().attach(`menu bar of ${otherStart}`, { body: other, contentType: 'image/png' });
+  }
+  expect.soft(equal, `the menu bar ${same ? 'equals' : 'differs from'} the one of ${otherStart}`).toBe(same);
+}
+
 // ---------------------------------------------------------------------------------------------
 
 test('contract: an allowed host opens the file and stores every save, nothing is downloaded', async ({ page }) => {
@@ -480,6 +514,59 @@ test('saved-as: saves that must not replace the opened file become new files', a
       expectNoDownloads(downloads);
     });
   }
+});
+
+// CADCraft takes the host's language through navigator.languages, which it reads once as it starts
+// (the adapter's language member puts the host's language first), unless a language the user
+// chose is stored in its preferences, and shows it only in the picture. Under the pinned locale
+// en-US, a start with lang=uk must look like a start under the browser locale uk-UA and not like
+// one without lang; with English stored as the user's choice, like the one without lang.
+test('language: the host\'s lang=uk starts CADCraft in Ukrainian, as the browser locale uk-UA does, unless the user chose English', { tag: '@language' }, async ({ page, browser }) => {
+  // Four starts of CADCraft: more than the default timeout allows on a busy machine.
+  test.slow();
+  const app = await openInHost(page, 'craftsuite-probe.dxf', '&lang=uk');
+  const shown = await menuBar(page);
+
+  await test.step('ready reports uk, and the app frame sees uk first in the browser languages', async () => {
+    expect.soft((await hostRecord(page)).readies[0]?.language, 'language of the ready message').toBe('uk');
+    expect.soft(await app.evaluate(() => navigator.languages[0]), 'navigator.languages[0] in the app frame').toBe('uk');
+  });
+
+  await test.step('the menu bar is the one of a start under the browser locale uk-UA', async () => {
+    // The locale belongs to a context; this one has the spec's other options (viewport, device).
+    const ukrainian = await browser.newContext({ locale: 'uk-UA' });
+    try {
+      const other = await ukrainian.newPage();
+      await openInHost(other, 'craftsuite-probe.dxf');
+      await compareMenuBars(shown, await menuBar(other), 'a start under the locale uk-UA', true);
+    } finally {
+      await ukrainian.close();
+    }
+  });
+
+  // In the same page from here on, so that no other CADCraft runs in this context when the next
+  // step stores the user's choice.
+  const english = await test.step('without lang: ready reports null, the app frame sees the browser languages, another menu bar', async () => {
+    const frame = await openInHost(page, 'craftsuite-probe.dxf');
+    expect.soft((await hostRecord(page)).readies[0]?.language, 'language of the ready message').toBeNull();
+    expect.soft(await frame.evaluate(() => [...navigator.languages]), 'navigator.languages in the app frame')
+      .toEqual(await page.evaluate(() => [...navigator.languages]));
+    const bar = await menuBar(page);
+    await compareMenuBars(shown, bar, 'a start without lang (locale en-US)', false);
+    return bar;
+  });
+
+  await test.step('English stored as the user\'s choice wins over lang=uk: ready reports null, the English menu bar', async () => {
+    // Stored only while no CADCraft runs, because eframe writes the running app's preferences back
+    // (when the canvas loses the focus, and every 30 s): the frame leaves CADCraft for another page
+    // of its origin (a 404), which shares its storage, and the next start reads the choice.
+    const frame = appFrame(page);
+    await frame.goto(`${APP_ORIGIN}/`);
+    await frame.evaluate(([key, value]) => localStorage.setItem(key, value), [PREFS_KEY, ENGLISH_CHOSEN]);
+    await openInHost(page, 'craftsuite-probe.dxf', '&lang=uk');
+    expect.soft((await hostRecord(page)).readies[0]?.language, 'language of the ready message').toBeNull();
+    await compareMenuBars(await menuBar(page), english, 'a start without lang (locale en-US)', true);
+  });
 });
 
 test('ui: File > Save and Help > Open Sample Drawing with the pointer', { tag: '@ui' }, async ({ page }) => {

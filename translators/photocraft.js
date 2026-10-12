@@ -132,8 +132,46 @@
   });
   watchFiles(HTMLInputElement.prototype, (input) => input.type === 'file');
 
+  // The interface language comes only from PhotoCraft's preferences, the JSON in localStorage
+  // 'photocraft.preferences', field interface.language: 'auto' (English on the web: the web build
+  // has no system language, crates/ui-egui/src/i18n/system.rs:55-58) or one of its codes
+  // (apps/photocraft-web/src/web.rs:395-406). It reads them once when the app is created; Edit >
+  // Preferences > Interface stores the user's choice there. BCP 47 tag -> PhotoCraft's code; left
+  // out: ja, ko, zh-Hans and zh-Hant, which the web build draws without a font.
+  const LANGUAGES = { en: 'en', cs: 'cs', de: 'de', el: 'el', es: 'es', fr: 'fr', id: 'id', it: 'it', nl: 'nl', pl: 'pl', 'pt-BR': 'pt-br', ru: 'ru', uk: 'uk' };
+  const PREFS = 'photocraft.preferences';
+  // The code this adapter wrote last; a stored language that differs (and is not 'auto') is the
+  // user's own choice in the app, which the host's language does not replace.
+  const MARK = 'craftsuite-layer:photocraft:language';
+
   window.craftsuiteLayer.register({
     app: 'photocraft',
+    // The host's language, written into PhotoCraft's preferences before its module reads them.
+    // With no host language, a value this adapter wrote goes back to 'auto'. Blocked or unreadable
+    // storage is left alone: PhotoCraft then starts as it would without the layer.
+    language(tag, util) {
+      try {
+        const key = util.matchLanguage(tag, LANGUAGES);
+        const raw = localStorage.getItem(PREFS);
+        const prefs = raw === null ? {} : JSON.parse(raw);
+        if (!prefs || typeof prefs !== 'object' || Array.isArray(prefs)) return null;
+        if (prefs.interface === undefined) prefs.interface = {};
+        const ui = prefs.interface;
+        if (!ui || typeof ui !== 'object' || Array.isArray(ui)) return null;
+        const stored = typeof ui.language === 'string' ? ui.language.toLowerCase() : 'auto';
+        const mark = localStorage.getItem(MARK);
+        if (stored !== 'auto' && stored !== mark) return null;
+        const code = key ? LANGUAGES[key] : mark !== null ? 'auto' : null;
+        if (code === null) return null;
+        ui.language = code;
+        localStorage.setItem(PREFS, JSON.stringify(prefs));
+        if (key) localStorage.setItem(MARK, code);
+        else localStorage.removeItem(MARK);
+        return key;
+      } catch {
+        return null;
+      }
+    },
     // PhotoCraft waits up to 10 s for its preset storage (IndexedDB) before it takes drops.
     dropTargetTimeout: 15000,
     // Save As on the web: the opened name with the extension replaced, lower case (file_dialog.rs).

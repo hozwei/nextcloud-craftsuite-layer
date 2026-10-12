@@ -117,8 +117,9 @@ const test = baseTest.extend<{ diagnostics: void }>({
   }, { auto: true }],
 });
 
-// Pinned: the @ui click positions depend on the layout, and WordCraft's labels and the name of a
-// new document ('Document1') on the language, which follows the browser's.
+// Pinned: the @ui click positions depend on the layout. WordCraft 0.5.0 starts in English whatever
+// the browser's language; a release that follows it would translate its labels and the name of a
+// new document ('Document1').
 test.use({ viewport: { width: 1400, height: 900 }, locale: 'en-US' });
 
 // The browser downloads of a page, from now on.

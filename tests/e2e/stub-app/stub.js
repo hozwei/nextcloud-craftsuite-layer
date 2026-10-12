@@ -61,6 +61,10 @@
     drops: [], // {isTrusted, files, inside}: the drop events the app handled
     messages: [], // protocol messages that reached the window: {type, id, ok, fromParent, origin}
     errors: [], // the stub's own problems (reading a dropped file, fetching ?file=)
+    // What the app sees as it starts (after the translator ran): its address and the browser's
+    // languages, for the tests of the host's language.
+    startHref: location.href,
+    startLanguages: [navigator.language, ...(navigator.languages || [])],
   });
 
   // --- Helpers ------------------------------------------------------------------------------------

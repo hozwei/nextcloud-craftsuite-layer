@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2026 The nextcloud-craftsuite-layer contributors
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// The translator inside the real FilmCraft web build. See docs/apps/filmcraft.md. Three tests; a
+// The translator inside the real FilmCraft web build. See docs/apps/filmcraft.md. Four tests; a
 // test with several scenarios runs each in its own page and reports every scenario that fails.
 //
 //   contract   allowed host: handshake with the served app version, 'ready' only once FilmCraft's
@@ -28,6 +28,9 @@
 //              WebKit: Open Project), Ctrl+S is a new file; where OPFS can be written, a project
 //              FilmCraft refuses leaves neither an earlier session's unsaved project of the same
 //              name nor its media open (`fresh`), and the save of what is open is a new file
+//   language   the host's language (lang=de) under the browser locale en-US: ready reports 'de',
+//              FilmCraft reports German as its interface language (ui.inspect) and labels File >
+//              Save 'Speichern' (ui.menu.list), and it has the opened .fcproj open
 //   ui (@ui)  the File menu with the pointer, on an opened .fcproj: Save saves the document;
 //              Export > EDL… arrives as a new file
 //
@@ -85,6 +88,7 @@ interface HostRecord {
   messages: { type: string; app: string; id: number | null; kind: string | null }[];
   saves: HostSave[];
   errors: { of: string; id: number | null; message: string }[];
+  readies: { layerVersion: string; language: string | null }[]; // language 'absent': no such field
 }
 type HostWindow = Window & {
   __host?: HostRecord;
@@ -731,6 +735,30 @@ test('saved-as: saves under other names, project files from elsewhere, and what 
       expect((await importMedia(app, 'tone.wav', toneWav())).paths).toEqual(['/files/tone.wav']);
     });
     expectNoDownloads(downloads);
+  });
+});
+
+// FilmCraft follows navigator.languages on its first frame (its preference is always 'system': the
+// web build stores none); the adapter's language member puts the host's language first in it.
+// Under the pinned locale en-US, lang=de must start FilmCraft in German.
+test('language: the host\'s lang=de starts FilmCraft in German, and the project opens as without it', { tag: '@language' }, async ({ page }) => {
+  const app = await openInHost(page, 'craftsuite-probe.fcproj', { query: '&lang=de' });
+
+  await test.step('ready reports de, and FilmCraft shows German: its interface language and the label of File > Save', async () => {
+    expect.soft((await hostRecord(page)).readies[0]?.language, 'language of the ready message').toBe('de');
+    // FilmCraft answers a request before its frame applies the language, so a reply on its very
+    // first frame can still say 'en'.
+    await expect.poll(() => app.evaluate(() => (window as AppWindow).filmcraft!.request('ui.inspect')
+      .then((reply) => (reply as { ui?: { language?: unknown } }).ui?.language, (e: Error) => e.message)),
+    { message: 'the interface language FilmCraft reports (ui.inspect)' }).toBe('de');
+    const save = await app.evaluate(() => (window as AppWindow).filmcraft!.request('ui.menu.list')
+      .then((items) => (items as { id: string; label: string }[]).find((item) => item.id === 'file.save')?.label));
+    expect.soft(save, 'the label of File > Save (ui.menu.list)').toBe('Speichern');
+  });
+
+  await test.step('FilmCraft has the opened project open', async () => {
+    const project = await app.evaluate(() => (window as AppWindow).filmcraft!.execute('project.inspect', {}));
+    expect(project, 'the open project (project.inspect)').toMatchObject({ name: STORED, path: '/projects/craftsuite-probe.fcproj' });
   });
 });
 

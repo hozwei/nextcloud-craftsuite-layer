@@ -203,6 +203,12 @@ too; if it has none, the saved name is not `Untitled-<n>.designcraft`. Otherwise
   [protocol.md](../protocol.md#errors)).
 - `HOSTING.md` says preferences are kept in the frame's `localStorage`; the build (0.5.0 and
   0.6.0) stores nothing there (eframe's persistence is not enabled).
+- The web build always starts in English: it reads neither the browser's language nor a `?lang`
+  switch, and stores no choice (`crates/ui-egui/src/lib.rs:191-192`, `apps/designcraft-web/src/
+  web.rs:44-63`). Edit > Interface Language switches it until the page is reloaded (German,
+  French and Spanish translate the menus and panel names; Chinese and Arabic draw missing glyphs
+  in the web build). The Nextcloud app therefore offers no start language for DesignCraft; reading
+  `?lang` and the browser's languages at start, as VectorCraft does, would be the upstream change.
 - Keyboard shortcuts reach the app after the user clicks into the frame.
 
 ## File types
@@ -216,7 +222,9 @@ For the Nextcloud app's list:
 
 Match the extension in any letter case, as DesignCraft does. Nextcloud 34 and 35 know neither
 type (`resources/config/mimetypemapping.dist.json` has no `designcraft`, `idml` or `indd`), so
-both arrive as `application/octet-stream` and the app must pick DesignCraft by extension.
+both arrive as `application/octet-stream` and the app must pick DesignCraft by extension. For the
+DesignCraft icon in Files the Nextcloud app registers `application/vnd.designcraft+zip` and
+`application/vnd.adobe.indesign-idml-package` for them ([nextcloud-app.md](../nextcloud-app.md#file-type-icons)).
 
 Do not offer anything else: DesignCraft only places other files into an open document, and on
 the start screen nothing opens. That includes `.indd` (binary InDesign is not supported), `.ase`

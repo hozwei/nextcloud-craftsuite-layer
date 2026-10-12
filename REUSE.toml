@@ -82,3 +82,73 @@ path = "craftsuite_layer/l10n/*.js"
 precedence = "override"
 SPDX-FileCopyrightText = "2026 The nextcloud-craftsuite-layer contributors"
 SPDX-License-Identifier = "AGPL-3.0-or-later"
+
+# The Craft apps' own icons, shown in Files for the file types each app opens
+# (craftsuite_layer/lib/Service/MimeIcons.php). Taken from each app's assets/app-icon/ at the tested
+# tag: <app>-small.svg (DeckCraft: hicolor/scalable/apps/ai.storyteller.deckcraft.svg) with the
+# viewBox narrowed to "22 22 468 468", the crop the apps' own packaging uses for small sizes, and
+# CADCraft's hicolor/512x512/apps/ai.storyteller.cadcraft.png, unchanged. The ArtCraft marks are
+# not among them. The app package carries the MIT notices in img/types/LICENSE-MIT.txt.
+[[annotations]]
+path = "craftsuite_layer/img/types/photocraft.svg"
+precedence = "override"
+SPDX-FileCopyrightText = "2026 ArtCraft Team and the PhotoCraft contributors"
+SPDX-License-Identifier = "MIT OR Apache-2.0"
+
+[[annotations]]
+path = "craftsuite_layer/img/types/vectorcraft.svg"
+precedence = "override"
+SPDX-FileCopyrightText = "2026 ArtCraft Team and the VectorCraft contributors"
+SPDX-License-Identifier = "MIT OR Apache-2.0"
+
+[[annotations]]
+path = "craftsuite_layer/img/types/designcraft.svg"
+precedence = "override"
+SPDX-FileCopyrightText = "2026 ArtCraft Team and the DesignCraft contributors"
+SPDX-License-Identifier = "MIT OR Apache-2.0"
+
+[[annotations]]
+path = "craftsuite_layer/img/types/deckcraft.svg"
+precedence = "override"
+SPDX-FileCopyrightText = "2026 ArtCraft Team and the DeckCraft contributors"
+SPDX-License-Identifier = "MIT OR Apache-2.0"
+
+[[annotations]]
+path = "craftsuite_layer/img/types/cadcraft.png"
+precedence = "override"
+SPDX-FileCopyrightText = "2026 ArtCraft Team and the CADCraft contributors"
+SPDX-License-Identifier = "MIT OR Apache-2.0"
+
+[[annotations]]
+path = "craftsuite_layer/img/types/lightcraft.svg"
+precedence = "override"
+SPDX-FileCopyrightText = "2026 ArtCraft Team and the LightCraft contributors"
+SPDX-License-Identifier = "MIT OR Apache-2.0"
+
+[[annotations]]
+path = "craftsuite_layer/img/types/filmcraft.svg"
+precedence = "override"
+SPDX-FileCopyrightText = "2026 ArtCraft Team and the FilmCraft contributors"
+SPDX-License-Identifier = "MIT OR Apache-2.0"
+
+[[annotations]]
+path = "craftsuite_layer/img/types/effectcraft.svg"
+precedence = "override"
+SPDX-FileCopyrightText = "2026 ArtCraft Team and the EffectCraft contributors"
+SPDX-License-Identifier = "MIT OR Apache-2.0"
+
+# The MIT notices of the icons above, shipped with them in the app package.
+[[annotations]]
+path = "craftsuite_layer/img/types/LICENSE-MIT.txt"
+precedence = "override"
+SPDX-FileCopyrightText = [
+  "2026 ArtCraft Team and the PhotoCraft contributors",
+  "2026 ArtCraft Team and the VectorCraft contributors",
+  "2026 ArtCraft Team and the DesignCraft contributors",
+  "2026 ArtCraft Team and the DeckCraft contributors",
+  "2026 ArtCraft Team and the CADCraft contributors",
+  "2026 ArtCraft Team and the LightCraft contributors",
+  "2026 ArtCraft Team and the FilmCraft contributors",
+  "2026 ArtCraft Team and the EffectCraft contributors",
+]
+SPDX-License-Identifier = "MIT"

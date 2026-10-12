@@ -150,8 +150,24 @@
     } catch { /* never break the app's drop */ }
   };
 
+  // The interface language: CADCraft follows navigator.languages (the first tag whose primary
+  // subtag it has) while its stored preference ('cadcraft.prefs', interfaceLanguage) is Auto,
+  // which it also is until the user picks a language in Edit > Interface Language; a stored
+  // choice wins (apps/cadcraft-web/src/main.rs:81-87, crates/ui-egui/src/i18n/mod.rs:41-75).
+  const LANGUAGES = { en: 'en', uk: 'uk' };
+
   window.craftsuiteLayer.register({
     app: 'cadcraft',
+    language(tag, util) {
+      const key = util.matchLanguage(tag, LANGUAGES);
+      if (!key) return null;
+      util.preferLanguages(LANGUAGES[key]);
+      try {
+        const stored = JSON.parse(localStorage.getItem('cadcraft.prefs') || '{}').interfaceLanguage;
+        if (Object.values(LANGUAGES).includes(stored)) return stored === LANGUAGES[key] ? key : null;
+      } catch { /* unreadable: CADCraft takes it as Auto */ }
+      return key;
+    },
     // CADCraft can take files as soon as its drop listener exists; this only starts listening.
     started() {
       window.addEventListener('drop', (event) => note(event.dataTransfer && event.dataTransfer.files), true);

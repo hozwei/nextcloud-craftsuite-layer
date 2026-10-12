@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2026 The nextcloud-craftsuite-layer contributors
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// The translator inside the real EffectCraft web build. See docs/apps/effectcraft.md. Three
+// The translator inside the real EffectCraft web build. See docs/apps/effectcraft.md. Four
 // tests; a test with several scenarios runs each in its own page and reports every scenario that
 // fails.
 //
@@ -24,6 +24,11 @@
 //              File > Open Project (Ctrl+O) and in Chromium a drop from the desktop, saves as a
 //              new file; when the flags do not take effect (the adapter's replaceState blocked),
 //              the host gets a startup error and nothing is opened
+//   language   the host names Spanish (lang=es in the frame's fragment): ready reports es,
+//              EffectCraft's preference general.language is es (set by the adapter through
+//              window.effectcraft), File > Save reads 'Guardar', and the project opens as without
+//              a language; a language EffectCraft lacks (lang=de): no startup error, ready reports
+//              none, and the app stays in its own (general.language 'system', English)
 //   ui (@ui)  the File menu with the pointer: Save saves the document; Save As > Save a Copy…
 //              arrives as a new file
 //
@@ -31,8 +36,9 @@
 // the app (section "UI") are kept apart from the checks of what the host and the browser see
 // (section "Contract"). The steps use EffectCraft's shortcuts and its command palette (Quick
 // Apply…, Ctrl+Shift+Space), with the labels and shortcuts of crates/engine/src/commands and
-// crates/engine/src/menus.rs. Only the test tagged @ui also clicks with the pointer: a moved menu
-// item fails it without the translator being at fault.
+// crates/engine/src/menus.rs. The palette matches the labels in the app's language, so only the
+// language test has the host name a language. Only the test tagged @ui also clicks with the
+// pointer: a moved menu item fails it without the translator being at fault.
 //
 // The fixtures in fixtures/effectcraft/ were made with EffectCraft 0.8.0 (see the docs page):
 // craftsuite-probe.ecproj holds 'Comp 1' with a solid, craftsuite-probe.ecprojx is its XML copy
@@ -83,6 +89,7 @@ interface HostRecord {
   messages: { type: string; app: string; id: number | null; kind: string | null }[];
   saves: HostSave[];
   errors: { of: string; id: number | null; message: string }[];
+  readies: { layerVersion: string; language: string | null }[]; // language 'absent': no such field
 }
 type HostWindow = Window & {
   __host?: HostRecord;
@@ -94,6 +101,7 @@ type AppWindow = Window & {
   effectcraft: {
     info(): { version: string; restored: boolean; storage: { backend: string } };
     execute(command: string, params?: Record<string, unknown>): Promise<unknown>;
+    request(method: string, params?: Record<string, unknown>): Promise<unknown>;
   };
 };
 
@@ -124,7 +132,9 @@ const test = baseTest.extend<{ diagnostics: void }>({
   }, { auto: true }],
 });
 
-// Pinned: the @ui click positions depend on the layout, and EffectCraft's labels on the language.
+// Pinned: the @ui click positions depend on the layout and on the language of EffectCraft's labels.
+// EffectCraft 0.8.0 ignores the browser's language (it starts in English unless the host names one,
+// as in the language test); the locale is pinned in case a release starts to follow it.
 test.use({ viewport: { width: 1400, height: 900 }, locale: 'en-US' });
 
 // The browser downloads of a page, from now on.
@@ -387,6 +397,34 @@ function otherProject() {
 // The version the test server serves (config.js), which writes savedBy.
 const servedVersion = (page: Page) => page.evaluate(() => (window as HostWindow).CRAFTSUITE_TEST?.versions?.effectcraft);
 
+// The language of each ready message the host received (null: the app picks its own).
+async function readyLanguages(page: Page) {
+  return (await hostRecord(page)).readies.map((r) => r.language);
+}
+
+// EffectCraft's interface language as the app reports it: the preference general.language
+// (crates/engine/src/prefs.rs) and the label of File > Save in its menus (ui.menu.list), which
+// crates/ui-egui/src/i18n.rs translates.
+function appLanguage(app: Frame) {
+  return app.evaluate(async () => {
+    const effectcraft = (window as unknown as AppWindow).effectcraft;
+    const menus = (await effectcraft.request('ui.menu.list')) as { id: string; label: string }[];
+    return {
+      language: await effectcraft.execute('prefs.get', { key: 'general.language' }),
+      save: menus.find((m) => m.id === 'file.save')?.label,
+    };
+  });
+}
+
+// The project EffectCraft has open (project.summary): its path and the names of its compositions.
+function openProject(app: Frame) {
+  return app.evaluate(async () => {
+    const summary = (await (window as unknown as AppWindow).effectcraft.execute('project.summary')) as
+      { path: string | null; items: { name: string; type: string }[] };
+    return { path: summary.path, comps: summary.items.filter((i) => i.type === 'Composition').map((i) => i.name) };
+  });
+}
+
 // ---------------------------------------------------------------------------------------------
 
 test('contract: an allowed host opens the file and stores every save, nothing is downloaded', async ({ page }) => {
@@ -594,6 +632,28 @@ test('saved-as: new-project names, copies of other versions, files the user brin
     expect(await messageTypes(page), 'no ready, so no open and no delivered').toEqual(['hello', 'error']);
     expect(host.saves, 'saves').toEqual([]);
     expectNoDownloads(downloads);
+  });
+});
+
+test('language: the host\'s language (es) reaches EffectCraft\'s preferences, one it lacks (de) changes nothing', { tag: '@language' }, async ({ context }) => {
+  // The host frames the app with '#craftsuite-layer:lang=<tag>'. The web build reads no language as
+  // it starts (always English); the adapter's started() sets the preference general.language
+  // through window.effectcraft, before ready.
+  await scenario(context, 'es: ready reports es, EffectCraft shows its Spanish menus, the project opens', async (page) => {
+    const app = await openInHost(page, PROBE_NAME, '&lang=es');
+    expect(await readyLanguages(page), 'language of each ready the host got').toEqual(['es']);
+    await expect.poll(() => appLanguage(app), { message: 'EffectCraft\'s general.language and the label of File > Save' })
+      .toEqual({ language: 'es', save: 'Guardar' });
+    await expect.poll(() => openProject(app), { message: 'the project EffectCraft has open' })
+      .toEqual({ path: `/${PROBE_NAME}`, comps: ['Comp 1'] });
+  });
+
+  // EffectCraft 0.8.0 has no German: the adapter sends nothing, and the app starts as without a
+  // language (openInHost checks that the host got no error).
+  await scenario(context, 'de, which EffectCraft lacks: no startup error, ready reports none, EffectCraft stays in English', async (page) => {
+    const app = await openInHost(page, PROBE_NAME, '&lang=de');
+    expect(await readyLanguages(page), 'language of each ready the host got').toEqual([null]);
+    expect(await appLanguage(app), 'EffectCraft\'s general.language and the label of File > Save').toEqual({ language: 'system', save: 'Save' });
   });
 });
 

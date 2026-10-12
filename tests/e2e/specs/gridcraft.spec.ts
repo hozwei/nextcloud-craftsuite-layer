@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2026 The nextcloud-craftsuite-layer contributors
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// The translator inside the real GridCraft web build. See docs/apps/gridcraft.md. Three tests; a
+// The translator inside the real GridCraft web build. See docs/apps/gridcraft.md. Four tests; a
 // test with several scenarios runs each in its own page and reports every scenario that fails.
 //
 //   contract   allowed host: handshake with the served app version, open of an .xlsx GridCraft
@@ -21,6 +21,9 @@
 //              new workbook under that name is a new file too; a different craftsuite-probe.xlsx
 //              that the user brings in (File > Open; in Chromium also a drop from the desktop) is
 //              never the document
+//   language   the host's language (lang=ru) under the browser locale en-US: ready reports 'ru',
+//              the app frame's navigator.language is 'ru', and the ribbon's tab row is the one a
+//              start under the browser locale ru-RU shows, not the one of an English start
 //   ui (@ui)   with the pointer: File > Save saves the document; Search Commands (the magnifier),
 //              'file.exportPdf', arrives as a new file 'craftsuite-probe.pdf'
 //
@@ -77,6 +80,7 @@ interface HostRecord {
   messages: { type: string; app: string; id: number | null; kind: string | null }[];
   saves: HostSave[];
   errors: { of: string; id: number | null; message: string }[];
+  readies: { layerVersion: string; language: string | null }[]; // language 'absent': no such field
 }
 type HostWindow = Window & {
   __host?: HostRecord;
@@ -143,9 +147,12 @@ async function scenario(context: BrowserContext, title: string, body: (page: Pag
 
 type Box = { x: number; y: number; width: number; height: number };
 
-// Pointer targets (measured on GridCraft 0.5.0), relative to the app frame at the pinned viewport.
-// This is the only layout knowledge in this file; when a release moves something, fix it here.
+// Pointer targets, and the region the language test compares (measured on GridCraft 0.5.0),
+// relative to the app frame at the pinned viewport. This is the only layout knowledge in this
+// file; when a release moves something, fix it here.
 const AT = {
+  // The ribbon's tab row (File, Home, Insert, ...), with the line under the active tab.
+  tabRow: (b: Box) => ({ x: b.x, y: b.y + 40, width: b.width, height: 26 }),
   // The ribbon's tab row: File, before Home.
   fileMenu: (b: Box) => ({ x: b.x + 40, y: b.y + 53 }),
   // File menu: Save, the third row (after New Workbook, Open… and a separator).
@@ -390,6 +397,25 @@ function expectNoDownloads(downloads: Download[]) {
   expect(downloads.map((d) => d.suggestedFilename()), 'browser downloads').toEqual([]);
 }
 
+// The ribbon's tab row as the page shows it (PNG). GridCraft draws its labels into the canvas, so
+// the language it shows is only in the picture.
+async function tabRow(page: Page) {
+  const box = await page.locator('#app').boundingBox();
+  if (!box) throw new Error('the app frame is not visible');
+  return page.screenshot({ clip: AT.tabRow(box), caret: 'initial', scale: 'css' });
+}
+
+// Whether the tab row of a start is, byte for byte, the one of `other` (same: true) or not. When
+// not as expected, both pictures are attached to the report.
+async function compareTabRows(shown: Buffer, other: Buffer, otherStart: string, same: boolean) {
+  const equal = shown.equals(other);
+  if (equal !== same) {
+    await test.info().attach('tab row of this start', { body: shown, contentType: 'image/png' });
+    await test.info().attach(`tab row of ${otherStart}`, { body: other, contentType: 'image/png' });
+  }
+  expect.soft(equal, `the tab row ${same ? 'equals' : 'differs from'} the one of ${otherStart}`).toBe(same);
+}
+
 // ---------------------------------------------------------------------------------------------
 
 test('contract: an allowed host opens the file and stores every save, nothing is downloaded', async ({ page }) => {
@@ -562,6 +588,41 @@ test('saved-as: interchange files, copies, new workbooks and files the user brin
     expect(workbook(bytes).sheets, 'the dropped file').toEqual(['Data']);
     expectNoDownloads(downloads);
   }));
+});
+
+// GridCraft takes the host's language through navigator.language, which it reads once as it
+// starts (the adapter's language member overrides it), and shows it only in the picture. Under the
+// pinned locale en-US, a start with lang=ru must look like a start under the browser locale ru-RU
+// and not like an English one: the second comparison fails when a release stops following
+// navigator.language.
+test('language: the host\'s lang=ru starts GridCraft in Russian, as the browser locale ru-RU does', { tag: '@language' }, async ({ page, context, browser }) => {
+  // Three starts of GridCraft, which on a busy machine can take longer than the default timeout.
+  test.slow();
+  const { app } = await openInHost(page, 'craftsuite-probe.xlsx', '&lang=ru');
+  const shown = await tabRow(page);
+
+  await test.step('ready reports ru, and the app frame sees ru as the browser language', async () => {
+    expect.soft((await hostRecord(page)).readies[0]?.language, 'language of the ready message').toBe('ru');
+    expect.soft(await app.evaluate(() => navigator.language), 'navigator.language in the app frame').toBe('ru');
+  });
+
+  await test.step('the tab row is the one of a start under the browser locale ru-RU', async () => {
+    // The locale belongs to a context; this one has the spec's other options (viewport, device).
+    const russian = await browser.newContext({ locale: 'ru-RU' });
+    try {
+      const other = await russian.newPage();
+      await openInHost(other, 'craftsuite-probe.xlsx');
+      await compareTabRows(shown, await tabRow(other), 'a start under the locale ru-RU', true);
+    } finally {
+      await russian.close();
+    }
+  });
+
+  await test.step('and not the one of an English start', async () => {
+    const other = await context.newPage();
+    await openInHost(other, 'craftsuite-probe.xlsx');
+    await compareTabRows(shown, await tabRow(other), 'a start without lang (locale en-US)', false);
+  });
 });
 
 test('ui: File > Save and Search Commands > Export as PDF with the pointer', { tag: '@ui' }, async ({ page }) => {

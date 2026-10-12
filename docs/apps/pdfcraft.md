@@ -109,6 +109,72 @@ by PdfCraft's own Save, so this adds nothing for them. The Nextcloud editor page
 rewritten Save as a new file next to the original (`x (2).pdf`), and every later Save that
 continues it replaces that new file.
 
+## Interface language
+
+The Nextcloud app can name the language an app starts in (its setting *Starts in*). The editor
+page passes it in the frame's address (`#craftsuite-layer:lang=<tag>`), and the core hands it to
+the adapter's `language` member before the app's module runs (see [protocol.md](../protocol.md#host-settings)).
+
+**How PdfCraft picks it**
+
+- Only from its own preferences: the JSON it keeps in `localStorage` under `pdfcraft` (or, saved
+  under its former name, `printcraft`), read once as the app is created
+  (`apps/pdfcraft-web/src/main.rs:27-29`). Their field `language` counts if it is `auto` or one of
+  PdfCraft's codes (`de`, `pt-br`, ...) in any letter case (`crates/ui-egui/src/lib.rs:1454-1456`,
+  `crates/ui-egui/src/i18n/mod.rs:260-265`); anything else, such as `de-AT`, leaves the default
+  `auto` (`lib.rs:720`).
+- `auto` means English on the web, whatever the browser's language: the web build detects no
+  system language (`i18n/mod.rs:360-363`), and PdfCraft reads neither `navigator.language(s)` nor
+  its address for it. Its fallbacks from locale tags (`de-AT` to `de`, `pt-PT` to `pt-br`, `zh-TW`
+  to `zh-hant`, `i18n/mod.rs:269-297`) serve only the system locale of the desktop builds.
+- Menu > Edit > Preferences… (Ctrl+,) > Interface language offers Auto and all 17 languages
+  (`crates/ui-egui/src/js_ui.rs:234-254`). A choice applies at once and is stored with the other
+  preferences, which PdfCraft writes back whole (`lib.rs:1362-1375`, `:1880-1882`) every 30
+  seconds and whenever it loses the focus, also when its page is hidden or unloaded while it has
+  the focus (eframe 0.36.2 `src/web/events.rs:58`, `:68-69`, `:112-140`,
+  `src/web/app_runner.rs:237-247`; eframe's own save on close listens for an event named
+  `onbeforeunload`, which never fires, `src/web/events.rs:423`). So a value written into its
+  preferences while PdfCraft runs does not last: PdfCraft writes its own over it.
+
+**What the adapter does**
+
+- Before PdfCraft's module runs, it maps the host's language to a key of its `LANGUAGES` table
+  (the same tag, else the same language and script: `de-AT` gives `de`, `pt-PT` gives `pt-BR`),
+  writes PdfCraft's code into the field `language` of the preferences (keeping the other fields,
+  and starting from `printcraft` if `pdfcraft` is missing), and adds that code to a list in a key
+  of its own, `craftsuite-layer:pdfcraft:language` (its mark): every code it has written, because
+  a PdfCraft that is still open writes its preferences back from memory (every 30 s and when it
+  loses the focus), so a language of an earlier start can come back after a later start wrote
+  another. `ready` names the language it applied (for `pt-PT`: `pt-BR`).
+- It writes only while the stored language is missing, `auto` or in its mark. Any other value is
+  a choice the user made in the app: the adapter leaves it, and `ready` names no language.
+- Without a host language, or with one PdfCraft does not offer (below), it sets a language it
+  wrote back to `auto` and removes its mark, so PdfCraft starts as without the layer; a user's own
+  choice stays. With preferences that are not readable JSON, or with `localStorage` blocked, it
+  writes nothing.
+
+**Languages**
+
+The settings offer `en`, `ar`, `bg`, `cs`, `de`, `es`, `fr`, `hu`, `it`, `ja`, `pl`, `pt-BR`, `ru`
+and `uk`, the keys of the adapter's `LANGUAGES` table. All of them were checked in the web build:
+translated and drawn correctly (Arabic right to left), except Czech, which is translated only in
+part (159 entries in `crates/ui-egui/src/i18n/cs.tsv`, about 2,170 in `de.tsv`): `Nabídka` and
+`Úpravy`, but `All tools`, `Read` and `Open`. Left out are the three languages the web build
+cannot draw: Simplified Chinese (many characters as boxes), Traditional Chinese (boxes in common
+labels such as Open and Read) and Telugu (boxes only).
+
+**A language the user picks in the app**
+
+It is stored in the frame's `localStorage` and wins at every later start, also over a changed
+setting: the adapter tells it from its own values by the mark. Auto counts as no choice, so the
+next start has the host's language again. A choice equal to a language the adapter wrote cannot
+be told apart from it, so that user follows a later change of the setting. Where the browser
+blocks third-party storage, nothing is kept: PdfCraft starts in English every time, and a choice
+made in it lasts only as long as the frame. In the same-site setup [hosting.md](../hosting.md#a-sign-in-in-front-of-the-apps) recommends
+(`craft.example.com` next to `cloud.example.com`), browsers do not partition the frame's storage,
+so it is the same as when the app is opened directly on its own site: the host's language, and a
+choice made in either place, apply to both.
+
 ## Known gaps
 
 - **After redaction or Sanitize, the original stays as it was.** The rewritten Save goes to a new
@@ -150,7 +216,8 @@ continues it replaces that new file.
   `.wasm` file that is missing or cannot be compiled makes the loader fail, and the host gets
   `the app failed to load: ...`; a Content-Security-Policy that blocks the inline script leads to
   `the app did not start in time` (see [protocol.md](../protocol.md#errors)).
-- Preferences live in the frame's `localStorage`. Browsers that partition or block third-party
+- Preferences live in the frame's `localStorage`, the interface language among them (see
+  [Interface language](#interface-language)). Browsers that partition or block third-party
   storage may forget them between visits.
 - Keyboard shortcuts reach the app after the user clicks into the frame.
 
@@ -161,8 +228,9 @@ continues it replaces that new file.
 far, so neither CI nor the canary lets it decide a run until it has passed on a GitHub runner
 (see [development.md](../development.md#continuous-integration)).
 
-The spec has five tests, and its header lists them with their scenarios. The first four are the
-contract tests; the canary runs them apart from the `@ui` test.
+The spec has six tests, and its header lists them with their scenarios. The first four are the
+contract tests; the canary runs them apart from the `language` test (tagged `@language`) and the
+`@ui` test.
 
 | Test | What it checks |
 |---|---|
@@ -170,28 +238,36 @@ contract tests; the canary runs them apart from the `@ui` test.
 | `fallbacks` | A host that never confirms: the save becomes a download after the confirmation timeout. A host that reports a failed store: the save is downloaded at once, with the edit. |
 | `inactive` | At top level, and under a host on an origin that is not allowed (which sends forged `init` and `open` messages), the translator stays inactive and Save is an ordinary download. |
 | `startup` | The `.wasm` module cannot load: the host gets one error, of `startup`, saying `the app failed to load: ...`, and no `ready`. |
+| `language` | The host's language `de`: `ready` names it, PdfCraft's preferences hold `de` with the adapter's mark, and the command palette finds the German `Öffnen…` (Open…), which opens the file chooser (in English nothing matches). Then a language the user picked in the app (`fr`, stored while no PdfCraft runs) stays: the next start with `de` leaves it, and `ready` names no language. |
 | `ui` (`@ui`) | The paths that need pointer clicks: the toolbar Save button saves the document; an Action Wizard result under the document's own name arrives as an export; the attachment `../../Team/Budget 2026.pdf` arrives as `Budget 2026.pdf`; the link to a contributor in About > Contributors opens a new window and the editor stays. |
 
 A test with several scenarios (`fallbacks`, `inactive`, `ui`) runs each in a page of its own and
 reports every scenario that fails as `scenario failed: <title>`, not only the first.
 
 The tests drive PdfCraft with the keyboard and the command palette, typing the English command
-labels from PdfCraft's `crates/engine/src/commands.rs`. Only the `ui` test also clicks with the
+labels from PdfCraft's `crates/engine/src/commands.rs`; the `language` test types the German
+`Öffnen`, from `crates/ui-egui/src/i18n/de.tsv`. Only the `ui` test also clicks with the
 pointer; its click positions are in the `AT` table of the spec, measured on 0.5.0 (and still
-right in 0.6.0) at a 1400x900 viewport with the locale `en-US`. It runs with a longer time limit
-(`test.slow()`), so that a path that misses its button can run into its waits and every such
-path still gets reported. When a new release fails the canary:
+right in 0.6.0) at a 1400x900 viewport with the locale `en-US` and PdfCraft in English (no host
+language: German moves things). It runs with a longer time limit (`test.slow()`), so that a
+path that misses its button can run into its waits and every such path still gets reported.
+When a new release fails the canary:
 
 - **Contract tests fail.** The release changed something the translator relies on (see
   [architecture.md](../architecture.md#upstream-coupling-points)). Sites that host the app should hold the
   release back until the adapter or the core is fixed.
 - **Only the `@ui` test fails.** A button or panel moved. Re-measure the positions in `AT` for
   the paths it reports; the translator is not at fault.
+- **Only the `language` test fails.** If only its palette check fails, check the German label
+  (below). Otherwise PdfCraft no longer takes its language as described in
+  [Interface language](#interface-language): files still open and save, but the start language
+  does not apply until the adapter's `language` member is updated.
 - **A command label changed upstream.** The palette then runs another command or none, and the
   tests that run it fail: for `Rotate pages clockwise`, `Export to Word` and `Sanitize document`
-  these are contract tests, for `Prepare for distribution` and `About PdfCraft` the `@ui` test.
-  Before holding a release back for a failing test that runs a command, check its label against
-  `commands.rs` and update it in the spec. The Sanitize document dialog is confirmed with Tab
+  these are contract tests, for `Prepare for distribution` and `About PdfCraft` the `@ui` test,
+  and for the German `Öffnen…` (`Open…` in `de.tsv`) the `language` test. Before holding a
+  release back for a failing test that runs a command, check its label against `commands.rs`
+  (or `de.tsv`) and update it in the spec. The Sanitize document dialog is confirmed with Tab
   (the focus to its first button, Sanitize) and Enter; should a release reorder its buttons, the
   save after it is an update instead of a rewrite, and the contract test says so.
 
