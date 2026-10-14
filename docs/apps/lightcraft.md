@@ -8,7 +8,7 @@
 |---|---|
 | Upstream | [github.com/storytold/lightcraft](https://github.com/storytold/lightcraft) |
 | Adapter | [`translators/lightcraft.js`](../../translators/lightcraft.js) |
-| Tested version | `tested` in [`tests/e2e/craft-versions.json`](../../tests/e2e/craft-versions.json) (0.6.0 when this page was written) |
+| Tested version | `tested` in [`tests/e2e/craft-versions.json`](../../tests/e2e/craft-versions.json) (0.6.0 when this page was written, checked again with 0.7.1) |
 | Tests | [`tests/e2e/specs/lightcraft.spec.ts`](../../tests/e2e/specs/lightcraft.spec.ts) (Chromium and WebKit, see [Tests](#tests)) |
 
 LightCraft is a photo library and raw developer. With the layer it works as **open a photo from
@@ -18,10 +18,10 @@ in the editor's memory and are gone when the editor is closed or reloaded. Only 
 exports reaches Nextcloud. Opening the photo again starts from the original.
 
 This page records what the LightCraft web build does in the browser, as far as the translator
-depends on it, and how the adapter follows from it. The facts were checked against the 0.6.0
-source and web build. Source references are to the `v0.6.0` tag; `index.html` and `src/*.rs` are
-in `apps/lightcraft-web/` (`web.rs` is `src/web.rs`), the other paths are under `crates/`.
-Upstream may change any of them; the daily canary run (see
+depends on it, and how the adapter follows from it. The facts were checked against the 0.7.1 source
+and web build (first written for 0.6.0). Source references are to the `v0.7.1` tag; `index.html`
+and `src/*.rs` are in `apps/lightcraft-web/` (`web.rs` is `src/web.rs`), the other paths are under
+`crates/`. Upstream may change any of them; the daily canary run (see
 [development.md](../development.md#continuous-integration)) is there to notice.
 
 ## What the web build does
@@ -33,19 +33,19 @@ Upstream may change any of them; the daily canary run (see
   `globalThis.lightcraft = { command }` (an automation call, see below) and calls `start(font)`
   (`index.html:26-47`). The page never dispatches `TrunkApplicationStarted`.
 - `start()` reads the URL options `store`, `workers`, `reset` and `bench` (`web.rs:67-96`), takes
-  the Web Lock `lightcraft-library` unless `store=memory` (`web.rs:674-681`), opens the library's
-  storage (`web.rs:278-363`), then starts eframe, which installs its event handlers, the `drop`
+  the Web Lock `lightcraft-library` unless `store=memory` (`web.rs:678-685`), opens the library's
+  storage (`web.rs:282-367`), then starts eframe, which installs its event handlers, the `drop`
   listener among them, once the app exists. Then the page removes `#lightcraft_loading`
-  (`web.rs:690-697`). The first `drop` listener is the one that reads files.
+  (`web.rs:694-701`). The first `drop` listener is the one that reads files.
 - Failures show only as text, without an error event: a failed load as `LightCraft failed to
   load: <error>` in `#lightcraft_loading` (`index.html:42-46`), a failed graphics start as
-  `LightCraft failed to start: <error>` in `#lightcraft_status` (`web.rs:699-702`). A panic (the
+  `LightCraft failed to start: <error>` in `#lightcraft_status` (`web.rs:703-706`). A panic (the
   module is built with `panic = "abort"`) covers the page with `#lightcraft_blocking`: `LightCraft
   stopped after an internal error: ... The library saved in this browser is kept. Reload the page
   to continue.` (`src/safety.rs:49-89`). The same cover says `LightCraft is already open in
   another tab` when another tab holds the Web Lock (not in memory mode).
 - `globalThis.lightcraft.command(id, json)` runs any of LightCraft's commands by id on the app's
-  next frame and resolves to its result as JSON text (`web.rs:576-617`). Besides the commands of
+  next frame and resolves to its result as JSON text (`web.rs:580-621`). Besides the commands of
   the menus (`app.export`, `photo.rotateRight`, ...) and queries (`photo.inspect`), `web.stats`
   reports the page's own state: `storage` (`opfs`, `idb` or `memory`), the render workers, the
   render queue. It is same-origin only, with no `postMessage`, so the host cannot reach it.
@@ -76,18 +76,18 @@ Upstream may change any of them; the daily canary run (see
 
 - eframe takes every file of a drop and does not check `isTrusted`, so the translator's simulated
   drop works like a user's. The page reads each dropped file, keeps its bytes in memory (or
-  storage) and imports it into the library (`web.rs:99-118`, `476-496`). The new photo becomes the
+  storage) and imports it into the library (`web.rs:99-118`, `480-500`). The new photo becomes the
   active one and shows in the loupe with the Edit panel; the demo photos stay in the filmstrip. A
   second drop adds a second photo. A file that is not a photo fails the import with a message in
   the app.
 - File > Import Photos… (Ctrl+Shift+I) adds photos from the user's disk through an
   `<input type=file>` (`web.rs:121-140`); they become the active photo the same way.
-- The import list is `engine/src/import.rs:34-41`. Of the camera raws, only DNG, CR2, CR3,
-  NEF/NRW, ARW, RAF, ORF, RW2/RWL (and Panasonic files with the `IIU` header), PEF and SRW are
-  decoded (`raw/src/lib.rs:112-127`, `336-351`); 3FR and FFF only when they are laid out like a
-  DNG. CRW, MRW, X3F, IIQ, ERF, KDC and MOS import as "preview only": the user develops and
-  exports the small JPEG preview embedded in the file (`engine/src/files.rs:104-124`). HEIC, HEIF
-  and AVIF are in the list but have no decoder in the web build.
+- The import list is `engine/src/import.rs:36-43`. Of the camera raws, only DNG, CR2, CR3, NEF/NRW,
+  ARW, RAF, ORF, RW2/RWL (and Panasonic files with the `IIU` header), PEF and SRW are decoded
+  (`raw/src/lib.rs:119-135`, `358-374`; 0.7.1 adds Kodak DCS raw TIFFs); 3FR and FFF only when they
+  are laid out like a DNG. CRW, MRW, X3F, IIQ, ERF, KDC and MOS import as "preview only": the user
+  develops and exports the small JPEG preview embedded in the file (`engine/src/files.rs:138-158`).
+  HEIC, HEIF and AVIF are in the list but have no decoder in the web build.
 - There is no `?file=` and no signal that a photo was opened or could not be opened. The host only
   gets `delivered`.
 
@@ -97,21 +97,21 @@ Upstream may change any of them; the daily canary run (see
   `URL.createObjectURL`, a detached `<a download>`, `click()`, the URL revoked after 5 s. There is
   no File System Access API. Exports run on the page's thread (`write_shared: None`), so the app
   does not respond while a large photo is exported.
-- Ctrl+S is Photo > Save Metadata to File (`engine/src/cmd/xmp.rs:72-80`): an XMP sidecar next
-  to the original, written with `std::fs` (`engine/src/sidecar.rs:475-486`). On the web it fails
+- Ctrl+S is Photo > Save Metadata to File (`engine/src/cmd/xmp.rs:78-86`): an XMP sidecar next
+  to the original, written with `std::fs` (`engine/src/sidecar.rs:546-576`). On the web it fails
   with `operation not supported on this platform`, without a download. So does Automatically
   Write Changes into XMP (only logged). Nothing saves the opened file.
 - File > Export… (alias Shift+E, `ui-egui/src/shortcuts.rs:198`) opens a dialog drawn in the
   canvas: format, size, a file name template (`{name}`), a Folder field and OK. No name is asked
-  for. The Folder starts empty on the web (`ui-egui/src/control.rs:421-426` reads `HOME`), and OK
-  then says `Choose an export folder first.` (`control.rs:417`, `467-469`); any text works, since
+  for. The Folder starts empty on the web (`ui-egui/src/control.rs:447-452` reads `HOME`), and OK
+  then says `Choose an export folder first.` (`control.rs:443`, `493-495`); any text works, since
   only the file name reaches the download. Without an earlier export the dialog starts at 2048 px
-  on the long edge with Don't enlarge, not at full size (`ui-egui/src/menus.rs:995-1004`). OK has
+  on the long edge with Don't enlarge, not at full size (`ui-egui/src/menus.rs:1189-1198`). OK has
   no keyboard shortcut. Export with Previous (Ctrl+Alt+Shift+E, alias Ctrl+E,
-  `menus.rs:203`, `shortcuts.rs:199`) repeats the last export with its folder, which memory mode
+  `menus.rs:219`, `shortcuts.rs:199`) repeats the last export with its folder, which memory mode
   keeps for the session.
 - An export is named after the template plus the format's extension
-  (`engine/src/export.rs:1035-1052`): `<stem>.jpg` for JPEG, so an opened JPEG is exported under
+  (`engine/src/export.rs:1195-1212`): `<stem>.jpg` for JPEG, so an opened JPEG is exported under
   the opened name. It is a new rendering of the photo with its edits: decoded, developed and
   encoded again (JPEG quality 90), by default resized, with LightCraft's own metadata. The
   "If file exists: Add number" choice never applies on the web (its check for an existing file
@@ -121,18 +121,19 @@ Upstream may change any of them; the daily canary run (see
 | Download | Name | Kind |
 |---|---|---|
 | Export…, Export with Previous, Export with Preset, as JPEG | `<stem>.jpg`; for an opened JPEG the opened name | `export` |
-| The same as PNG, TIFF (16 bit) or WebP | `<stem>.png`, `<stem>.tif`, `<stem>.webp`; for an opened PNG or TIFF the opened name | `export` |
+| The same as PNG, TIFF (16 bit), PSD (flat, new in 0.7.1) or WebP | `<stem>.png`, `<stem>.tif`, `<stem>.psd`, `<stem>.webp`; for an opened PNG or TIFF the opened name | `export` |
 | An export of another photo (a demo photo, one from File > Import Photos…) | `<its stem>.<ext>`, or any name the template gives it, also the opened one | `export` |
-| Export as AVIF | nothing: `AVIF encoding is not available in this build` (`codecs/src/encode.rs:362`) | |
+| Export as AVIF, as JPEG XL (new in 0.7.1) | nothing: `AVIF encoding is not available in this build` (`codecs/src/encode.rs:368`), `JPEG XL encoding is not available in this build` (`codecs/src/jxl_encode.rs:84`) | |
 | Export as Original files, as DNG | nothing: both read the original with `std::fs` and fail | |
 | Save Metadata to File (Ctrl+S) | nothing, see above | |
-| File > Back Up Library… | nothing in memory mode: `nothing is stored in this browser session (?store=memory)` (`web.rs:173-175`) | |
-| Contact Sheet PDF… | nothing: disabled on the web (`ui-egui/src/menus.rs:1593`); it would write with `std::fs` | |
-| Preset, keyword and curve files | nothing: not wired on the web (`web.rs:209-220`) | |
+| File > Back Up Library… | nothing in memory mode: `nothing is stored in this browser session (?store=memory)` (`web.rs:174-176`); Restore Library from Backup… the same | |
+| Contact Sheet PDF… | nothing: disabled on the web (`ui-egui/src/menus.rs:1801`); it would write with `std::fs` | |
+| Preset, keyword and curve files | nothing: not wired on the web (`web.rs:210-221`), `no file dialog on this platform` | |
+| Photo > Edit In > Edit in PhotoCraft, Edit in Other Editor (new in 0.7.1) | nothing: disabled on the web, which has no way to open another program (`web.rs:230`, `ui-egui/src/menus.rs:1807`) | |
 
 **Links**
 
-- Links in the Help menu open with `window.open(url, '_blank')` (`web.rs:230-233`); egui
+- Links in the Help menu open with `window.open(url, '_blank')` (`web.rs:232-235`); egui
   hyperlinks open through eframe with target `_self`, which the translator turns into a new
   window. `window.confirm` is used only for `?reset` and for restoring a backup, neither of which
   happens in memory mode.
@@ -190,8 +191,8 @@ drop-target timer never runs.)
 ## Interface language
 
 **How LightCraft picks it.** The interface language is part of LightCraft's UI state
-(`ui-egui/src/state.rs:283-284`), which the page keeps in the library's `ui.json`: read when the
-app starts (`web.rs:431-434`), written back within a second of a change (`web.rs:528-541`).
+(`ui-egui/src/state.rs:488-489`), which the page keeps in the library's `ui.json`: read when the
+app starts (`web.rs:435-438`), written back within a second of a change (`web.rs:532-545`).
 Without a `ui.json` it comes from the environment variable `LIGHTCRAFT_LANGUAGE`
 (`ui-egui/src/i18n.rs:151-153`), which the web build never has: English. The page reads neither
 the browser's language nor a URL option for it (checked with a German browser and `?lang=de`). In
@@ -201,7 +202,7 @@ LightCraft starts in English in Nextcloud, whatever the browser's or the user's 
 **What the adapter does.** The only way in is the automation call: each entry of Edit > Language
 is a command, `app.language.english`, `app.language.german`, ... (`ui-egui/src/menus.rs:16-27`),
 which switches the interface at once and answers with LightCraft's code, such as `"de"`
-(`menus.rs:274-280`). When the host names a language, the adapter's `language` member looks it up
+(`menus.rs:350-356`). When the host names a language, the adapter's `language` member looks it up
 in its `LANGUAGES` table (the same tag, else the same language and script: `de-AT` finds `de`,
 `pt-PT` `pt-BR`, `zh-TW` and `zh-HK` `zh-Hant`, `zh` and `zh-CN` `zh-Hans`), and `started()` runs
 that command before `web.stats`. `ready` reports the tag only if LightCraft answered with a code.
@@ -212,19 +213,21 @@ without it: the adapter logs a warning, `ready` has `language: null`, and there 
 error (a command that runs late still switches the app). Without a host language nothing is
 sent. A reloaded frame gets the language again: the core keeps it in the frame's name.
 
-**Languages.** The Nextcloud app's settings offer the keys of `LANGUAGES`: `en`, `de`, `es`,
-`fr`, `ja`, `pt-BR`, `ru`, `uk`, `zh-Hans` and `zh-Hant`, every language LightCraft 0.6.0 has
-(`ui-egui/src/i18n.rs:118-129`). None is left out: all ten render in the web build, Chinese and
-Japanese too (the page loads its Simplified Chinese face at every start, `index.html:29`, and
-Traditional Chinese uses it as well). A language LightCraft does not have, such as Italian or
-Korean, has no command and no entry: the app starts in English. A language a later release adds
-needs an entry in `LANGUAGES` and in the Nextcloud app's list first. No language is complete:
-LightCraft's own count (`docs/localization-parity.md` in its repository) has Ukrainian at 99%,
-German at 91%, French, Japanese, both Chinese, Spanish and Brazilian Portuguese at 85 to 88% and
-Russian at 74%. What a catalog lacks, and technical error messages, show in English.
+**Languages.** The Nextcloud app's settings offer the keys of `LANGUAGES`: `en`, `de`, `es`, `fr`,
+`ja`, `pt-BR`, `ru`, `uk`, `zh-Hans` and `zh-Hant`, every language LightCraft has (the same ten in
+0.6.0 and 0.7.1, `ui-egui/src/i18n.rs:118-129`). None is left out: all ten render in the web build,
+Chinese and Japanese too (the page loads its Simplified Chinese face at every start,
+`index.html:29`, and Traditional Chinese uses it as well). A language LightCraft does not have,
+such as Italian or Korean, has no command and no entry: the app starts in English. A language a
+later release adds needs an entry in `LANGUAGES` and in the Nextcloud app's list first. No language
+is complete: LightCraft's own count (`docs/localization-parity.md` in its repository, last updated
+for 0.6.0) has Ukrainian at 99%, German at 91%, French, Japanese, both Chinese, Spanish and
+Brazilian Portuguese at 85 to 88% and Russian at 74%; 0.7.1 adds entries to every catalog, most to
+Russian (now about as many as Ukrainian). What a catalog lacks, and technical error messages, show
+in English.
 
 **A language the user picks.** Edit > Language and Settings > General > Language
-(`ui-egui/src/panels/settings.rs:105-108`) switch the interface at once. In memory mode the
+(`ui-egui/src/panels/settings.rs:104-107`) switch the interface at once. In memory mode the
 choice goes into the `ui.json` of the library in the frame's memory: it lasts until the editor is
 closed or the frame reloads, and the next start is in the host's language again (in English
 without one). The host is not told; `ready` reported the language the app started in. Outside the
@@ -269,8 +272,8 @@ without the layer.
 - **Raws are mostly untested.** The tests open one raw format, a small synthetic DNG; CR2, CR3,
   NEF, ARW, RAF, ORF, RW2, PEF and SRW are decoded by the same build but were not opened in a
   browser.
-- **AVIF export does not work** on the web (compiled out), and Original files and DNG export do
-  nothing; the dialog offers them.
+- **AVIF and JPEG XL export do not work** on the web (compiled out), and Original files and DNG
+  export do nothing; the dialog offers them.
 - **Firefox is untested.** The headless Firefox of the test machines has no WebGL, and LightCraft
   draws with WebGL2.
 
@@ -312,18 +315,19 @@ Not offered:
   iframe needs `allow-scripts allow-same-origin allow-downloads allow-popups`; the
   `allow-modals` it also lists is for `?reset` and restoring a backup, which memory mode never
   does. Its `clipboard-read` suggestion is not needed: Copy and Paste Edit Settings stay inside
-  the app. Isolation headers (COOP/COEP) are optional for 0.6.0.
+  the app. Isolation headers (COOP/COEP) are optional (0.6.0 and 0.7.1).
 - **Query flags.** The page reads `store`, `workers`, `reset` and `bench` (`web.rs:67-96`). The
   adapter sets `store=memory&workers=0` and removes `reset` and `bench` itself, so the configured
   app URL needs none of them.
-- **Files to serve.** The release zip `lightcraft-web-0.6.0.zip` also holds the leftovers of the
-  Cargo build: `build/` (23 MB), `deps/` (95 MB), `.fingerprint/`, the empty `incremental/` and
-  `examples/`, and `.cargo-lock`, `.cargo-artifact-lock` and `.cargo-build-lock`. A hosting must
-  not serve them. Serve `index.html`, `lightcraft_web.js`, `lightcraft_web_bg.wasm`, `worker.js`
-  and `lightcraft_zh_hans.otf`, their `.br` and `.gz` copies if the server uses them, and the
-  licences (`LICENSE-APACHE`, `LICENSE-MIT`, `NOTICE`, `OFL-*.txt`). `_headers` and `.htaccess`
-  are sample server rules. With `workers=0`, `worker.js` is never loaded.
-- **Size.** The `.wasm` file of 0.6.0 is 25.8 MB, 7.1 MB with Brotli and 10.0 MB with gzip
+- **Files to serve.** The release zip of 0.6.0 (`lightcraft-web-0.6.0.zip`) also holds the
+  leftovers of the Cargo build: `build/` (23 MB), `deps/` (95 MB), `.fingerprint/`, the empty
+  `incremental/` and `examples/`, and `.cargo-lock`, `.cargo-artifact-lock` and
+  `.cargo-build-lock`. A hosting must not serve them; the zip of 0.7.1 no longer has them. Serve
+  `index.html`, `lightcraft_web.js`, `lightcraft_web_bg.wasm`, `worker.js` and
+  `lightcraft_zh_hans.otf`, their `.br` and `.gz` copies if the server uses them, and the licences
+  (`LICENSE-APACHE`, `LICENSE-MIT`, `NOTICE`, `OFL-*.txt`). `_headers` and `.htaccess` are sample
+  server rules. With `workers=0`, `worker.js` is never loaded.
+- **Size.** The `.wasm` file of 0.7.1 is 27.0 MB, 7.3 MB with Brotli and 10.3 MB with gzip
   (`HOSTING.md` says about 13 MB and 3 MB), and every start also fetches the 16.4 MB font
   (11.1 MB with Brotli): about 18 MB with Brotli per cold start. Serve both compressed. The file
   names are the same in every version, so send `Cache-Control: no-cache`, as `HOSTING.md` says.
@@ -367,16 +371,15 @@ every session first renders the demo thumbnails on the page's thread, one per fr
 presses and automation calls can take seconds each for a minute or two in Chromium with
 software rendering; the tests are marked slow.
 
-Only the `ui` test clicks with the pointer. egui takes a press and a release more than 0.8 s
-apart on its frame clock for a long press, so with frames of seconds a click can be lost; the
-test first waits until LightCraft has rendered everything it queued (`web.stats`), then hovers
-each target for a frame before it clicks. Its click positions are in the `AT` table of the spec,
-measured on 0.6.0 at a **1400x1400** viewport with the locale `en-US`: the Export dialog is taller
-than the frame at 1400x900, and egui centres it in the frame, so its positions depend on the
-frame's height. The File menu has no scroll arrows at that size. They are English positions, so
-the `ui` test runs without a host language (German labels are wider and move the menus). When a
-new release fails the canary:
-
+Only the `ui` test clicks with the pointer. egui takes a press and a release more than 0.8 s apart
+on its frame clock for a long press, so with frames of seconds a click can be lost; the test first
+waits until LightCraft has rendered everything it queued (`web.stats`), then hovers each target for
+a frame before it clicks. Its click positions are in the `AT` table of the spec, measured on 0.6.0
+(the File menu rows and OK again on 0.7.1) at a **1400x1400** viewport with the locale `en-US`: the
+Export dialog is taller than the frame at 1400x900, and egui centres it in the frame, so its
+positions depend on the frame's height. The File menu has no scroll arrows at that size. They are
+English positions, so the `ui` test runs without a host language (German labels are wider and move
+the menus). When a new release fails the canary:
 - **Contract tests fail.** The release changed something the translator relies on: the URL
   options `store` and `workers`, `web.stats` or the automation call (the host then gets a startup
   error and nothing opens: the adapter fails closed), the failure texts, the drop handling or the
@@ -417,4 +420,4 @@ and export paths would no longer depend on drops and downloads; see
 - Export on the web without a folder;
 - a ready signal (such as `TrunkApplicationStarted`) and an error event on a failed load, start
   or panic, and a panic message that does not claim a stored library in memory mode;
-- `HOSTING.md`: the sizes, and a release zip without the Cargo build leftovers.
+- `HOSTING.md`: the sizes.

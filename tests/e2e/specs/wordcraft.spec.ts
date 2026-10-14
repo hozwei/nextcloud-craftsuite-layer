@@ -5,7 +5,8 @@
 // test with several scenarios runs each in its own page and reports every scenario that fails.
 //
 //   contract   allowed host: handshake with the served app version, open of a .docx WordCraft
-//              wrote; an edit saved with Ctrl+S arrives as the document under the opened name,
+//              wrote; the app sees no save picker (showSaveFilePicker, hidden by the adapter);
+//              an edit saved with Ctrl+S arrives as the document under the opened name,
 //              with the edit and the opened creation time, and Save As (F12) after another edit is
 //              the document again; a file the user opens from their disk (File > Open, Ctrl+O)
 //              and the save of a new document (Ctrl+N) arrive as new files; nothing becomes a
@@ -119,9 +120,9 @@ const test = baseTest.extend<{ diagnostics: void }>({
   }, { auto: true }],
 });
 
-// Pinned: the @ui click positions depend on the layout. WordCraft 0.5.0 starts in English whatever
-// the browser's language; a release that follows it would translate its labels and the name of a
-// new document ('Document1').
+// Pinned: the @ui click positions depend on the layout. WordCraft 0.6.1 starts in the browser's
+// language (0.5.0 in English whatever it was), which translates its labels and the name of a new
+// document ('Document1').
 test.use({ viewport: { width: 1400, height: 900 }, locale: 'en-US' });
 
 // The browser downloads of a page, from now on.
@@ -153,18 +154,20 @@ async function scenario(context: BrowserContext, title: string, body: (page: Pag
 
 type Box = { x: number; y: number; width: number; height: number };
 
-// Pointer targets (measured on WordCraft 0.5.0), relative to the app frame at the pinned viewport.
-// This is the only layout knowledge in this file; when a release moves something, fix it here.
+// Pointer targets (measured on WordCraft 0.5.0, checked again on 0.6.1), relative to the app frame
+// at the pinned viewport. This is the only layout knowledge in this file; when a release moves
+// something, fix it here.
 const AT = {
   // Ribbon tabs: File (opens the backstage) and Mailings.
   fileTab: (b: Box) => ({ x: b.x + 27, y: b.y + 53 }),
   mailingsTab: (b: Box) => ({ x: b.x + 452, y: b.y + 53 }),
-  // Backstage: Export in the list on the left, then the first, second and third button of the
-  // Export page: PDF document, Word document, OpenDocument Text.
+  // Backstage: Export in the list on the left, then the first, second and fourth button of the
+  // Export page: PDF document, Word document, OpenDocument Text (0.6.1 added Word XML Document as
+  // the third).
   backstageExport: (b: Box) => ({ x: b.x + 44, y: b.y + 375 }),
   exportPdf: (b: Box) => ({ x: b.x + 400, y: b.y + 128 }),
   exportWord: (b: Box) => ({ x: b.x + 400, y: b.y + 170 }),
-  exportOdt: (b: Box) => ({ x: b.x + 400, y: b.y + 212 }),
+  exportOdt: (b: Box) => ({ x: b.x + 400, y: b.y + 254 }),
   // Mailings: Select Recipients and, in its menu, Type a New List… and Use an Existing List…; in
   // the list Type a New List… shows, the first field (First Name) of the first recipient; Finish
   // & Merge, the last button of the ribbon; then Don't Save in the question about the open
@@ -479,6 +482,9 @@ test('contract: an allowed host opens the file and stores every save, nothing is
   });
 
   await test.step('Ctrl+S saves the edit as the document, under the opened name, with its creation time', async () => {
+    // WordCraft 0.6.1 saves through the browser's save picker where it finds one, past the core,
+    // and Chromium refuses that in a frame of another origin: the adapter hides it.
+    expect.soft(await app.evaluate(() => typeof (window as { showSaveFilePicker?: unknown }).showSaveFilePicker), 'the save picker the app sees').toBe('undefined');
     await typeText(page, app, 'EDIT1 ');
     await press(page, app, 'Control+s');
     const { save, bytes } = await hostSave(page, 1);

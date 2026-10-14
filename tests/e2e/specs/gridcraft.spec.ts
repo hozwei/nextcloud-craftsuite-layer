@@ -11,33 +11,36 @@
 //              becomes a download, also not after the deadlines for the host's confirmation and
 //              result
 //   saved-as   an .xlsx another program wrote, and a GridCraft file another program changed (a
-//              part GridCraft never writes) under an upper-case name ('.XLSX', saved as '.xlsx'),
-//              are never replaced: the first save arrives as a new file, the next one replaces
-//              that file (follows it); macros.xlsm, data.ods and
-//              data.csv save as 'macros.xlsx', 'data (imported).xlsx' and 'data.xlsx', the
-//              document (a new file next to the original), and so does the next save; GridCraft's
-//              sales sample (charts, a table, notes) saves back unchanged as the document; an
-//              opened Book1.xlsx, named like a new workbook, is never saved back, and the save of a
-//              new workbook under that name is a new file too; the blanks of the "+ New" entry in
-//              Files (blanks/blank.xlsx on A4, and blank-letter.xlsx) open, and their first saves
-//              are the document; a different craftsuite-probe.xlsx that the user brings in
-//              (File > Open; in Chromium also a drop from the desktop) is never the document
+//              part GridCraft drops) under an upper-case name ('.XLSX', saved as '.xlsx'), are
+//              never replaced: the first save arrives as a new file, the next one replaces that
+//              file (follows it); the copy, GridCraft's own file, opened again saves back into
+//              itself, also with the parts of Excel's file that GridCraft keeps; macros.xlsm,
+//              data.ods and data.csv save as 'macros.xlsx', 'data (imported).xlsx' and
+//              'data.xlsx', the document (a new file next to the original), and so does the next
+//              save; GridCraft's sales sample (charts, a table, notes) saves back unchanged as the
+//              document; an opened Book1.xlsx, named like a new workbook, is never saved back, and
+//              the save of a new workbook under that name is a new file too; the blanks of the
+//              "+ New" entry in Files (blanks/blank.xlsx on A4, and blank-letter.xlsx) open, and
+//              their first saves are the document; a different craftsuite-probe.xlsx that the user
+//              brings in (File > Open; in Chromium also a drop from the desktop) is never the
+//              document
 //   language   the host's language (lang=ru) under the browser locale en-US: ready reports 'ru',
 //              the app frame's navigator.language is 'ru', and the ribbon's tab row is the one a
 //              start under the browser locale ru-RU shows, not the one of an English start
-//   ui (@ui)   with the pointer: File > Save saves the document; Search Commands (the magnifier),
-//              'file.exportPdf', arrives as a new file 'craftsuite-probe.pdf'
+//   ui (@ui)   with the pointer, on an opened data.csv: File > Save (its Save As page, Download)
+//              saves the document 'data.xlsx'; File > Export > Create PDF arrives as a new file
+//              'data.pdf', and File > Export > CSV as a new file under the opened name 'data.csv'
 //
 // A daily canary runs this file against every new GridCraft release, so the steps that drive the
 // app (section "UI") are kept apart from the checks of what the host and the browser see (section
 // "Contract"). The steps use GridCraft's keyboard shortcuts (crates/ui-egui/src/ribbon.rs,
-// shortcut()) and cell editing with F2. Export as PDF is only in Search Commands, which only the
-// pointer opens, so it is in the test tagged @ui: a moved button fails that test without the
-// translator being at fault.
+// shortcut()) and cell editing with F2. Export as PDF and as CSV are only in the File view (PDF
+// also in Search Commands), which only the pointer opens, so they are in the test tagged @ui: a
+// moved button fails that test without the translator being at fault.
 //
 // The fixtures in fixtures/gridcraft/: craftsuite-probe.xlsx (MARKER in A1, 42 in B1, sheet
-// 'Sheet1') and sales-sample.xlsx were saved by GridCraft 0.5.0; make-fixtures.mjs writes the
-// files of other programs (sheet 'Data', MARKER in A1).
+// 'Sheet1') was saved by GridCraft 0.5.0, sales-sample.xlsx by GridCraft 0.6.1; make-fixtures.mjs
+// writes the files of other programs (sheet 'Data', MARKER in A1).
 
 import { createHash } from 'node:crypto';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
@@ -148,18 +151,22 @@ async function scenario(context: BrowserContext, title: string, body: (page: Pag
 
 type Box = { x: number; y: number; width: number; height: number };
 
-// Pointer targets, and the region the language test compares (measured on GridCraft 0.5.0),
-// relative to the app frame at the pinned viewport. This is the only layout knowledge in this
-// file; when a release moves something, fix it here.
+// Pointer targets, and the region the language test compares (the tab row measured on GridCraft
+// 0.5.0, the rest on 0.6.1), relative to the app frame at the pinned viewport. This is the only
+// layout knowledge in this file; when a release moves something, fix it here.
 const AT = {
   // The ribbon's tab row (File, Home, Insert, ...), with the line under the active tab.
   tabRow: (b: Box) => ({ x: b.x, y: b.y + 40, width: b.width, height: 26 }),
-  // The ribbon's tab row: File, before Home.
-  fileMenu: (b: Box) => ({ x: b.x + 40, y: b.y + 53 }),
-  // File menu: Save, the third row (after New Workbook, Open… and a separator).
-  fileSave: (b: Box) => ({ x: b.x + 40, y: b.y + 148 }),
-  // The title bar's magnifier at its right end: Search Commands.
-  searchCommands: (b: Box) => ({ x: b.x + b.width - 22, y: b.y + 18 }),
+  // The ribbon's tab row: File, before Home. It opens the File view (Backstage).
+  fileTab: (b: Box) => ({ x: b.x + 40, y: b.y + 53 }),
+  // The File view's list on the left: Save (after Back, Home, New, Open and Info), and Export.
+  fileSave: (b: Box) => ({ x: b.x + 60, y: b.y + 284 }),
+  fileExport: (b: Box) => ({ x: b.x + 60, y: b.y + 398 }),
+  // The Save As page: the button Download (.xlsx), under Save as type.
+  saveAsDownload: (b: Box) => ({ x: b.x + 288, y: b.y + 233 }),
+  // The Export page: Create PDF, then under Change File Type CSV (Comma delimited).
+  exportPdf: (b: Box) => ({ x: b.x + 326, y: b.y + 145 }),
+  exportCsv: (b: Box) => ({ x: b.x + 362, y: b.y + 255 }),
 };
 
 function appFrame(page: Page): Frame {
@@ -359,13 +366,14 @@ function expectExport(save: HostSave, name: string) {
   expect(save).toMatchObject({ kind: 'export', openId: null, follows: null, name });
 }
 
-// A workbook as GridCraft saves it: its parts, whether GridCraft wrote it, its sheets and the text
-// of its cells.
+// A workbook as GridCraft saves it: its parts (and the text of each), whether GridCraft wrote it,
+// its sheets and the text of its cells.
 function workbook(bytes: Buffer) {
   const parts = unzipSync(bytes);
   const text = (name: string) => (parts[name] ? strFromU8(parts[name]) : '');
   return {
     parts: Object.keys(parts),
+    text,
     gridcraft: text('docProps/app.xml').includes('<Application>GridCraft</Application>'),
     sheets: [...text('xl/workbook.xml').matchAll(/<sheet [^>]*name="([^"]*)"/g)].map((m) => m[1]),
     cells: Object.keys(parts).filter((n) => /^xl\/(sharedStrings|worksheets\/sheet\d+)\.xml$/.test(n)).map(text).join('\n'),
@@ -382,7 +390,8 @@ function expectSavedWorkbook(bytes: Buffer, edits: string[] = []) {
 }
 
 // PROBE as a program that keeps docProps/app.xml writes it after a change: a customXml item more,
-// a part GridCraft's writer never produces.
+// which no relationship reaches, so that GridCraft drops it (0.6.1 keeps only what the workbook's
+// relationships reach, xlsx/src/passthrough.rs).
 function changedElsewhere() {
   const parts: Zippable = { ...unzipSync(PROBE) };
   parts['customXml/item1.xml'] = strToU8('<?xml version="1.0" encoding="UTF-8"?>\n<probe xmlns="urn:craftsuite-probe">keep me</probe>');
@@ -481,15 +490,18 @@ test('saved-as: interchange files, copies, new workbooks and files the user brin
   // Eleven pages, each loading GridCraft: more than the default timeout allows on a busy machine.
   test.slow();
 
-  // GridCraft rewrites every save from its own model and drops what it does not model (here the
-  // customXml item and the custom properties): such a save must not replace the opened file. The
-  // changed GridCraft file has an upper-case name, which GridCraft saves as '<stem>.xlsx': a host
-  // that ignores letter case would take that for the opened file.
-  const foreign: [opened: string, bytes: Buffer, saved: string][] = [
-    ['from-excel.xlsx', FROM_EXCEL, 'from-excel.xlsx'],
-    ['CHANGED-ELSEWHERE.XLSX', changedElsewhere(), 'CHANGED-ELSEWHERE.xlsx'],
+  // GridCraft rewrites every save from its own model and drops what it does not model (from Excel's
+  // file the creation time in docProps/core.xml; before 0.6.1 also the custom properties and the
+  // customXml item, which 0.6.1 keeps; from the changed GridCraft file the customXml item): such a
+  // save must not replace the opened file. The changed GridCraft file has an upper-case name, which
+  // GridCraft saves as '<stem>.xlsx': a host that ignores letter case would take that for the
+  // opened file. The copy is GridCraft's own file and, opened again, saves back into itself: with
+  // GridCraft 0.6.1 it has the parts of Excel's file that GridCraft keeps, and so does its save.
+  const foreign: [opened: string, bytes: Buffer, saved: string, lost: [part: string, text: string]][] = [
+    ['from-excel.xlsx', FROM_EXCEL, 'from-excel.xlsx', ['docProps/core.xml', '<dcterms:created']],
+    ['CHANGED-ELSEWHERE.XLSX', changedElsewhere(), 'CHANGED-ELSEWHERE.xlsx', ['customXml/item1.xml', 'keep me']],
   ];
-  for (const [opened, bytes, name] of foreign) {
+  for (const [opened, bytes, name, [part, lost]] of foreign) {
     await scenario(context, `${opened} is never replaced: the first save is a new file ${name}, the next one replaces that file`, async (page, downloads) => {
       const { app, titles } = await openInHost(page, opened, '', bytes);
       await editCell(page, app, titles, 3, 'EDIT-1');
@@ -497,13 +509,24 @@ test('saved-as: interchange files, copies, new workbooks and files the user brin
       const first = await hostSave(page, 1);
       expectDocument(first.save, name, first.save.id);
       const saved = expectSavedWorkbook(first.bytes, ['EDIT-1']);
-      expect(saved.parts, 'what GridCraft drops').not.toContain('customXml/item1.xml');
+      expect(saved.text(part), `what GridCraft drops (${part})`).not.toContain(lost);
 
       await editCell(page, app, titles, 4, 'EDIT-2');
       await press(page, app, 'Control+s');
       const second = await hostSave(page, 2);
       expectDocument(second.save, name, first.save.id);
       expectSavedWorkbook(second.bytes, ['EDIT-1', 'EDIT-2']);
+
+      const copy = name.replace(/\.xlsx$/, '-2.xlsx'); // a name the host could give it
+
+      await test.step(`the copy, opened again as ${copy}, saves back into itself`, async () => {
+        const again = await openInHost(page, copy, '', second.bytes);
+        await press(page, again.app, 'Control+s');
+        const third = await hostSave(page, 1);
+        expectDocument(third.save, copy);
+        expect(workbook(third.bytes).parts, 'the parts of the copy').toEqual(expect.arrayContaining(workbook(second.bytes).parts));
+      });
+
       expectNoDownloads(downloads);
     });
   }
@@ -533,7 +556,9 @@ test('saved-as: interchange files, copies, new workbooks and files the user brin
   }
 
   await scenario(context, 'GridCraft\'s sales sample (charts, a table, notes) saves back unchanged as the document', async (page, downloads) => {
-    // Every part of it is one GridCraft's writer produces, and the writer is deterministic.
+    // Every part of it is one GridCraft's writer produces, and the writer is deterministic. The
+    // bytes are 0.6.1's (0.5.0 wrote the sample's icon set without its thresholds); 0.5.0 saves
+    // them back unchanged too.
     const { app } = await openInHost(page, 'sales-sample.xlsx');
     await press(page, app, 'Control+s');
     const { save, bytes } = await hostSave(page, 1);
@@ -639,29 +664,40 @@ test('language: the host\'s lang=ru starts GridCraft in Russian, as the browser 
   });
 });
 
-test('ui: File > Save and Search Commands > Export as PDF with the pointer', { tag: '@ui' }, async ({ page }) => {
+// The exports of the File view: the CSV of an opened data.csv has the opened name, and must not
+// pass as the document (its save name is data.xlsx).
+test('ui: File > Save, File > Export as PDF and as CSV with the pointer', { tag: '@ui' }, async ({ page }) => {
   const downloads = trackDownloads(page);
-  const { app, titles } = await openInHost(page, 'craftsuite-probe.xlsx');
+  const { app, titles } = await openInHost(page, 'data.csv');
+  // The File tab, then an entry of the File view's list, then a button on the page it shows.
+  const inFileView = async (entry: string, at: (b: Box) => { x: number; y: number }, button: string, on: (b: Box) => { x: number; y: number }) => {
+    await clickApp(page, app, 'the File tab', AT.fileTab);
+    await settle(page.locator('#app'), app); // the File view
+    await clickApp(page, app, `${entry} in the File view`, at);
+    await settle(page.locator('#app'), app); // its page
+    await clickApp(page, app, button, on);
+  };
 
-  await test.step('File > Save saves the document, like Ctrl+S', async () => {
+  await test.step('File > Save, then Download on its Save As page, saves the document, like Ctrl+S', async () => {
     await editCell(page, app, titles, 3, 'EDIT-1');
-    await clickApp(page, app, 'the File menu', AT.fileMenu);
-    await settle(page.locator('#app'), app); // the menu
-    await clickApp(page, app, 'Save in the File menu', AT.fileSave);
+    await inFileView('Save', AT.fileSave, 'Download (.xlsx) on the Save As page', AT.saveAsDownload);
     const { save, bytes } = await hostSave(page, 1);
-    expectDocument(save, 'craftsuite-probe.xlsx');
+    expectDocument(save, 'data.xlsx');
     expectSavedWorkbook(bytes, ['EDIT-1']);
   });
 
-  await test.step('Search Commands, file.exportPdf: a PDF under the title, a new file', async () => {
-    await clickApp(page, app, 'Search Commands in the title bar', AT.searchCommands);
-    await waitForTextEditing(app, true, 'Search Commands did not open');
-    await page.keyboard.insertText('file.exportPdf');
-    await appFrames(app, 3); // the list filters on its next frame; Enter must see the result
-    await page.keyboard.press('Enter');
+  await test.step('File > Export > Create PDF: a PDF under the title, a new file', async () => {
+    await inFileView('Export', AT.fileExport, 'Create PDF on the Export page', AT.exportPdf);
     const { save, bytes } = await hostSave(page, 2);
-    expectExport(save, 'craftsuite-probe.pdf');
+    expectExport(save, 'data.pdf');
     expect(bytes.subarray(0, 5).toString('latin1'), 'a PDF').toBe('%PDF-');
+  });
+
+  await test.step('File > Export > CSV: under the opened name data.csv, a new file', async () => {
+    await inFileView('Export', AT.fileExport, 'CSV (Comma delimited) on the Export page', AT.exportCsv);
+    const { save, bytes } = await hostSave(page, 3);
+    expectExport(save, 'data.csv');
+    expect(bytes.toString('utf8'), 'the sheet with the edit, as CSV').toMatch(new RegExp(`^${MARKER},42\\r?\\n[^]*EDIT-1`));
     expectNoDownloads(downloads);
   });
 });

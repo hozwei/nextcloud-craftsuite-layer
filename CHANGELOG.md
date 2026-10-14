@@ -13,8 +13,47 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.4.1] - 2026-10-14
+
+Translators for the Craft releases of 2026-10-13 (canary issue #2): PdfCraft 0.7.1, PhotoCraft
+0.8.2, VectorCraft 0.10.0, DesignCraft 0.7.1, WordCraft 0.6.1, GridCraft 0.6.1, CADCraft 0.6.2,
+DeckCraft 0.6.1, FilmCraft 0.7.2, LightCraft 0.7.1 and EffectCraft 0.9.2 are the tested versions
+(`tests/e2e/craft-versions.json`). The adapters keep working with the previous releases.
+
+### Fixed
+
+- WordCraft 0.6.1: saves in Chromium-based browsers reached neither Nextcloud nor the disk, since
+  WordCraft now saves through the browser's save picker, which a frame of another origin refuses.
+  The adapter hides the picker from the app, so every save is a download the translator catches.
+  WordCraft gets 10 s instead of 3 s to take a dropped file before the layer reports a startup
+  error.
+- CADCraft 0.6.2: every Ctrl+S of a DXF CADCraft wrote became a new file, because 0.6.2 saves R2018
+  by default and writes objects 0.5.0 did not. The adapter now knows what each release writes; a
+  DXF a newer CADCraft wrote, or a save in an older DXF version than the file's, goes to a copy.
+- EffectCraft 0.9: saves of the opened project became new files, because 0.9 writes the open
+  compositions into the project head. While Script Console scripts may write files, every save is
+  a new file, so a script cannot replace the opened project under its name.
+- GridCraft 0.6.1: a save of the opened file is the document only if GridCraft wrote it and the
+  save still has every part GridCraft does not rebuild (custom properties, customXml items,
+  external links, threaded comments, ...); otherwise it is a copy. The adapter removes
+  `window.showSaveFilePicker` in the frame, so saves always go through the translator. `.xls`
+  and `.xlt` are imports, saved as `<stem> (imported).xlsx`.
+- VectorCraft 0.10.0 fetches two startup fonts first: the adapter waits up to 45 s (was 30 s) for
+  its first drop listener.
+
 ### Changed
 
+- WordCraft: a workbook brought into the app counts as a mail-merge recipient list (0.6.1 loads it
+  as one), and merge fields in headers and footers mark a merged document.
+- PdfCraft is no longer started in Arabic or Japanese (0.7.1's web build lacks their fonts);
+  CADCraft can be started in Czech, German, Spanish, French, Brazilian Portuguese and Russian.
+- New-document names of the languages PhotoCraft 0.8 and WordCraft 0.6 added are never taken for
+  the opened document.
+- Tests follow the new releases: the pointer tests (@ui) of PdfCraft, WordCraft, GridCraft,
+  CADCraft, LightCraft and EffectCraft, the GridCraft sales sample fixture, and new steps for
+  PdfCraft's Create separate PDFs…, a CADCraft file reopened in the release that wrote it, and an
+  EffectCraft script writing under the opened name.
+- `docs/apps/` describe the new releases (facts, source references, coordinates).
 - Dependabot no longer proposes majors of `@types/node`: the types follow the Node.js the tooling
   runs on (24), so they move by hand together with it.
 
@@ -244,7 +283,8 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Documentation: an index (`docs/README.md`), architecture, protocol, security, hosting,
   development, the Nextcloud app, and one page per Craft app.
 
-[Unreleased]: https://github.com/hozwei/nextcloud-craftsuite-layer/compare/v0.4.0...main
+[Unreleased]: https://github.com/hozwei/nextcloud-craftsuite-layer/compare/v0.4.1...main
+[0.4.1]: https://github.com/hozwei/nextcloud-craftsuite-layer/compare/v0.4.0...v0.4.1
 [0.4.0]: https://github.com/hozwei/nextcloud-craftsuite-layer/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/hozwei/nextcloud-craftsuite-layer/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/hozwei/nextcloud-craftsuite-layer/compare/v0.1.0...v0.2.0

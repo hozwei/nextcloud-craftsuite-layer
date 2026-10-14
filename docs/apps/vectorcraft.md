@@ -8,13 +8,13 @@
 |---|---|
 | Upstream | [github.com/storytold/vectorcraft](https://github.com/storytold/vectorcraft) |
 | Adapter | [`translators/vectorcraft.js`](../../translators/vectorcraft.js) |
-| Tested version | `tested` in [`tests/e2e/craft-versions.json`](../../tests/e2e/craft-versions.json) (0.9.0 when this page was last checked) |
+| Tested version | `tested` in [`tests/e2e/craft-versions.json`](../../tests/e2e/craft-versions.json) (0.10.0 when this page was last checked) |
 | Tests | [`tests/e2e/specs/vectorcraft.spec.ts`](../../tests/e2e/specs/vectorcraft.spec.ts) (Chromium and WebKit, see [Tests](#tests)) |
 
 This page records what the VectorCraft web build does in the browser, as far as the translator
-depends on it, and how the adapter follows from it. The facts were checked against the 0.9.0
+depends on it, and how the adapter follows from it. The facts were checked against the 0.10.0
 source (and the eframe 0.36.2 crate it uses) and web build. Source references are paths in the
-upstream repository at tag `v0.9.0`. Upstream may change any of them; the daily canary run (see
+upstream repository at tag `v0.10.0`. Upstream may change any of them; the daily canary run (see
 [development.md](../development.md#continuous-integration)) is there to notice.
 
 ## What the web build does
@@ -25,20 +25,21 @@ upstream repository at tag `v0.9.0`. Upstream may change any of them; the daily 
   loading text. Rendering goes through wgpu: WebGPU where the browser has it, else WebGL2
   (`apps/vectorcraft-web/src/web.rs:142-151`).
 - Once the WebAssembly module is initialised (around Trunk's `TrunkApplicationStarted` event),
-  the app takes its Web Locks for Data Recovery and loads its startup fonts (none in 0.9.0), then
+  the app takes its Web Locks for Data Recovery and loads its startup fonts (Noto Sans Arabic and
+  Noto Sans Thai in 0.10.0, none in 0.8.0 and 0.9.0; see [Hosting notes](#hosting-notes)), then
   registers a `drop` listener of its own on the canvas, which only follows the pointer during
   file drags, and then starts the graphics (`web.rs:57-82`, `93-127`, `184-196`). eframe's `drop`
   listener, the one that reads the dropped files, comes only after the graphics and the app have
   been created (eframe `src/web/web_runner.rs:76-94`). A drop in between is lost: in Chromium
   the file did not open in 4 of 4 tries when the host sent it right after a `ready` that was
-  based on the first listener (WebKit opened it; tried with 0.8.0, whose page code 0.9.0 keeps
-  unchanged).
+  based on the first listener (WebKit opened it; tried with 0.8.0, whose page code 0.9.0 and
+  0.10.0 keep unchanged).
 - When the graphics run, the page removes `#vectorcraft_loading` (`web.rs:129-133`). When they
   cannot start, it fills that element with `<p>` lines instead, `VectorCraft failed to start:
   <reason>` and `A browser with WebGPU or WebGL2 is required.` (`web.rs:134`, `286-308`). The
   pointer listener exists in that case too.
 - If the graphics are lost later, the app starts them again on a new canvas element that
-  replaces the old one, with the same documents (`web.rs:257-263`, `324-340`).
+  replaces the old one, with the same documents (`web.rs:257-263`, `325-341`).
 - The page reads `?webgl` (forces WebGL2) and `?lang=<code>` (`web.rs:142-175`, see
   [Interface language](#interface-language)). It does not read `?file=` or `?cpu` (the latter is
   listed in the build's `HOSTING.md`).
@@ -49,24 +50,25 @@ upstream repository at tag `v0.9.0`. Upstream may change any of them; the daily 
   `src/web/events.rs:976-1000`), so the translator's simulated drop works like a user's.
 - For each dropped file VectorCraft decides: with no document open, the file opens as a new
   document; with a document open and the drop point on the canvas, the file is placed into that
-  document (`crates/ui-egui/src/place.rs:304-313`, `web.rs:353-377`). A second `open` into the
+  document (`crates/ui-egui/src/place.rs:301-316`, `web.rs:354-378`). A second `open` into the
   same frame therefore ends up inside the first document. Hosts open one file per frame.
 - Some types are not documents: a `.wasm` file installs a plug-in, preset files
   (`.vcpdfpresets`, `.vcflattener`, `.vcprintpresets`, `.vcperspective`) are imported, and
   library files (`.vcswatches`, `.gpl`, `.ase`, `.acb`, `.vcstyles`, and `.vclibrary` for the
-  Libraries panel) load into panels. A PDF with several pages or a password, and a DXF drawing,
-  first open an import dialog that the user answers (`crates/ui-egui/src/io.rs:21-64`).
+  Libraries panel) load into panels; since 0.10.0 also when they are dropped on the canvas of an
+  open document (`crates/ui-egui/src/io.rs:80-101`). A PDF with several pages or a password, and
+  a DXF drawing, first open an import dialog that the user answers (`io.rs:21-58`).
 - The document's title: an import is named after the file, with its extension; a native file
   keeps the title stored in it (`document.title`), unless that is empty
-  (`crates/engine/src/cmd/fileio/load.rs:177`, `241-245`). The tab shows the title. A
+  (`crates/engine/src/cmd/fileio/load.rs:192`, `256-260`). The tab shows the title. A
   template (`.vctemplate`, `.ait`, or a native file marked as template) opens untitled
-  (`Untitled-1`, `load.rs:297-303`).
-- A dropped file has no path in the app (`web.rs:359`: only the name), so Save cannot write it
+  (`Untitled-1`, `load.rs:330-336`).
+- A dropped file has no path in the app (`web.rs:360`: only the name), so Save cannot write it
   back without asking.
 - There is no JavaScript-visible signal that a file was opened, could not be opened, or has
   unsaved changes. A file VectorCraft cannot read shows a message box `Can't open “<name>”.`,
   drawn in the canvas, and `Couldn't open ...` in its status bar
-  (`crates/ui-egui/src/lib.rs:823-831`, `io.rs:108-112`; before 0.9.0 only the status bar); the
+  (`crates/ui-egui/src/lib.rs:884-892`, `io.rs:151-155`; before 0.9.0 only the status bar); the
   host only gets `delivered`.
 
 **Saving and downloads**
@@ -74,24 +76,26 @@ upstream repository at tag `v0.9.0`. Upstream may change any of them; the daily 
 - Every download goes through one helper: a `Blob` typed after the name's extension
   (`.vectorcraft` as `application/json`), `URL.createObjectURL`, a hidden `<a download>`
   appended to `<body>`, `click()`, removed again, and the URL revoked after 10 seconds
-  (`web.rs:494-524`). No File System Access API, no IndexedDB.
+  (`web.rs:500-530`). No File System Access API, no IndexedDB.
 - The first Save (Ctrl+S) of a dropped file opens VectorCraft's Save As dialog, drawn in the
   canvas. It suggests `<title without extension>.vectorcraft`, with the name selected and
   focused, and the format VectorCraft; Enter confirms, Escape cancels
   (`crates/engine/src/cmd/fileio/save.rs:221-229`). The translator can neither see nor answer
   it. The name the user confirms becomes the document's path, and later Saves write it without
-  asking (`save.rs:500-509`). Save is enabled for a document without a path even when it is
-  unchanged, and afterwards only when there are changes (`crates/ui-egui/src/menus.rs:1857`).
+  asking (`save.rs:588-597`). Save is enabled for a document without a path even when it is
+  unchanged, and afterwards only when there are changes (`crates/ui-egui/src/menus.rs:1938`).
 - Saves rewrite the whole file: UTF-8 JSON, or gzip with Use Compression (off by default,
-  `crates/engine/src/lib.rs:790`). Since format version 4 the JSON may be followed by binary data
-  for large images, after the bytes `\n\0VCBLOBS\0` (`crates/format/src/lib.rs:1-31`, `53`,
-  `145-158`). A dropped `.vectorcraft` that was compressed is saved uncompressed unless the user
-  ticks Use Compression.
+  `crates/engine/src/lib.rs:957`). Since format version 4 the JSON may be followed by binary data
+  for large images, after the bytes `\n\0VCBLOBS\0` (`crates/format/src/lib.rs:1-31`, `56`,
+  `166-192`). A dropped `.vectorcraft` that was compressed is saved uncompressed unless the user
+  ticks Use Compression. Since 0.10.0 a compressed save is written as it is encoded (one gzip
+  stream, already compressed images in stored blocks), and VectorCraft reads up to 1 GB of JSON
+  from a compressed file (`MAX_JSON`, `lib.rs:66-77`), up from 512 MB.
 - The other formats are re-encodings of what VectorCraft could read. Its own warning before
   overwriting a lossy import ("Replace ..., the file this document was opened from?") needs the
-  document's path, so it never applies to dropped files (`load.rs:295`, `309`).
+  document's path, so it never applies to dropped files (`load.rs:328`, `342`).
 - File > New names a document `Untitled-N`, counting from 1 in each session; opening a file does
-  not count (`crates/engine/src/lib.rs:1014-1020`, `crates/engine/src/cmd/newdoc.rs:568-572`). Its
+  not count (`crates/engine/src/lib.rs:1185-1191`, `crates/engine/src/cmd/newdoc.rs:569-573`). Its
   first Save suggests `Untitled-N.vectorcraft`. Save never changes the stored title (only File >
   File Info does, `crates/engine/src/cmd/fileinfo.rs:57`), so a drawing made with File > New keeps
   `Untitled-N` inside, whatever its file is called. With such a file open, the first new
@@ -100,8 +104,8 @@ upstream repository at tag `v0.9.0`. Upstream may change any of them; the daily 
   File > File Info; `crates/doc/src/metadata.rs:59`). The desktop app sets it at File > New and,
   where it is missing, on the first save to a file (`save.rs:95-99`, `get_or_insert`); nothing
   changes it afterwards, and loading and saving keep it. The web build has no clock
-  (`crates/doc/src/metadata.rs:85-94`, `save.rs:390-399`): it sets it neither for a new document
-  nor on a save, so a drawing made in the browser has none.
+  (`crates/doc/src/metadata.rs:85-94`, `save.rs:420-429`, `newdoc.rs:575`): it sets it neither
+  for a new document nor on a save, so a drawing made in the browser has none.
 
 | Download | Name | Kind |
 |---|---|---|
@@ -113,24 +117,26 @@ upstream repository at tag `v0.9.0`. Upstream may change any of them; the daily 
 | Save for Office Documents | `<stem>.png` | `export` |
 | Export As SVG, Export As PNG, Export As | `<stem>.svg`, `<stem>.png` (the opened name, for an opened SVG or PNG) | `export` |
 | Export for Screens | `Artboard-1.png` and the like | `export` |
-| Print | no download: the PDF goes into a hidden frame and the browser's print dialog (`web.rs:526-575`) | none |
+| Print | no download: the PDF goes into a hidden frame and the browser's print dialog (`web.rs:532-581`) | none |
 
 `<stem>` is the document's path without its extension, or before the first Save its title
-without its extension (`save.rs:223`, `crates/engine/src/cmd/fileio/mod.rs:687-689`).
+without its extension (`save.rs:223`, `crates/engine/src/cmd/fileio/mod.rs:707-709`). 0.10.0 adds
+no download; its Links > Find in Folder… needs a folder picker and is disabled on the web
+(`crates/ui-egui/src/menus.rs:1983`).
 
 **Links**
 
 - VectorCraft opens its links (the Help links, and since 0.9.0 the contributor names in About >
   Contributors) through its `open_url`, which in the web build hands the URL to egui as a new
   tab on the next frame; eframe then calls `window.open(url, '_blank')`
-  (`crates/ui-egui/src/lib.rs:641-648`, `987-989`, `crates/ui-egui/src/credits.rs:274-281`;
+  (`crates/ui-egui/src/lib.rs:677-684`, `1054-1056`, `crates/ui-egui/src/credits.rs:283-290`;
   eframe `src/web/mod.rs:351-358`). So the window opens one frame after the click, outside the
   click's event handler. The tests' Chromium and WebKit open it; whether a browser's popup
   blocker lets it through was not checked (Playwright's browsers allow popups).
 - Up to 0.8.0 the contributor names were egui hyperlinks, which eframe opens with target
-  `_self`: in a frame they would have replaced the editor. 0.9.0 has no such link left. The
-  translator's `window.open` still opens `_self` in a new window, and gives a page of another
-  origin no `window.opener` (see [protocol.md](../protocol.md#links)).
+  `_self`: in a frame they would have replaced the editor. 0.9.0 and 0.10.0 have no such link
+  left. The translator's `window.open` still opens `_self` in a new window, and gives a page of
+  another origin no `window.opener` (see [protocol.md](../protocol.md#links)).
 
 ## How the adapter works
 
@@ -145,19 +151,21 @@ without either it rejects with `the app did not start in time`, but with the def
 `data-startup-timeout` (60 seconds) the core has reported `the app did not get ready in time`
 before.
 
-**`dropTargetTimeout`.** 30 seconds instead of the core's 3. The core waits this long from
+**`dropTargetTimeout`.** 45 seconds instead of the core's 3. The core waits this long from
 `TrunkApplicationStarted` for the app's first `drop` listener and otherwise reports `the app
 registered no drop target` to the host (provisionally: `ready` still follows if the listener
 comes later). In VectorCraft that first listener is the pointer listener, which the page adds
 right before it starts the graphics (`web.rs:94`), so this wait does not include the graphics
 start; `started()` covers that. It does include what the page does before: it takes its Web
 Locks and fetches its startup fonts, one after the other, each with a limit of 20 seconds
-(`web.rs:66-69`, `apps/vectorcraft-web/src/fonts.rs:16`, `28-36`). The 0.9.0 build, like
-0.8.0, fetches no fonts (it has no `fonts/` folder) and adds the listener right after its start;
-builds with a `fonts/` folder fetch Noto Sans Arabic there (see [Hosting notes](#hosting-notes)),
-which on a slow connection takes longer than 3 seconds. Should a release drop the pointer listener,
-eframe's, added after the graphics start, would be the first, and the 30 seconds would have to
-cover the graphics start as well. A `data-drop-target-timeout` on the script tag still wins.
+(`web.rs:66-69`, `apps/vectorcraft-web/src/fonts.rs:16`, `28-36`). The 0.8.0 and 0.9.0 builds
+fetch no fonts (they have no `fonts/` folder) and add the listener right after their start; the
+0.10.0 build fetches Noto Sans Arabic and Noto Sans Thai from its `fonts/` folder (see
+[Hosting notes](#hosting-notes)), which on a slow connection takes longer than 3 seconds and at
+worst 40 seconds. The adapter had 30 seconds up to 0.9.0, enough for one font. Should a release
+drop the pointer listener, eframe's, added after the graphics start, would be the first, and the
+45 seconds would have to cover the graphics start as well. A `data-drop-target-timeout` on the
+script tag still wins.
 
 **`dropTarget()`.** The simulated drop goes to `canvas#vectorcraft_canvas`, looked up at each
 open, because a graphics restart replaces the canvas element.
@@ -165,15 +173,16 @@ open, because a graphics restart replaces the canvas element.
 **`savedName()`.** The name VectorCraft's Save As dialog suggests: the stem of the title stored
 in a native file (`.vectorcraft` or `.drawcraft` with native content), else the stem of the
 opened name, plus `.vectorcraft`. Native content is JSON whose first 256 bytes name
-`vectorcraft` or `drawcraft`, possibly gzip-compressed (`crates/format/src/lib.rs:494-508` sniffs
+`vectorcraft` or `drawcraft`, possibly gzip-compressed (`crates/format/src/lib.rs:558-572` sniffs
 the same way). The adapter parses the JSON only up to the first NUL byte, so that the binary data
 of a version 4 file does not hide the title (JSON text never contains a NUL byte). It unpacks a
 gzip file as a stream with `DecompressionStream`, stops at the first NUL byte, and gives up
-(falling back to the opened name) beyond VectorCraft's own limit of 512 MB (`MAX_UNPACKED`,
-`crates/format/src/lib.rs:63-64`) or when the first 256 unpacked bytes are not native. So a
-small file that unpacks to gigabytes cannot exhaust the frame's memory, and the image data after
-the JSON is never unpacked. With this, the core finds the opened file for a save under the
-suggested name.
+(falling back to the opened name) beyond 512 MB of JSON (`MAX_UNPACKED`, VectorCraft's own limit
+up to 0.9.0) or when the first 256 unpacked bytes are not native. So a small file that unpacks to
+gigabytes cannot exhaust the frame's memory, and the image data after the JSON is never unpacked.
+VectorCraft 0.10.0 reads up to 1 GB of JSON (`crates/format/src/lib.rs:66-77`); the save of a
+document whose JSON alone is larger than 512 MB (large images go after the JSON) becomes a new
+file. With this, the core finds the opened file for a save under the suggested name.
 
 **`identity()`.** The creation time stored in a native file, or none. The core keeps it with the
 opened file (and takes it from each stored save of the document), and sends a save whose
@@ -209,7 +218,7 @@ Everything else is an `export`. The reasons:
   document under that name, so such a save is never the document: a new file, nothing
   overwritten.
 
-Examples, all checked with 0.9.0 in Chromium and WebKit:
+Examples, all checked with 0.9.0 in Chromium and WebKit, and again with 0.10.0 by the spec:
 
 | Opened file | First Ctrl+S, Enter | Kind |
 |---|---|---|
@@ -225,10 +234,10 @@ Examples, all checked with 0.9.0 in Chromium and WebKit:
 
 **In the web build.** VectorCraft draws its interface in the language set in Edit > Preferences…
 (Ctrl+K) > User Interface > Language: Auto by default, the system's language
-(`crates/engine/src/lib.rs:527-529`, `747`, `crates/ui-egui/src/lib.rs:893-899`). The page works
+(`crates/engine/src/lib.rs:690-692`, `913`, `crates/ui-egui/src/lib.rs:954-960`). The page works
 that out once, as the module starts and before the first frame: the first of `?lang=<code>` in its
 address, `navigator.languages` and `navigator.language` that names one of its languages, else
-English (`apps/vectorcraft-web/src/web.rs:153-172`, `crates/ui-egui/src/i18n/mod.rs:241-307`).
+English (`apps/vectorcraft-web/src/web.rs:153-172`, `crates/ui-egui/src/i18n/mod.rs:250-317`).
 A region is cut off (`de-AT` is German; Chinese without a script picks one by region), but
 neither `pt` nor `pt-PT` finds `pt-br`. Only the first `lang=` counts, taken as written; an empty
 or unknown one falls through to the browser's languages. A `lang` that arrives after the module
@@ -249,16 +258,20 @@ language again (the translator keeps it in the frame's name). VectorCraft also
 follows `navigator.languages`, so `util.preferLanguages()` would do should `?lang` go away.
 
 **Languages.** The Nextcloud app offers the keys of `LANGUAGES`: `en`, `cs`, `de`, `es`, `fr`,
-`it`, `ja`, `pt-BR`, `ru` and `uk`. VectorCraft's other two are left out because the web build
-draws them with missing glyphs: Simplified Chinese (`zh-hans`) in many labels, menu titles
-included, and Traditional Chinese (`zh-hant`) in the title of the Help menu. Czech translates
-only the menus (panels and dialogs stay English), and Brazilian Portuguese the menus and most
-labels but no status or error messages, the loading text included
-(`crates/ui-egui/src/i18n/mod.rs:90-91`, `145-155`); the other languages translate the whole
-interface. Japanese, Russian and Ukrainian draw without missing glyphs.
+`it`, `ja`, `pt-BR`, `ru` and `uk`. Three of VectorCraft's others are left out because the web
+build draws them with missing glyphs, seen again with 0.10.0 although its build carries a Chinese
+face: Simplified Chinese (`zh-hans`) in many labels, menu titles included, Traditional Chinese
+(`zh-hant`) in the title of the Help menu, and Korean (`ko`, new in 0.10.0) everywhere, as its
+Hangul needs an installed font (`crates/ui-egui/src/i18n/mod.rs:91-94`), which the web does not
+have. Hungarian (`hu`, new in 0.10.0, `i18n/mod.rs:150-153`) draws completely but is not offered
+yet: that needs the Nextcloud app's list in `CraftApps.php` as well as the adapter's table, and
+0.9.0 would start in the browser's language instead. Since 0.10.0 Czech and Brazilian
+Portuguese translate the whole interface too, status and error messages and the loading text
+included (`i18n/mod.rs:95-97`, `154-164`; up to 0.9.0 Czech translated only the menus, and
+Brazilian Portuguese no messages). Japanese, Russian and Ukrainian draw without missing glyphs.
 
 **A language picked in the app.** Preferences > User Interface > Language (Auto and VectorCraft's
-twelve languages, `crates/ui-egui/src/prefs_dialog.rs:334-340`) switches the interface at once.
+fourteen languages, `crates/ui-egui/src/prefs_dialog.rs:336-342`) switches the interface at once.
 The web build stores no preferences (see [Hosting notes](#hosting-notes)), so the choice lasts
 until the frame reloads, and the next start is in the host's language again (or the browser's);
 the host is not told. Should VectorCraft keep the choice one day, it would win over the host's
@@ -266,7 +279,7 @@ language, which only stands in for Auto.
 
 The rest of the adapter does not depend on the language: the names the Save As dialog suggests
 come from the document's title or file name, and new documents are `Untitled-<n>` in every
-language (`crates/engine/src/lib.rs:1014-1020`).
+language (`crates/engine/src/lib.rs:1185-1191`).
 
 ## Known gaps
 
@@ -305,7 +318,7 @@ language (`crates/engine/src/lib.rs:1014-1020`).
   and the import dialogs of a multi-page or password PDF and of a DXF wait for the user.
 - **No unsaved-changes signal.** The host must warn on close. VectorCraft writes Data Recovery
   copies of modified documents every 2 minutes into the frame's `localStorage`
-  (`crates/engine/src/lib.rs:757-758`, `web.rs:443-492`). A copy left behind makes a later start
+  (`crates/engine/src/lib.rs:924-925`, `web.rs:449-498`). A copy left behind makes a later start
   show Recover Documents over the opened file; a restored copy saves under its own title, and if
   that is the opened file's suggested name, or the opened name of a `.vectorcraft`, it arrives as
   `document`. Nextcloud's file versions (where enabled) keep the previous state.
@@ -318,9 +331,9 @@ language (`crates/engine/src/lib.rs:1014-1020`).
 
 ## File types
 
-What VectorCraft 0.9.0 opens as a document from a drop (`OPEN_EXTS` in
-`crates/engine/src/cmd/fileio/mod.rs:571-597`; the format is detected by content first,
-`load.rs:50-89`), and what the Nextcloud app offers (`CraftApps::APPS` in
+What VectorCraft 0.10.0 opens as a document from a drop (`OPEN_EXTS` in
+`crates/engine/src/cmd/fileio/mod.rs:591-617`, unchanged since 0.9.0; the format is detected by
+content first, `load.rs:62-101`), and what the Nextcloud app offers (`CraftApps::APPS` in
 `craftsuite_layer/lib/Service/CraftApps.php`): "open with" is the entry "Open in VectorCraft" in
 the action menu of Files. The MIME types are those of Nextcloud 34 and 35; types without one
 arrive as `application/octet-stream`, so the app matches by extension. For the VectorCraft icon in
@@ -366,20 +379,25 @@ the default app too, and a `.dxf` to CADCraft while it has an address.
   `allow-modals`; the Nextcloud editor's frame has it.
 - WebGPU needs a secure context; elsewhere the app falls back to WebGL2. Without either it
   cannot run, and the host gets `the app failed to start: VectorCraft failed to start: ...`.
-- The 0.9.0 `.wasm` is 56.3 MB (about 21 MB with gzip, 17 MB with Brotli at quality 6;
+- The 0.10.0 `.wasm` is 61.7 MB (about 23 MB with gzip, 18 MB with Brotli at quality 6;
   `HOSTING.md` still says about 13 MB and 5 MB). Compression and long caching of the hashed files
   matter.
-- The 0.9.0 build, like 0.8.0, has no `fonts/` folder. `HOSTING.md` describes builds with one,
-  which fetch Noto Sans Arabic before the app starts (up to 20 seconds,
-  `apps/vectorcraft-web/src/fonts.rs`) and so before its first `drop` listener. On a slow
-  connection, the core's default `data-drop-target-timeout` (3 seconds) would report `the app
-  registered no drop target` before `ready` follows, so the adapter sets `dropTargetTimeout` to
-  30 seconds (see [How the adapter works](#how-the-adapter-works)). A site that sets
-  `data-drop-target-timeout` on the script tag overrides that and should not go below it.
+- The 0.10.0 build is the first with a `fonts/` folder: Noto Sans Arabic (845 KB) and Noto Sans
+  Thai (219 KB), each in `fonts/<hash>/`, which the page fetches before the app starts, one after
+  the other, each with a limit of 20 seconds and checked against its SHA-256
+  (`apps/vectorcraft-web/src/fonts.rs`, `crates/text/web-fonts.txt`), and so before its first
+  `drop` listener. The background families `HOSTING.md` mentions (about 8 MB of Arabic fonts) are
+  not in the build. The folder has to be served with the rest of the build (`.ttf` as `font/ttf`,
+  as the build's `_headers` and `.htaccess` do); without it the app still runs, logs `web font …`
+  and shows Arabic and Thai text as boxes. On a slow connection, the core's default
+  `data-drop-target-timeout` (3 seconds) would report `the app registered no drop target` before
+  `ready` follows, so the adapter sets `dropTargetTimeout` to 45 seconds (see
+  [How the adapter works](#how-the-adapter-works)). A site that sets `data-drop-target-timeout` on
+  the script tag overrides that and should not go below it.
 - Data Recovery copies live in the frame's `localStorage`
-  (`apps/vectorcraft-web/src/web.rs:443-492`); browsers that partition or block third-party
+  (`apps/vectorcraft-web/src/web.rs:449-498`); browsers that partition or block third-party
   storage may forget them between visits. Preferences are not stored at all, although
-  `HOSTING.md` says they are kept there: the web build has no store for them (`web.rs:394-441`;
+  `HOSTING.md` says they are kept there: the web build has no store for them (`web.rs:395-447`;
   eframe's persistence is not enabled), so a choice made in Edit > Preferences, the interface
   language too, lasts until the frame reloads.
 - Keyboard shortcuts reach the app after the user clicks into the frame.
@@ -398,7 +416,7 @@ three are the contract tests; the canary runs them apart from the `language` tes
 |---|---|
 | `contract` | An allowed host: the handshake with the served app version, then the open, which the host sends the moment `ready` arrives; that the file really opened shows in the save, which holds the opened drawing. An edit saved with Ctrl+S and Enter in the Save As dialog arrives as the document; a second Ctrl+S saves without asking, as the document again. Save as PDF arrives as an export. Nothing becomes a browser download, also not after the deadlines for the host's confirmation and result. |
 | `another name` | An SVG saves as `probe.vectorcraft`, the document, twice, while Export As SVG under the opened name stays an export. A renamed native file saves under its stored title, as the document; saved under its opened name instead (typed over the suggestion in the Save As dialog), it is the document too, also on the second Ctrl+S. `Untitled-1.vectorcraft` as the desktop app writes it (stored title `Untitled-1`, a creation time; made from the native fixture in the spec) saves as the document, keeping its creation time, and a new document (File > New) saved under the same name arrives as an export. The blank of the "+ New" entry in Files (`craftsuite_layer/assets/blank.vectorcraft`: an empty stored title, so the Save As dialog suggests the file's name, and a creation time) opens, and its first save (Ctrl+S and Enter, without an edit) arrives as the document `blank.vectorcraft` (no `follows`) and not as a browser download. |
-| `startup` | Without WebGPU and WebGL2: the host gets one error, of `startup`, with VectorCraft's own message, and no `ready`. |
+| `startup` | Without WebGPU and WebGL2: the host gets one error, of `startup`, with VectorCraft's own message, and no `ready`. The startup fonts (0.10.0 and later) are held back 3.5 s each, longer than the core's default wait for a drop target, and bring no earlier error (`the app registered no drop target`); the step's title names the fonts held back, or says the build has none. |
 | `language` | The host's `fr`, in the frame's fragment, with the browser at `en-US`: `ready` reports `fr`, the frame's address has `lang=fr` and no fragment, and the loading text, recorded in the frame as it changes, was `Chargement de VectorCraft…`. The other tests run without a host language: the `startup` test expects VectorCraft's English message, and the `@ui` positions were measured in English. |
 | `ui` (`@ui`) | The paths that need pointer clicks: File > Save and OK in the Save As dialog save the document; File > Export > Export As SVG and OK in SVG Options give an export; the link to a contributor in About > Contributors opens a new window and the editor stays. |
 
@@ -409,21 +427,23 @@ contains every typed word (`crates/ui-egui/src/palette.rs:76-117`), and some lab
 commands first, so the tests type command ids (`file.newDialog`, `file.export.pdf`,
 `file.export.svg`, `help.about`) from `crates/ui-egui/src/menus.rs`. Only the `ui` test also
 clicks with the pointer; its click positions are in the `AT` table of the spec, measured on 0.9.0
-at a 1400x900 viewport with the locale `en-US`. The entries of the File menu and its Export
-submenu are given from the File title (`FILE`), under which egui opens the menu, and the dialog
-buttons from the frame's centre, where the modals are anchored: 0.9.0, which dropped the app menu
-"VectorCraft" before File and made the menu bar lower, needed only `FILE` re-measured. After the
-menu clicks the test checks that Save As or SVG Options opened, and after OK that it closed (the
-focus is in their text field meanwhile), so a click that missed names the `AT` entries to
-re-measure. When a new release fails the canary:
+(still right for 0.10.0) at a 1400x900 viewport with the locale `en-US`. The entries of the File
+menu and its Export submenu are given from the File title (`FILE`), under which egui opens the
+menu, and the dialog buttons from the frame's centre, where the modals are anchored: 0.9.0, which
+dropped the app menu "VectorCraft" before File and made the menu bar lower, needed only `FILE`
+re-measured. After the menu clicks the test checks that Save As or SVG Options opened, and after
+OK that it closed (the focus is in their text field meanwhile), so a click that missed names the
+`AT` entries to re-measure. When a new release fails the canary:
 
 - **Contract tests fail.** The release changed something the translator relies on (see
   [architecture.md](../architecture.md#upstream-coupling-points)). Sites that host the app should hold the
-  release back until the adapter or the core is fixed. Two failures point at this adapter: "Ctrl+S
-  opened the Save As dialog" failing means the file was lost (check `#vectorcraft_loading` and
-  `started()`), and a save of the expected name arriving as `export` means `savedName()` no longer
+  release back until the adapter or the core is fixed. Three failures point at this adapter:
+  "Ctrl+S opened the Save As dialog" failing means the file was lost (check `#vectorcraft_loading`
+  and `started()`); a save of the expected name arriving as `export` means `savedName()` no longer
   matches the suggested name (check the stored title and the native format) or, in the
-  `Untitled-1.vectorcraft` scenario, that Save no longer keeps the creation time.
+  `Untitled-1.vectorcraft` scenario, that Save no longer keeps the creation time; and `the app
+  registered no drop target` in the `startup` test means the startup fonts now take longer than
+  `dropTargetTimeout` covers (check `crates/text/web-fonts.txt` and `fonts.rs`).
 - **Only the `language` test fails.** The release no longer takes `?lang` before its module
   starts, or words its French loading text differently (then only the test needs the new text).
   Check `detect_language()` in `apps/vectorcraft-web/src/web.rs` and the adapter's `language()`;
@@ -447,4 +467,5 @@ and the saves exact:
   takes files (a user's drop during startup is lost today as well);
 - an embedding API like the one proposed for PhotoCraft (open bytes, save callbacks, unsaved
   state; see [architecture.md](../architecture.md#native-embedding-apis));
-- current size figures in `HOSTING.md`.
+- current size figures in `HOSTING.md`, and a fonts section that matches the build (0.10.0 ships
+  two startup faces, not the 8 MB of Arabic families it describes).

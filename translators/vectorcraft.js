@@ -3,7 +3,7 @@
  * SPDX-FileCopyrightText: 2026 The nextcloud-craftsuite-layer contributors
  * SPDX-License-Identifier: AGPL-3.0-or-later
  *
- * Load right after core.js. What VectorCraft (web build, checked with 0.9.0) does and why the
+ * Load right after core.js. What VectorCraft (web build, checked with 0.10.0) does and why the
  * rules below follow from it is described in docs/apps/vectorcraft.md:
  *  - It takes dropped files on its canvas (canvas#vectorcraft_canvas, through eframe). With no
  *    document open a drop opens the file; with one open, a drop on the canvas places the file into
@@ -56,7 +56,9 @@
   // binary data ("\n\0VCBLOBS\0" and large images); JSON text never contains a NUL byte, so it ends
   // before the first one.
   const HEAD = 256;
-  const MAX_UNPACKED = 512 * 1024 * 1024; // VectorCraft's own limit for compressed files
+  // At most this much JSON is unpacked: VectorCraft's limit for compressed files up to 0.9.0 (0.10.0
+  // reads up to 1 GB of JSON, MAX_JSON); a save with more becomes a new file.
+  const MAX_UNPACKED = 512 * 1024 * 1024;
   const isGzip = (bytes) => bytes.length >= 2 && bytes[0] === 0x1f && bytes[1] === 0x8b;
   const looksNative = (head) => {
     const text = new TextDecoder().decode(head.subarray(0, HEAD));
@@ -126,8 +128,9 @@
 
   // The interface language: VectorCraft takes ?lang=<code> first, then navigator.languages,
   // when its module starts (apps/vectorcraft-web/src/web.rs:153-166), and its web build stores no
-  // choice. BCP 47 tag -> VectorCraft's code; left out: zh-Hans and zh-Hant, which the web build
-  // draws with missing glyphs.
+  // choice. BCP 47 tag -> VectorCraft's code; left out: zh-Hans, zh-Hant and ko, which the web
+  // build draws with missing glyphs, and hu (new in 0.10.0), which the Nextcloud app does not
+  // offer yet.
   const LANGUAGES = { en: 'en', cs: 'cs', de: 'de', es: 'es', fr: 'fr', it: 'it', ja: 'ja', 'pt-BR': 'pt-br', ru: 'ru', uk: 'uk' };
 
   window.craftsuiteLayer.register({
@@ -150,13 +153,13 @@
     // How long the core waits from the app's start (TrunkApplicationStarted) for the first `drop`
     // listener. In VectorCraft that is the pointer listener, added just before the graphics start,
     // so this wait does not include them. It does include the startup fonts, which the page fetches
-    // before that listener (web.rs start(), fonts.rs): builds with a fonts/ folder fetch Noto Sans
-    // Arabic there, up to 20 s per font, and with the core's default of 3 s the host would get a
-    // provisional startup error ('the app registered no drop target') before 'ready'. Builds
-    // without the folder (0.8.0, 0.9.0) add the listener right after their start. Should a
-    // release drop the pointer listener, eframe's, added after the graphics start, would be the
-    // first, and this wait would include the graphics start too.
-    dropTargetTimeout: 30000,
+    // before that listener, one after the other, up to 20 s each (web.rs start(), fonts.rs): 0.10.0
+    // fetches Noto Sans Arabic and Noto Sans Thai from its fonts/ folder, and with the core's
+    // default of 3 s the host would get a provisional startup error ('the app registered no drop
+    // target') before 'ready'. Builds without the folder (0.8.0, 0.9.0) add the listener right
+    // after their start. Should a release drop the pointer listener, eframe's, added after the
+    // graphics start, would be the first, and this wait would include the graphics start too.
+    dropTargetTimeout: 45000,
     dropTarget(registered) {
       return document.getElementById(CANVAS) || registered;
     },

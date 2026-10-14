@@ -9,7 +9,8 @@
 //                 Office Word'): stored title 'Stored Title', creation time
 //                 2025-03-04T05:06:07Z, a paragraph with MARKER, a content control, a legacy
 //                 check box form field and a custom XML part, three things a WordCraft 0.5.0
-//                 save drops (its docs/file-format-parity.md)
+//                 save drops (its docs/file-format-parity.md); a 0.6.1 save keeps the content
+//                 control and the custom XML part, and still drops the form field's data
 // probe.odt       an OpenDocument text with MARKER, a stored title and meta:creation-date
 // probe.rtf       an RTF with MARKER, a stored title and \creatim
 //

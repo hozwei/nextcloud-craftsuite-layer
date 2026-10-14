@@ -10,12 +10,13 @@
 //              worker, memory storage), open of a .ecproj; an edit saved with Ctrl+S arrives as the
 //              document under the opened name, a project file with the edit, and so does a second
 //              one; Collect Files (a copy under the opened name, without savedBy), Save Frame As
-//              (Frame.png), a project file under the opened name written while the project has
-//              unsaved changes or saved to another folder (all three through window.effectcraft
-//              but Collect Files, which runs from the command palette), Save As
-//              (Ctrl+Shift+S) and the Save after it, and the save of a new project (Ctrl+Alt+N)
-//              arrive as new files; nothing becomes a download, also not after the deadlines for
-//              the host's confirmation and result
+//              (Frame.png), a project file under the opened name that a Script Console script
+//              writes while the user allows scripts to write files and the project is clean, or
+//              written while the project has unsaved changes, or saved to another folder (all
+//              through window.effectcraft but Collect Files, which runs from the command
+//              palette), Save As (Ctrl+Shift+S) and the Save after it, and the save of a new
+//              project (Ctrl+Alt+N) arrive as new files; nothing becomes a download, also not
+//              after the deadlines for the host's confirmation and result
 //   saved-as   an opened 'Untitled Project.ecproj' saves as a new file (every new project saves
 //              under that name); the blank of the Nextcloud app's + New entry (EffectCraft's New
 //              Project, savedBy 0.8.0) opens, and its first save, without an edit, is the
@@ -30,7 +31,7 @@
 //   language   the host names Spanish (lang=es in the frame's fragment): ready reports es,
 //              EffectCraft's preference general.language is es (set by the adapter through
 //              window.effectcraft), File > Save reads 'Guardar', and the project opens as without
-//              a language; a language EffectCraft lacks (lang=de): no startup error, ready reports
+//              a language; a language EffectCraft lacks (lang=it): no startup error, ready reports
 //              none, and the app stays in its own (general.language 'system', English)
 //   ui (@ui)  the File menu with the pointer: Save saves the document; Save As > Save a Copy…
 //              arrives as a new file
@@ -243,6 +244,22 @@ async function runThroughApi(app: Frame, command: string, params: Record<string,
   });
 }
 
+// The user allows scripts to write files (Preferences > Scripting & Expressions > Allow Scripts to
+// Write Files and Access Network, off by default; here through window.effectcraft) and runs a
+// script in Window > Script Console (script.run) that writes `bytes` to `file` with ExtendScript's
+// File, opened for appending so that it is written once, on close. The setting stays on.
+async function scriptWrites(app: Frame, file: string, bytes: Buffer) {
+  await test.step(`ui: allow scripts to write files, a Script Console script writes ${file}`, async () => {
+    const code = `var f = new File(${JSON.stringify(file)}); f.open('a'); f.write(${JSON.stringify(bytes.toString('utf8'))}); f.close();`;
+    const result = await app.evaluate(async (code) => {
+      const effectcraft = (window as unknown as AppWindow).effectcraft;
+      await effectcraft.execute('prefs.set', { key: 'scripting.allowScriptsWriteFiles', value: true });
+      return effectcraft.execute('script.run', { code, name: 'Script Console', console: true });
+    }, code);
+    expect(result, 'the script ran').toMatchObject({ ok: true });
+  });
+}
+
 // File > Open Project… (Ctrl+O) with a file from the user's disk, through the browser's file
 // picker (the app's own <input type=file>).
 async function openFromDisk(page: Page, app: Frame, name: string, bytes: Buffer) {
@@ -346,13 +363,14 @@ function expectCopyFollowing(save: HostSave, name: string, follows: number) {
 }
 
 // A project file: who wrote it (savedBy, missing in Collect Files' copy), whether it starts the
-// way Save writes it, and the names of its compositions (crates/project/src/lib.rs).
+// way Save writes it (savedBy, since 0.9 the open compositions, then schema), and the names of its
+// compositions (crates/project/src/lib.rs).
 function project(bytes: Buffer) {
   const text = bytes.toString('utf8');
   const doc = JSON.parse(text) as { savedBy?: string; items: Record<string, { name: string; kind?: { type?: string } }> };
   return {
     savedBy: doc.savedBy,
-    savedHead: /^\{\n {2}"savedBy": "[^"]+",\n {2}"schema": \d+,\n/.test(text),
+    savedHead: /^\{\n {2}"savedBy": "[^"]+",\n( {2}"activeComp": \d+,\n)?( {2}"openComps": \[\n( {4}\d+,\n)* {4}\d+\n {2}\],\n)? {2}"schema": \d+,\n/.test(text),
     comps: Object.values(doc.items).filter((i) => i.kind?.type === 'Comp').map((i) => i.name),
   };
 }
@@ -361,7 +379,7 @@ function project(bytes: Buffer) {
 // 'Comp 1'.
 function expectSavedProject(bytes: Buffer, added: number) {
   const saved = project(bytes);
-  expect(saved.savedHead, 'a project file as Save writes it: savedBy, then schema').toBe(true);
+  expect(saved.savedHead, 'a project file as Save writes it: savedBy, the open compositions (0.9), then schema').toBe(true);
   expect(saved.comps, 'the opened project\'s composition').toContain('Comp 1');
   expect(saved.comps, `the fixture's composition and ${added} new`).toHaveLength(1 + added);
   return saved;
@@ -507,27 +525,40 @@ test('contract: an allowed host opens the file and stores every save, nothing is
     expect(bytes.subarray(0, 8).toString('latin1'), 'a PNG').toBe('\x89PNG\r\n\x1a\n');
   });
 
+  await test.step('a project file a script writes under the opened name, while the user allows it, arrives as a new file', async () => {
+    // With Allow Scripts to Write Files on, a script can write any bytes under any name while the
+    // project stays clean under the opened name: only that setting tells such a file from a Save.
+    // Here another project, as Save writes it, in another folder.
+    await scriptWrites(app, `/Scripts/${PROBE_NAME}`, otherProject());
+    const { save, bytes } = await hostSave(page, 5);
+    expectExport(save, PROBE_NAME);
+    expect(project(bytes).comps, 'the project the script wrote').toEqual(['Elsewhere 1']);
+    const state = await app.evaluate(() => (window as unknown as AppWindow).effectcraft.execute('project.summary'));
+    expect(state, 'the opened project, clean').toMatchObject({ path: `/${PROBE_NAME}`, dirty: false });
+    await runThroughApi(app, 'prefs.set', { key: 'scripting.allowScriptsWriteFiles', value: false });
+  });
+
   await test.step('project files under the opened name that are not a Save of it arrive as new files', async () => {
     // Only the app's state right after the download (project.summary) tells these from a Save:
     // a copy written while the project has unsaved changes, and a save to another folder.
     await newComp(page, app);
     await runThroughApi(app, 'file.saveCopy', { path: `/Copies/${PROBE_NAME}` });
-    const dirty = await hostSave(page, 5);
+    const dirty = await hostSave(page, 6);
     expectExport(dirty.save, PROBE_NAME);
     expectSavedProject(dirty.bytes, 3);
     await runThroughApi(app, 'file.save', { path: `/Elsewhere/${PROBE_NAME}` });
-    const elsewhere = await hostSave(page, 6);
+    const elsewhere = await hostSave(page, 7);
     expectExport(elsewhere.save, PROBE_NAME);
     expectSavedProject(elsewhere.bytes, 3);
   });
 
   await test.step('Save As (Ctrl+Shift+S) and the Save after it arrive as new files, Untitled Project.ecproj', async () => {
     await press(page, app, 'Control+Shift+S');
-    const first = await hostSave(page, 7);
+    const first = await hostSave(page, 8);
     expectExport(first.save, UNTITLED);
     expectSavedProject(first.bytes, 3);
     await press(page, app, 'Control+s'); // the project's path is now /Untitled Project.ecproj
-    const second = await hostSave(page, 8);
+    const second = await hostSave(page, 9);
     expectExport(second.save, UNTITLED);
     expectSavedProject(second.bytes, 3);
   });
@@ -536,7 +567,7 @@ test('contract: an allowed host opens the file and stores every save, nothing is
     await press(page, app, 'Control+Alt+n');
     await settle(page.locator('#app'), app);
     await press(page, app, 'Control+s');
-    const { save, bytes } = await hostSave(page, 9);
+    const { save, bytes } = await hostSave(page, 10);
     expectExport(save, UNTITLED);
     expect(project(bytes).comps, 'a new, empty project').toEqual([]);
   });
@@ -548,7 +579,7 @@ test('contract: an allowed host opens the file and stores every save, nothing is
     // eslint-disable-next-line playwright/no-wait-for-timeout -- nothing may happen in this time
     await page.waitForTimeout(Math.max(SHORT_ACK, SHORT_RESULT) + 1000);
     expect.soft((await hostRecord(page)).errors, 'errors the host got').toEqual([]);
-    expect.soft((await hostRecord(page)).saves, 'saves the host got').toHaveLength(9);
+    expect.soft((await hostRecord(page)).saves, 'saves the host got').toHaveLength(10);
     expectNoDownloads(downloads);
   });
 });
@@ -654,7 +685,7 @@ test('saved-as: new-project names, copies of other versions, files the user brin
   });
 });
 
-test('language: the host\'s language (es) reaches EffectCraft\'s preferences, one it lacks (de) changes nothing', { tag: '@language' }, async ({ context }) => {
+test('language: the host\'s language (es) reaches EffectCraft\'s preferences, one it lacks (it) changes nothing', { tag: '@language' }, async ({ context }) => {
   // The host frames the app with '#craftsuite-layer:lang=<tag>'. The web build reads no language as
   // it starts (always English); the adapter's started() sets the preference general.language
   // through window.effectcraft, before ready.
@@ -667,10 +698,10 @@ test('language: the host\'s language (es) reaches EffectCraft\'s preferences, on
       .toEqual({ path: `/${PROBE_NAME}`, comps: ['Comp 1'] });
   });
 
-  // EffectCraft 0.8.0 has no German: the adapter sends nothing, and the app starts as without a
-  // language (openInHost checks that the host got no error).
-  await scenario(context, 'de, which EffectCraft lacks: no startup error, ready reports none, EffectCraft stays in English', async (page) => {
-    const app = await openInHost(page, PROBE_NAME, '&lang=de');
+  // EffectCraft (0.8.0, 0.9) has no Italian: the adapter sends nothing, and the app starts as
+  // without a language (openInHost checks that the host got no error).
+  await scenario(context, 'it, which EffectCraft lacks: no startup error, ready reports none, EffectCraft stays in English', async (page) => {
+    const app = await openInHost(page, PROBE_NAME, '&lang=it');
     expect(await readyLanguages(page), 'language of each ready the host got').toEqual([null]);
     expect(await appLanguage(app), 'EffectCraft\'s general.language and the label of File > Save').toEqual({ language: 'system', save: 'Save' });
   });

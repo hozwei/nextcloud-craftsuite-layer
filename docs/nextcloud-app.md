@@ -26,13 +26,13 @@ The app is not in the Nextcloud App Store. Each
 `craftsuite_layer-<version>.tar.gz`, with the checksums in `SHA256SUMS`. Both are plain
 downloads from
 `https://github.com/hozwei/nextcloud-craftsuite-layer/releases/download/v<version>/<asset>`.
-For version 0.4.0:
+For version 0.4.1:
 
 ```sh
-v=0.4.0
+v=0.4.1
 base=https://github.com/hozwei/nextcloud-craftsuite-layer/releases/download/v$v
 curl -fL --remote-name-all "$base/craftsuite_layer-$v.tar.gz" "$base/SHA256SUMS"
-sha256sum -c --ignore-missing SHA256SUMS      # craftsuite_layer-0.4.0.tar.gz: OK
+sha256sum -c --ignore-missing SHA256SUMS      # craftsuite_layer-0.4.1.tar.gz: OK
 ```
 
 `--ignore-missing` skips the line of the hosting bundle, which `SHA256SUMS` lists too. The
@@ -101,11 +101,11 @@ app's languages as a BCP 47 tag:
 
 | App | Languages (tested version) |
 |---|---|
-| PdfCraft | `en` `ar` `bg` `cs` `de` `es` `fr` `hu` `it` `ja` `pl` `pt-BR` `ru` `uk` |
+| PdfCraft | `en` `bg` `cs` `de` `es` `fr` `hu` `it` `pl` `pt-BR` `ru` `uk` |
 | PhotoCraft | `en` `cs` `de` `el` `es` `fr` `id` `it` `nl` `pl` `pt-BR` `ru` `uk` |
 | VectorCraft | `en` `cs` `de` `es` `fr` `it` `ja` `pt-BR` `ru` `uk` |
 | GridCraft | `en` `es` `pt-BR` `ru` |
-| CADCraft | `en` `uk` |
+| CADCraft | `en` `cs` `de` `es` `fr` `pt-BR` `ru` `uk` |
 | LightCraft | `en` `de` `es` `fr` `ja` `pt-BR` `ru` `uk` `zh-Hans` `zh-Hant` |
 | FilmCraft | `en` `de` `es` `fr` `ja` `pt-BR` `ru` `uk` |
 | EffectCraft | `en` `es` `pt-BR` `uk` |

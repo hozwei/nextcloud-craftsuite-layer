@@ -16,7 +16,7 @@
 **Status:** early. Files offers "Open in PdfCraft" and the like for each Craft app an administrator set up under Administration settings > Craft apps. Saves come back into Nextcloud: a save of the opened file replaces it and keeps its versions, a save in the app's own format (a PNG saved as PSD) becomes a new file next to the original, a save the app cannot make without losses (a Word file from another program in WordCraft) becomes a copy next to it, exports become new files, and a file changed elsewhere gets a conflict copy. English and German.
 
 Needs the Craft apps hosted with the translator. Source code, hosting template and documentation: https://github.com/hozwei/nextcloud-craftsuite-layer</description>
-  <version>0.4.0</version>
+  <version>0.4.1</version>
   <licence>AGPL-3.0-or-later</licence>
   <author>The nextcloud-craftsuite-layer contributors</author>
   <namespace>CraftsuiteLayer</namespace>

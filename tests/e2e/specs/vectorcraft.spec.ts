@@ -22,7 +22,8 @@
 //                 and its first save (Ctrl+S, Enter, no edit) arrives as the document
 //                 'blank.vectorcraft'
 //   startup       no WebGPU and no WebGL2: the host gets VectorCraft's own reason as an error of
-//                 startup instead of waiting
+//                 startup instead of waiting, and no earlier one while the startup fonts (0.10.0
+//                 and later) are held back longer than the core's default wait for a drop target
 //   language      the host's fr (in the frame's fragment): the adapter puts lang=fr into the
 //                 frame's address before VectorCraft reads it, the fragment is gone, the loading
 //                 text is French although the browser is en-US, and 'ready' reports fr
@@ -578,12 +579,28 @@ test('startup: without WebGPU and WebGL2 the host gets the reason instead of wai
       },
     });
   }, APP_ORIGIN);
+  // Builds with a fonts/ folder (0.10.0: Noto Sans Arabic and Thai) fetch their startup fonts one
+  // after the other before their first drop listener (web.rs start(), fonts.rs). Each is held back
+  // longer than the core's default wait for a drop listener (3 s), so a dropTargetTimeout that does
+  // not cover them shows as an error of startup ('the app registered no drop target') before
+  // VectorCraft's own. Builds without the folder fetch none.
+  const fontsHeld: string[] = [];
+  await page.route(`${APP}fonts/**`, async (route) => {
+    fontsHeld.push(path.basename(new URL(route.request().url()).pathname));
+    await new Promise((resolve) => setTimeout(resolve, 3500));
+    await route.continue();
+  });
   // A short startup timeout as a backstop: should the adapter miss VectorCraft's message, the test
   // gets 'the app did not get ready in time' within the wait below and fails on it, instead of
   // timing out without a message.
-  await page.goto(`${HOST}?target=vectorcraft&name=${SVG}&app-startup=15000`);
+  await page.goto(`${HOST}?target=vectorcraft&name=${SVG}&app-startup=20000`);
   await untilHost(page, 'the host got an error of startup', (h) => h.errors.some((e) => e.of === 'startup'));
   const { errors } = await hostRecord(page);
+
+  await test.step(`startup fonts held back 3.5 s each (${fontsHeld.join(', ') || 'none in this build'}): no error before VectorCraft's own`, async () => {
+    expect.soft(errors.map((e) => e.message), 'errors the host got').not.toContain('the app registered no drop target');
+  });
+
   expect.soft(errors.map((e) => e.of), 'errors the host got').toEqual(['startup']);
   // web.rs shows 'VectorCraft failed to start: <reason>' and 'A browser with WebGPU or WebGL2 is
   // required.' in #vectorcraft_loading; the adapter passes them on. They are in the language the

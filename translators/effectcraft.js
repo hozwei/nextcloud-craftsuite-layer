@@ -3,10 +3,11 @@
  * SPDX-FileCopyrightText: 2026 The nextcloud-craftsuite-layer contributors
  * SPDX-License-Identifier: AGPL-3.0-or-later
  *
- * Load right after core.js. What EffectCraft (web build, checked with 0.8.0) does and why the
- * rules below follow from it is described in docs/apps/effectcraft.md. Source references are to
- * the v0.8.0 tag; index.html is apps/effectcraft-web/web/index.html, app.rs, files.rs and api.rs
- * are in apps/effectcraft-web/src/, the other paths are under crates/.
+ * Load right after core.js. What EffectCraft (web build, checked with 0.8.0 and 0.9.2) does and
+ * why the rules below follow from it is described in docs/apps/effectcraft.md. Source references
+ * are to the v0.9.2 tag (apps/effectcraft-web/ is the same as in 0.8.0); index.html is
+ * apps/effectcraft-web/web/index.html, app.rs, files.rs and api.rs are in apps/effectcraft-web/src/,
+ * the other paths are under crates/.
  *  - index.html is not a Trunk loader: its inline module script defines window.effectcraft,
  *    registers the service worker sw.js unless the URL has `nosw` (index.html:86-88), compiles the
  *    .wasm and runs start(), and never dispatches TrunkApplicationStarted. eframe registers the
@@ -30,21 +31,22 @@
  *    appended to <body>, click(), removed at once; the URL is revoked after 60 s. Every file the
  *    engine writes is downloaded under the last part of its path (files.rs:120-132).
  *  - Save (Ctrl+S) writes the project to its path: the opened name for an opened file, a full
- *    rewrite as pretty JSON that starts with "savedBy" (this version) and "schema"
- *    (project/src/lib.rs:1317-1329, engine/src/commands/file.rs:96-110), then marks the project
+ *    rewrite as pretty JSON that starts with "savedBy" (this version), since 0.9 the open
+ *    compositions ("activeComp", "openComps", each only when there is one), then "schema"
+ *    (project/src/lib.rs:1426-1448, engine/src/commands/file.rs:97-118), then marks the project
  *    clean. There is no dialog: the save hook takes the suggested name (app.rs:178), and the
  *    suggestion is always 'Untitled Project.ecproj', for Save of a project without a path (new,
- *    demo, blank), Save As (Ctrl+Shift+S) and Save a Copy (ui-egui/src/menus.rs:1167-1169).
+ *    demo, blank), Save As (Ctrl+Shift+S) and Save a Copy (ui-egui/src/menus.rs:1229-1231).
  *    After Save As the project's path is '/Untitled Project.ecproj'. Increment and Save writes
  *    '<stem> <n>.ecproj', never a name in the file table (engine/src/autosave.rs:249-264).
- *  - A project file has no document identity (project/src/lib.rs:1188-1202), and every new
+ *  - A project file has no document identity (project/src/lib.rs:1297-1312), and every new
  *    project saves as 'Untitled Project.ecproj': a save under that name is never the document.
  *  - Collect Files downloads the project again as '/Collected Files/<stem>.ecproj', which arrives
  *    under the opened name, with its footage paths rewritten; it is written with Project::to_json,
- *    without "savedBy" (engine/src/commands/file_more.rs:373-422). Only the "savedBy" head rule
+ *    without "savedBy" (engine/src/commands/file_more.rs:374-421). Only the "savedBy" head rule
  *    keeps it from passing as the document.
  *  - A project that a newer EffectCraft wrote opens with a warning that what this version does not
- *    know is lost on saving (engine/src/commands/file.rs:50-57). saved_by() reads the top-level
+ *    know is lost on saving (engine/src/commands/file.rs:59-65). saved_by() reads the top-level
  *    "savedBy" wherever it stands, also of the XML form, which opens like JSON after the app's own
  *    lenient reader converted it (engine/src/xml_project.rs). identity() reads it the same way,
  *    with a port of that reader, and marks such an opened file; its saves are copies: the opened
@@ -53,17 +55,22 @@
  *    one with the opened name replaces the opened project under the same path, and its Save
  *    would arrive as the document. Importing a template (.ectemplate) downloads its media through
  *    the same writer, under names the template chooses (engine/src/commands/essential.rs:900-917);
- *    in 0.8.0 only window.effectcraft reaches that (the menu's picker hands the file to the drop
- *    path, which imports it as media), but a release may wire it up. So a save is the document only
- *    if no such file came in and the app's own state right after it says that the project with the
- *    saved name as its path was just saved: clean (project.summary through window.effectcraft,
- *    api.rs:45-61, engine/src/commands/query.rs:32-62).
+ *    in 0.8.0 and 0.9.2 only window.effectcraft and scripts reach that (the menu's picker hands the
+ *    file to the drop path, which imports it as media), but a release may wire it up. So a save is
+ *    the document only if no such file came in and the app's own state right after it says that
+ *    the project with the saved name as its path was just saved: clean (project.summary through
+ *    window.effectcraft, api.rs:45-61, engine/src/commands/query.rs:32-70).
+ *  - A script in the Script Console writes files under any name, with any content, while the
+ *    project stays clean (script/src/runtime.rs:346-361, 399-418), but only with the user's
+ *    setting scripting.allowScriptsWriteFiles, which is off by default and which a script cannot
+ *    change (engine/src/commands/settings.rs:14). While it is on, no save is the document.
  *
  * Rule: a download is the document only if it has the opened name, ending in '.ecproj', its stem
- * is not 'Untitled Project', it starts like a project Save writes ("savedBy", then "schema"), no
- * file with that name came from the user in this frame, the opened file's savedBy and the app's
- * version were read, and project.summary reports that path, clean. Of a file a newer EffectCraft
- * wrote, such a save is a copy. Everything else becomes a new file.
+ * is not 'Untitled Project', it starts like a project Save writes ("savedBy", the open
+ * compositions, "schema"), no file with that name came from the user in this frame, the opened
+ * file's savedBy and the app's version were read, project.summary reports that path, clean, and
+ * scripts may not write files. Of a file a newer EffectCraft wrote, such a save is a copy.
+ * Everything else becomes a new file.
  */
 (() => {
   'use strict';
@@ -103,21 +110,30 @@
     return name || 'download';
   };
 
-  // A project file as Save writes it: pretty JSON whose first members are savedBy and schema.
-  // Collect Files writes none, so its copy under the opened name fails this test.
-  const PROJECT_HEAD = /^\s*\{\s*"savedBy"\s*:\s*"[^"\\]{0,64}"\s*,\s*"schema"\s*:\s*\d+\s*,/;
-  const isSavedProject = (bytes) => PROJECT_HEAD.test(new TextDecoder().decode(bytes.subarray(0, 256)));
+  // A project file as Save writes it: pretty JSON whose first member is savedBy, then (since 0.9)
+  // the open compositions, activeComp and openComps, each left out when there is none, then
+  // schema. Collect Files writes no savedBy, so its copy under the opened name fails this test.
+  // openComps has an id per line, so the head is looked for in the first 64 KiB.
+  const PROJECT_HEAD = new RegExp([
+    /^\s*\{\s*"savedBy"\s*:\s*"[^"\\]{0,64}"\s*,/.source,
+    /(?:\s*"activeComp"\s*:\s*\d+\s*,)?(?:\s*"openComps"\s*:\s*\[[\s\d,]*\]\s*,)?/.source,
+    /\s*"schema"\s*:\s*\d+\s*,/.source,
+  ].join(''));
+  const HEAD_BYTES = 65536;
+  const isSavedProject = (bytes) => PROJECT_HEAD.test(new TextDecoder().decode(bytes.subarray(0, HEAD_BYTES)));
 
   // The XML form as the app reads it (engine/src/xml_project.rs: is_xml, from_xml), ported so that
   // every savedBy the app finds is found here too: the first `n="` anywhere in a tag names a
   // member, entities are decoded in names and text, whitespace (Rust's), comments and processing
   // instructions are skipped between elements, and the last member of a name wins. Objects become
-  // Maps. Throws where the app's reader fails.
+  // Maps. Throws where the app's reader fails, also for elements nested deeper than its limit
+  // (since 0.9; such a file did not open in 0.8.0 either, whose JSON reader stops at that depth).
   const WS = '[\\t\\n\\v\\f\\r \\u0085\\u00a0\\u1680\\u2000-\\u200a\\u2028\\u2029\\u202f\\u205f\\u3000]';
   const WS_CHAR = new RegExp(WS);
   const WS_START = new RegExp(`^${WS}+`);
   const WS_ENDS = new RegExp(`^${WS}+|${WS}+$`, 'g');
   const XML_ROOT = 'EffectCraftProject';
+  const XML_MAX_DEPTH = 128;
   const isXml = (text) => {
     const start = text.replace(/^\ufeff+/, '').replace(WS_START, '');
     return start.startsWith('<?xml') || start.startsWith('<' + XML_ROOT);
@@ -185,7 +201,8 @@
       i = end;
       return t;
     };
-    const value = () => {
+    const value = (depth) => {
+      if (depth > XML_MAX_DEPTH) fail();
       const { name, closed } = open();
       let v;
       if (name === 'null') v = null;
@@ -195,13 +212,13 @@
       else if (name === 'str') v = text();
       else if (name === 'arr') {
         v = [];
-        for (skip(); !s.startsWith('</', i); skip()) v.push(value());
+        for (skip(); !s.startsWith('</', i); skip()) v.push(value(depth + 1));
       } else if (name === 'obj') {
         v = new Map();
         for (skip(); !s.startsWith('</', i); skip()) {
           const member = open();
           if (member.name !== 'm') fail();
-          v.set(member.key ?? '', value());
+          v.set(member.key ?? '', value(depth + 1));
           close('m');
         }
       } else fail();
@@ -209,14 +226,14 @@
       return v;
     };
     if (open().name !== XML_ROOT) fail();
-    const project = value();
+    const project = value(0);
     close(XML_ROOT);
     return project;
   };
 
   // The versions a project file names as its writer, read as the app's saved_by() does: the
   // top-level "savedBy" of the JSON wherever it stands, or of the XML form, which the app
-  // converts to JSON first (engine/src/commands/file.rs:45-52, project/src/lib.rs:41-49). [] for
+  // converts to JSON first (engine/src/commands/file.rs:45, 60, project/src/lib.rs:42-50). [] for
   // a file without one, null for a file that cannot be read so (not UTF-8, neither form, or a
   // savedBy that is not text).
   const utf8 = new TextDecoder('utf-8', { fatal: true });
@@ -234,7 +251,7 @@
       return null;
     }
   };
-  // Whether version a is newer than b, as the app compares them (project/src/lib.rs:52-58):
+  // Whether version a is newer than b, as the app compares them (project/src/lib.rs:88-95):
   // major.minor.patch, anything after '-' or '+' ignored, a part that is not a number counts as 0.
   const parts = (v) => {
     const n = String(v).split(/[-+]/)[0].split('.').map((x) => (/^\d+$/.test(x) ? Number(x) : 0));
@@ -286,17 +303,23 @@
   watchFiles(HTMLInputElement.prototype, (input) => input.type === 'file');
 
   // The app's own state right after the download: Save leaves the project clean, with the saved
-  // name as its path. The engine answers on its next frame; anything else (no API, an error, no
-  // answer within SUMMARY_TIMEOUT) counts as no.
+  // name as its path, and scripts may not write files. With the user's Allow Scripts to Write
+  // Files and Access Network (Preferences > Scripting & Expressions, off by default and not a
+  // script's to change), a script in the Script Console writes any bytes under any name (File's
+  // write and copy, since 0.9 writeBinary) while the project stays clean. The engine answers on
+  // its next frame; anything else (no API, an error, no answer within SUMMARY_TIMEOUT) counts as no.
   const SUMMARY_TIMEOUT = 10000;
   const savedJustNow = async (name) => {
     let timer;
     try {
-      const summary = await Promise.race([
-        window.effectcraft.execute('project.summary'),
-        new Promise((resolve) => { timer = setTimeout(resolve, SUMMARY_TIMEOUT, null); }),
+      const [summary, scriptsWrite] = await Promise.race([
+        Promise.all([
+          window.effectcraft.execute('project.summary'),
+          window.effectcraft.execute('prefs.get', { key: 'scripting.allowScriptsWriteFiles' }),
+        ]),
+        new Promise((resolve) => { timer = setTimeout(resolve, SUMMARY_TIMEOUT, []); }),
       ]);
-      return !!summary && summary.path === '/' + name && summary.dirty === false;
+      return !!summary && summary.path === '/' + name && summary.dirty === false && scriptsWrite === false;
     } catch {
       return false;
     } finally {
@@ -305,11 +328,11 @@
   };
 
   // The interface language: the web build reads none at start (no system language; under
-  // storage=memory no stored preference either, crates/ui-egui/src/i18n.rs:60-72), but its
+  // storage=memory no stored preference either, crates/ui-egui/src/i18n.rs:65-77), but its
   // automation call sets the preference general.language, which applies on the next frame
-  // (crates/engine/src/prefs.rs:25-67). BCP 47 tag -> EffectCraft's code; left out: ja, zh-Hans and
-  // zh-Hant, which the web build draws without a font. Its Spanish and Portuguese translate only
-  // the menu bar.
+  // (crates/engine/src/prefs.rs:25-68). BCP 47 tag -> EffectCraft's code; left out: ja, zh-Hans and
+  // zh-Hant, which the web build draws without a font, and ru, fr, de and cs, which 0.9 added and
+  // 0.8.0 refuses (see docs/apps/effectcraft.md). Its Spanish translates only the menu bar.
   const LANGUAGES = { en: 'en', es: 'es', 'pt-BR': 'pt-br', uk: 'uk' };
   const LANGUAGE_WAIT_MS = 10000;
   let wantedLanguage = null;

@@ -3,108 +3,172 @@
  * SPDX-FileCopyrightText: 2026 The nextcloud-craftsuite-layer contributors
  * SPDX-License-Identifier: AGPL-3.0-or-later
  *
- * Load right after core.js. What CADCraft (web build, checked with 0.5.0) does and why the rules
- * below follow from it is described in docs/apps/cadcraft.md. Source references are to the v0.5.0
- * tag; main.rs, upload.rs and download.rs are in apps/cadcraft-web/src/, the other paths under
- * crates/:
+ * Load right after core.js. What CADCraft (web build, checked with 0.5.0 and 0.6.2) does and why
+ * the rules below follow from it is described in docs/apps/cadcraft.md. Source references are to
+ * the v0.6.2 tag; main.rs, upload.rs and download.rs are in apps/cadcraft-web/src/, the other
+ * paths under crates/:
  *  - It takes dropped files on its canvas (canvas#cadcraft_canvas, through eframe), the page's
- *    only drop listener, installed once the app runs (main.rs:65-105); the core's default drop
+ *    only drop listener, installed once the app runs (main.rs:95-148); the core's default drop
  *    target fits. Every drop, and every file picked with File > Open (a hidden <input type=file>
- *    appended to <body>, upload.rs:41-67), opens a new drawing tab titled with the file's name,
- *    also while a tab with that name is open (engine/src/cmd/file.rs:85-88). The content decides
- *    whether it is a DXF (io/src/lib.rs:32-42); DWG does not open on the web.
- *  - Every download is a Blob typed application/octet-stream behind an <a download> that is
- *    appended, clicked and removed; the URL is revoked after 60 s (download.rs:16-55,
- *    engine/src/cmd/file.rs:151-156).
+ *    appended to <body>, upload.rs:41-68), opens a new drawing tab titled with the file's name,
+ *    also while a tab with that name is open (engine/src/cmd/file.rs:231-243). DWG does not open
+ *    on the web.
+ *  - Every download is a Blob behind an <a download> that is appended, clicked and removed; the
+ *    URL is revoked after 60 s (download.rs:16-55, engine/src/cmd/file.rs:316-331).
  *  - Save (Ctrl+S) and Save As (Ctrl+Shift+S) show no dialog on the web: a drawing opened from a
  *    file downloads under its title, the file's name trimmed, plus '.dxf' if it has no
- *    extension (ui-egui/src/menus.rs:87-95, ui-egui/src/lib.rs:104-112, main.rs:50-54), and every
- *    later save under the name it was saved under (engine/src/cmd/file.rs:164-175).
- *  - Every save is a full rewrite of CADCraft's model as R2000 ASCII DXF (io/src/dxf_write.rs).
- *    It writes only what CADCraft models: entities of types it does not model (dxf_write.rs:896-897),
- *    header variables outside its list (dxf_write.rs:185-222) and other programs' xdata and
- *    objects are lost. A DXF from another program loses them on its first save.
+ *    extension (ui-egui/src/menus.rs:148-156, ui-egui/src/lib.rs:130-136, main.rs:67-71), and
+ *    every later save under the name it was saved under (engine/src/cmd/file.rs:337-351).
+ *  - Every save is a full rewrite of the drawing as ASCII DXF (io/src/dxf_write.rs). The first
+ *    save of an opened file writes the DXF version chosen in OPTIONS (2018 unless the user
+ *    changed it, ui-egui/src/menus.rs:368-374), every later one that version again
+ *    (io/src/lib.rs:40-42). CADCraft keeps entities, objects and xdata it does not model
+ *    (io/src/dxf_raw.rs), but not header variables outside its list (dxf_write.rs:219-261): a DXF
+ *    from another program loses them on its first save. An older version holds less (no
+ *    MULTILEADER before 2007, dxf_write.rs:845). CADCraft 0.5.0 wrote only R2000 and kept only
+ *    what it models.
  *  - New drawings are 'Drawing<N>', counting from 1 in each session, and Drawing1 is open from the
- *    start (engine/src/lib.rs:466-503); Help > Open Sample Drawing opens 'Bracket'
- *    (ui-egui/src/menus.rs:111-117). They save as 'Drawing<N>.dxf' and 'Bracket.dxf'. CADCraft
+ *    start (engine/src/lib.rs:599-644); Help > Open Sample Drawing opens 'Bracket'
+ *    (ui-egui/src/menus.rs:172-178). They save as 'Drawing<N>.dxf' and 'Bracket.dxf'. CADCraft
  *    writes no document identity into a DXF.
  *  - Exports (saveas with a .svg, .png or .pdf path, typed with JSON parameters) have their own
- *    names (io/src/lib.rs:54-68). Print and Export to PDF download nothing on the web.
+ *    names (io/src/lib.rs:109-126), and so has TABLEEXPORT (a CSV). Print, Export, Publish and
+ *    Export to PDF download nothing on the web.
  *
  * Rule: a download under the opened file's name, ending in '.dxf', is the document ('document',
  * it may replace the opened file) only if the name is not one CADCraft gives drawings it makes
  * itself, no other file with that save name has entered the app in this frame, the download is a
- * DXF as CADCraft 0.5.0 writes it, and so is the opened file. If the opened file is any other
- * DXF, such a save is a 'copy': the opened file stays as it is, the first save becomes a new file
- * next to it and the later ones replace that file. Everything else becomes a new file.
+ * DXF in CADCraft's layout, and the opened file is one that the CADCraft that wrote the download
+ * writes again without losing anything: a DXF as the same or an older release the adapter knows
+ * writes it, in the same or an older DXF version. If the opened file is any other DXF, such a
+ * save is a 'copy': the opened file stays as it is, the first save becomes a new file next to it
+ * and the later ones replace that file. Everything else becomes a new file.
  */
 (() => {
   'use strict';
   if (!window.craftsuiteLayer) return; // core inactive (not framed, not configured, no https)
 
-  // A DXF as CADCraft 0.5.0 writes it, and would write again without losing anything: its exact
-  // start (dxf_write.rs:1329-1335, CRLF line ends from crates/dxf/src/lib.rs:378-391), its own
-  // APPID record, '0 EOF' as the last pair, and nothing outside the writer's vocabulary: the
-  // object types it writes (group 0, dxf_write.rs and dxf_image.rs), the header variables
-  // (group 9 in HEADER, dxf_write.rs:185-222, 1329-1352), the xdata applications (group 1001)
-  // and the keys of the named object dictionary (dxf_write.rs:1731-1753). A DXF in CADCraft's
-  // layout with anything else (written by a newer CADCraft, or edited by another tool) would
-  // lose it on save, so it is not one. Check these lists with every CADCraft release.
-  const HEAD = '  0\r\nSECTION\r\n  2\r\nHEADER\r\n  9\r\n$ACADVER\r\n  1\r\nAC1015\r\n  9\r\n$DWGCODEPAGE\r\n  3\r\nANSI_1252\r\n';
-  const APPID = '\r\n100\r\nAcDbRegAppTableRecord\r\n  2\r\nCADCRAFT\r\n';
+  // What each CADCraft release the adapter knows writes, oldest first. A DXF that fits a release's
+  // lists is one that release writes again without losing anything, and so does every later
+  // release (each reads what the earlier ones wrote; checked when it was added). A DXF in
+  // CADCraft's layout with anything else (written by a newer CADCraft, edited by another tool, or
+  // with another program's data that CADCraft keeps) could lose it on save, so it fits none. The
+  // lists: the DXF versions ($ACADVER) and code pages the release writes, the object types
+  // (group 0), the header variables (group 9 in HEADER), the xdata applications (group 1001) and
+  // the keys of the named object dictionary. Add each new release: the canary fails when a file
+  // that the release saved does not save in place when it is opened again.
   const words = (text) => new Set(text.trim().split(/\s+/));
-  const TYPES = words(`SECTION ENDSEC TABLE ENDTAB BLOCK ENDBLK EOF CLASS APPID DIMSTYLE LAYER LTYPE
-    STYLE UCS VIEW VPORT BLOCK_RECORD 3DFACE ACAD_TABLE ARC ATTDEF ATTRIB CIRCLE DIMENSION ELLIPSE
-    HATCH IMAGE INSERT LEADER LINE LWPOLYLINE MTEXT POINT POLYLINE SEQEND SPLINE TEXT VERTEX
-    VIEWPORT WIPEOUT RAY XLINE SOLID TRACE DICTIONARY DIMASSOC GROUP LAYOUT MLEADERSTYLE TABLESTYLE
-    XRECORD IMAGEDEF IMAGEDEF_REACTOR RASTERVARIABLES`);
-  const VARS = words(`$ACADVER $DWGCODEPAGE $EXTMIN $EXTMAX $INSBASE $LIMMIN $LIMMAX $ORTHOMODE
+  const TYPES_0_5 = `SECTION ENDSEC TABLE ENDTAB BLOCK ENDBLK EOF CLASS APPID DIMSTYLE LAYER LTYPE STYLE
+    UCS VIEW VPORT BLOCK_RECORD 3DFACE ACAD_TABLE ARC ATTDEF ATTRIB CIRCLE DIMENSION ELLIPSE HATCH
+    IMAGE INSERT LEADER LINE LWPOLYLINE MTEXT POINT POLYLINE SEQEND SPLINE TEXT VERTEX VIEWPORT
+    WIPEOUT RAY XLINE SOLID TRACE DICTIONARY DIMASSOC GROUP LAYOUT MLEADERSTYLE TABLESTYLE XRECORD
+    IMAGEDEF IMAGEDEF_REACTOR RASTERVARIABLES`;
+  const VARS_BOTH = `$ACADVER $DWGCODEPAGE $EXTMIN $EXTMAX $INSBASE $LIMMIN $LIMMAX $ORTHOMODE
     $FILLMODE $MIRRTEXT $LTSCALE $ATTMODE $TEXTSIZE $TRACEWID $TEXTSTYLE $CLAYER $CELTYPE $CECOLOR
     $CELTSCALE $DIMSCALE $DIMSTYLE $LUNITS $LUPREC $AUNITS $AUPREC $ELEVATION $THICKNESS $FILLETRAD
     $CHAMFERA $CHAMFERB $ANGBASE $ANGDIR $PDMODE $PDSIZE $PLINEWID $CELWEIGHT $LWDISPLAY $INSUNITS
-    $MEASUREMENT $PSLTSCALE $CMLEADERSTYLE $HANDSEED`);
+    $MEASUREMENT $PSLTSCALE $HANDSEED`;
   const APPS = words('ACAD CADCRAFT AcadAnnotative AcCmTransparency AcAecLayerStandard');
-  const ROOT_KEYS = words(`ACAD_GROUP ACAD_IMAGE_DICT ACAD_IMAGE_VARS ACAD_LAYOUT ACAD_MLEADERSTYLE
-    ACAD_TABLESTYLE CADCRAFT_CONSTRAINTS CADCRAFT_LAYERSTATES`);
+  const KEYS_0_5 = `ACAD_GROUP ACAD_IMAGE_DICT ACAD_IMAGE_VARS ACAD_LAYOUT ACAD_MLEADERSTYLE
+    ACAD_TABLESTYLE CADCRAFT_CONSTRAINTS CADCRAFT_LAYERSTATES`;
+  const RELEASES = [
+    // 0.5.0: R2000 only (v0.5.0 io/src/dxf_write.rs and dxf_image.rs, header 185-222 and
+    // 1329-1352, dictionary 1731-1753).
+    {
+      versions: words('AC1015'),
+      codePage: (cp) => cp === 'ANSI_1252',
+      types: words(TYPES_0_5),
+      vars: words(`${VARS_BOTH} $CMLEADERSTYLE`),
+      apps: APPS,
+      keys: words(KEYS_0_5),
+    },
+    // 0.6.2: R2000 to R2018 (io/src/lib.rs:82-103), before 2007 in the code page of the file it
+    // read, else ANSI_1252 (dxf_write.rs:1035-1039); new entities and objects (dxf_write.rs,
+    // dxf_mline.rs), header variables (dxf_write.rs:219-261, 1648-1666) and dictionary keys
+    // (dxf_write.rs:2066-2096, dxf_ext.rs:22-37). It always writes CADCRAFT_HANDSEED.
+    {
+      versions: words('AC1015 AC1018 AC1021 AC1024 AC1027 AC1032'),
+      codePage: (cp) => /^[\x21-\x7e]{1,32}$/.test(cp),
+      types: words(`${TYPES_0_5} MLINE HELIX MULTILEADER TOLERANCE MLINESTYLE ACDBDICTIONARYWDFLT
+        ACDBPLACEHOLDER SCALE`),
+      vars: words(`${VARS_BOTH} $SNAPUNIT $GRIDUNIT $CMLSTYLE $CMLJUST $CMLSCALE`),
+      apps: APPS,
+      keys: words(`${KEYS_0_5} ACAD_MLINESTYLE ACAD_PLOTSTYLENAME ACAD_SCALELIST CADCRAFT_HANDSEED
+        CADCRAFT_MLEADERSTYLE CADCRAFT_PLOTSTYLES CADCRAFT_ANNOTATION`),
+    },
+  ];
+  const LISTS = ['types', 'vars', 'apps', 'keys'];
+  const anyRelease = (list, value) => RELEASES.some((r) => r[list].has(value));
+  // How every DXF CADCraft writes starts: $ACADVER, then $DWGCODEPAGE (dxf_write.rs:1648-1652),
+  // CRLF line ends (crates/dxf/src/lib.rs:411-426).
+  const START = /^ {2}0\r\nSECTION\r\n {2}2\r\nHEADER\r\n {2}9\r\n\$ACADVER\r\n {2}1\r\n(AC\d{4})\r\n {2}9\r\n\$DWGCODEPAGE\r\n {2}3\r\n([^\r\n]*)\r\n/;
+  const APPID = '\r\n100\r\nAcDbRegAppTableRecord\r\n  2\r\nCADCRAFT\r\n';
 
+  // The version and, by the values the DXF holds, the oldest release that writes all of them
+  // ('fits') and the oldest that writes all of them that some release writes ('writer').
+  const summary = ([, version, codePage], seen) => {
+    const oldest = (holds) => RELEASES.findIndex((r) => r.versions.has(version) && r.codePage(codePage) &&
+      LISTS.every((list) => [...seen[list]].every((value) => holds(r, list, value))));
+    return {
+      version,
+      fits: oldest((r, list, value) => r[list].has(value)),
+      writer: oldest((r, list, value) => r[list].has(value) || !anyRelease(list, value)),
+    };
+  };
+  // A DXF in CADCraft's layout (its start and APPID record, CRLF, '0 EOF' as the last pair) as
+  // {version ($ACADVER), fits, writer}, else null. fits: the oldest release (index in RELEASES)
+  // that writes the file again without losing anything, -1 for none. writer: the oldest release
+  // that writes every value in it that some release writes, -1 for none; for a save, the
+  // CADCraft that runs (what it keeps of other programs' data is in no list).
   const readCadcraftDxf = (bytes) => {
     // The start first, so that a large DXF of another program is not decoded as a whole.
-    if (bytes.length < HEAD.length || new TextDecoder('latin1').decode(bytes.subarray(0, HEAD.length)) !== HEAD) return false;
+    const head = new TextDecoder('latin1').decode(bytes.subarray(0, 200)).match(START);
+    if (!head) return null;
     const text = new TextDecoder('latin1').decode(bytes);
-    if (!text.includes(APPID)) return false;
+    if (!text.includes(APPID)) return null;
+    const seen = { types: new Set(), vars: new Set(), apps: new Set(), keys: new Set() };
     let section = null; // the section the pairs are in, from the '2' after '0 SECTION'
     let objects = 0; // in OBJECTS: 1 before the named object dictionary, 2 in it, 3 after it
     let previous = '';
     for (let at = 0; at < text.length;) {
       const a = text.indexOf('\r\n', at);
       const b = a < 0 ? -1 : text.indexOf('\r\n', a + 2);
-      if (b < 0) return false;
+      if (b < 0) return null;
       const code = text.slice(at, a).trim();
       const value = text.slice(a + 2, b);
       at = b + 2;
       if (code === '0') {
-        if (!TYPES.has(value)) return false;
-        if (value === 'EOF') return at === text.length;
+        seen.types.add(value);
+        if (value === 'EOF') return at === text.length ? summary(head, seen) : null;
         if (objects === 2) objects = 3;
         if (objects === 1 && value === 'DICTIONARY') objects = 2;
       } else if (code === '2' && previous === 'SECTION') {
         section = value;
         if (section === 'OBJECTS') objects = 1;
-      } else if ((code === '9' && section === 'HEADER' && !VARS.has(value)) || (code === '1001' && !APPS.has(value)) ||
-        (code === '3' && objects === 2 && !ROOT_KEYS.has(value))) {
-        return false;
+      } else if (code === '9' && section === 'HEADER') {
+        seen.vars.add(value);
+      } else if (code === '1001') {
+        seen.apps.add(value);
+      } else if (code === '3' && objects === 2) {
+        seen.keys.add(value);
       }
       previous = code === '0' ? value : '';
     }
-    return false; // no '0 EOF'
+    return null; // no '0 EOF'
   };
   // Kept per byte array: the core asks identity() and classify() about the same bytes.
   const checked = new WeakMap();
-  const isCadcraftDxf = (bytes) => {
+  const cadcraftDxf = (bytes) => {
     if (!checked.has(bytes)) checked.set(bytes, readCadcraftDxf(bytes));
     return checked.get(bytes);
   };
-  const PROVENANCE = 'cadcraft-0.5.0-dxf';
+  const MARK = 'cadcraft-dxf';
+  // readCadcraftDxf() of every DXF in CADCraft's layout that the core asked identity() about (the
+  // opened file and every save under its name), by SHA-256: the core keeps that hash with the
+  // opened file and with every save of it that the host stored, so classify() finds what the
+  // file it would replace holds.
+  const found = new Map();
+  const hex = (digest) => Array.from(digest, (b) => b.toString(16).padStart(2, '0')).join('');
 
   // Names CADCraft gives drawings it makes itself: new drawings (counting from 1) and the sample.
   // Not translated.
@@ -125,7 +189,7 @@
     return name || 'download';
   };
   // The name CADCraft saves a file under that it opened: its title, the file name, trimmed, plus
-  // '.dxf' if it has no extension (ui-egui/src/lib.rs:104-112, as Rust's Path::extension). Rust's
+  // '.dxf' if it has no extension (ui-egui/src/lib.rs:130-136, as Rust's Path::extension). Rust's
   // trim removes Unicode White_Space, which is not what JavaScript's trim() removes: it includes
   // U+0085 and not U+FEFF. A file named 'plan.dxf' followed by U+0085 saves as 'plan.dxf'.
   const SPACE = '[\\t-\\r \\u0085\\u00a0\\u1680\\u2000-\\u200a\\u2028\\u2029\\u202f\\u205f\\u3000]';
@@ -153,8 +217,11 @@
   // The interface language: CADCraft follows navigator.languages (the first tag whose primary
   // subtag it has) while its stored preference ('cadcraft.prefs', interfaceLanguage) is Auto,
   // which it also is until the user picks a language in Edit > Interface Language; a stored
-  // choice wins (apps/cadcraft-web/src/main.rs:81-87, crates/ui-egui/src/i18n/mod.rs:41-75).
-  const LANGUAGES = { en: 'en', uk: 'uk' };
+  // choice wins (apps/cadcraft-web/src/main.rs:115-122, crates/ui-egui/src/i18n/mod.rs:98-110,
+  // :154-158). Chinese is left out: the web build has no font for it and shows English instead
+  // (ui-egui/src/lib.rs:256-259, theme.rs:387-394), also when it is the stored choice.
+  const LANGUAGES = { en: 'en', cs: 'cs', de: 'de', es: 'es', fr: 'fr', 'pt-BR': 'pt-BR', ru: 'ru', uk: 'uk' };
+  const CHOICES = new Set([...Object.values(LANGUAGES), 'zh']);
 
   window.craftsuiteLayer.register({
     app: 'cadcraft',
@@ -164,7 +231,7 @@
       util.preferLanguages(LANGUAGES[key]);
       try {
         const stored = JSON.parse(localStorage.getItem('cadcraft.prefs') || '{}').interfaceLanguage;
-        if (Object.values(LANGUAGES).includes(stored)) return stored === LANGUAGES[key] ? key : null;
+        if (CHOICES.has(stored)) return stored === LANGUAGES[key] ? key : null;
       } catch { /* unreadable: CADCraft takes it as Auto */ }
       return key;
     },
@@ -176,10 +243,14 @@
       }, true);
       return Promise.resolve();
     },
-    // Not an identity (CADCraft writes none): whether the bytes are a DXF as CADCraft 0.5.0 writes
-    // it. The core keeps it with the opened file and takes it from every stored document save.
-    identity(bytes) {
-      return isCadcraftDxf(bytes) ? PROVENANCE : null;
+    // Not an identity (CADCraft writes none): one mark for every DXF in CADCraft's layout, whichever
+    // release wrote it and whatever it holds, so that the core leaves the decision to classify().
+    // What the bytes hold is kept by their hash.
+    async identity(bytes) {
+      const dxf = cadcraftDxf(bytes);
+      if (!dxf) return null;
+      found.set(hex(new Uint8Array(await crypto.subtle.digest('SHA-256', bytes))), dxf);
+      return MARK;
     },
     // 'document' may replace the opened file, 'copy' goes next to it; everything else becomes a
     // new file. Save rewrites the whole file, so there is no prefix to compare.
@@ -189,8 +260,13 @@
       if (save.name !== entry.name || !/\.dxf$/i.test(save.name)) return 'export';
       if (MADE_BY_APP.test(save.name)) return 'export'; // could be the new drawing or the sample
       if ((entered.get(entry.name) || 0) > 1) return 'export'; // another drawing has the name too
-      if (!isCadcraftDxf(save.bytes)) return 'export'; // not what Save writes
-      return entry.identity === PROVENANCE ? 'document' : 'copy';
+      const written = cadcraftDxf(save.bytes);
+      if (!written) return 'export'; // not what Save writes
+      // The file the save would replace: as the CADCraft that runs or an older one writes it, in
+      // the same or an older DXF version ('AC1015' < 'AC1032'). Anything else, also a file of a
+      // newer CADCraft that an older one saves, could lose data.
+      const opened = entry.identity === MARK && entry.hash ? found.get(hex(entry.hash)) : null;
+      return opened && opened.fits >= 0 && opened.fits <= written.writer && opened.version <= written.version ? 'document' : 'copy';
     },
   });
 })();

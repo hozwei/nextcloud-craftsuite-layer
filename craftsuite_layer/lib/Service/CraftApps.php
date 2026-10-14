@@ -56,7 +56,7 @@ class CraftApps {
 			'name' => 'PdfCraft',
 			'extensions' => ['pdf'],
 			'default' => [],
-			'languages' => ['en', 'ar', 'bg', 'cs', 'de', 'es', 'fr', 'hu', 'it', 'ja', 'pl', 'pt-BR', 'ru', 'uk'],
+			'languages' => ['en', 'bg', 'cs', 'de', 'es', 'fr', 'hu', 'it', 'pl', 'pt-BR', 'ru', 'uk'],
 		],
 		'photocraft' => [
 			'name' => 'PhotoCraft',
@@ -74,14 +74,14 @@ class CraftApps {
 		// DesignCraft 0.6.0 always starts in English (it reads no language at start).
 		'designcraft' => ['name' => 'DesignCraft', 'extensions' => ['designcraft', 'idml'], 'default' => ['designcraft', 'idml'], 'languages' => []],
 		// Saves of Word files from other programs become a copy next to them (docs/apps/wordcraft.md).
-		// WordCraft 0.5.0 always starts in English.
+		// The layer does not choose WordCraft's language (0.5.0 always starts in English).
 		'wordcraft' => ['name' => 'WordCraft', 'extensions' => ['docx', 'docm', 'dotx', 'dotm', 'doc', 'dot', 'odt', 'rtf'], 'default' => [], 'languages' => []],
 		// GridCraft's Spanish only switches the names of formula functions.
 		'gridcraft' => ['name' => 'GridCraft', 'extensions' => ['xlsx', 'xlsm', 'ods', 'csv'], 'default' => [], 'languages' => ['en', 'es', 'pt-BR', 'ru']],
 		// DeckCraft 0.5.0 is English only.
 		'deckcraft' => ['name' => 'DeckCraft', 'extensions' => ['deckcraft', 'pptx', 'potx', 'ppsx'], 'default' => ['deckcraft'], 'languages' => []],
 		// 'dxf' is also VectorCraft's default; CADCraft wins it when both are configured (PREFERRED).
-		'cadcraft' => ['name' => 'CADCraft', 'extensions' => ['dxf'], 'default' => ['dxf'], 'languages' => ['en', 'uk']],
+		'cadcraft' => ['name' => 'CADCraft', 'extensions' => ['dxf'], 'default' => ['dxf'], 'languages' => ['en', 'cs', 'de', 'es', 'fr', 'pt-BR', 'ru', 'uk']],
 		// Every result is a new file: LightCraft exports, it never saves a photo back.
 		'lightcraft' => [
 			'name' => 'LightCraft',

@@ -14,6 +14,18 @@ Each GitHub release takes its text from the section whose heading matches the ve
 
 ## [Unreleased]
 
+## [0.4.1] - 2026-10-14
+
+### Changed
+
+- Start languages follow the new Craft releases: PdfCraft no longer offers Arabic and Japanese
+  (the web build of PdfCraft 0.7.1 lacks their fonts and draws boxes), CADCraft offers Czech,
+  German, Spanish, French, Brazilian Portuguese and Russian besides English and Ukrainian
+  (CADCraft 0.6.2). A stored language that is no longer offered counts as unset (the app
+  decides), and the settings page points it out.
+- Released together with translators 0.4.1, which handle the Craft releases of 2026-10-13; see the
+  repository's CHANGELOG.md.
+
 ## [0.4.0] - 2026-10-12
 
 ### Added

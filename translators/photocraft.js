@@ -3,13 +3,13 @@
  * SPDX-FileCopyrightText: 2026 The nextcloud-craftsuite-layer contributors
  * SPDX-License-Identifier: AGPL-3.0-or-later
  *
- * Load right after core.js. What PhotoCraft (web build, checked with 0.7.0) does and why the rules
+ * Load right after core.js. What PhotoCraft (web build, checked with 0.8.2) does and why the rules
  * below follow from it is described in docs/apps/photocraft.md:
  *  - It takes dropped files on its canvas (canvas#photocraft_canvas, through eframe); the core's
  *    default drop target fits. On the web every drop opens a new document tab, also while a
  *    document is open: the web shell reads dropped files itself and never places them.
  *  - Every download (Save, Save As, Export As, Quick Export as PNG, Save for Web, a smart object's
- *    Export Contents, swatch, preset and measurement exports) is a Blob behind a hidden
+ *    Export Contents, swatch, preset, contour and measurement exports) is a Blob behind a hidden
  *    <a download> that is clicked and removed; the object URL is revoked after 10 s. The Blob type
  *    follows the extension.
  *  - Save and Save As show no dialog on the web. A dropped file has no path, so Save writes
@@ -73,22 +73,23 @@
   // Names PhotoCraft gives new documents: 'Untitled-1' from File > New (new_doc_ui.rs), 'Untitled'
   // from New from Clipboard and file.new without a name, the first free 'Untitled-N' for a
   // template (file_open.rs, with the translated base), 'Untitled_Panorama<n>' and 'Untitled_HDR<n>'
-  // (photo_cmds.rs). The translations of 'Untitled' are those of the 0.7.0 catalogs
-  // (crates/ui-egui/src/i18n/*.tsv).
+  // (photo_cmds.rs). The translations of 'Untitled' are those of the 0.8.2 catalogs
+  // (crates/ui-egui/src/i18n/*.tsv; 0.8.0 added Hungarian, Turkish and Vietnamese).
   const UNTITLED = new RegExp('^(?:(?:' + ['Untitled', 'Unbenannt', 'Sans titre', 'Sin título', 'Senza titolo',
     'Sem título', 'Naamloos', 'Bez názvu', 'Bez tytułu', 'Без имени', 'Без назви', 'Χωρίς τίτλο',
-    'Tanpa Judul', '名称未設定', '未标题', '未命名', '제목 없음'].join('|') + ')(?:-\\d+)?|Untitled_(?:Panorama|HDR)\\d+)$', 'u');
+    'Tanpa Judul', '名称未設定', '未标题', '未命名', '제목 없음', 'Névtelen', 'İsimsiz',
+    'Chưa đặt tên'].join('|') + ')(?:-\\d+)?|Untitled_(?:Panorama|HDR)\\d+)$', 'u');
 
   // Preset files open no document (preset_files_ui.rs, PRESET_EXTS, and the Preset Manager's own
   // .pcpresets): a brush named like the image must not block its saves.
   const PRESET = /\.(abr|grd|aco|ase|kys|psp|pcpresets)$/i;
-  // A zip is a .pcraft by content (format/src/lib.rs is_pcraft) or, since 0.7.0, an OpenRaster
-  // file (.ora, which saves as '<stem>.psd'). Both count as a .pcraft: telling them apart would
-  // only turn fewer saves into new files.
+  // A zip is a .pcraft by content (format/src/lib.rs is_pcraft), since 0.7.0 an OpenRaster file
+  // (.ora) or since 0.8.0 a Krita file (.kra), both of which save as '<stem>.psd'. All count as a
+  // .pcraft: telling them apart would only turn fewer saves into new files.
   const ZIP = [0x50, 0x4b, 0x03, 0x04];
 
   // Files the app read from a user's own drop or from its file picker. The core's drop is
-  // synthetic (isTrusted false) and does not count. PhotoCraft 0.7.0 reads both through `files`
+  // synthetic (isTrusted false) and does not count. PhotoCraft 0.8.2 reads both through `files`
   // (eframe's drop handler and the file picker's <input type=file>); should a release read them
   // another way, such files go unnoticed again (see docs/apps/photocraft.md, known gaps).
   // foreignStems: the stems of the names PhotoCraft saves them under ('<stem>.psd', after the
@@ -135,9 +136,10 @@
   // The interface language comes only from PhotoCraft's preferences, the JSON in localStorage
   // 'photocraft.preferences', field interface.language: 'auto' (English on the web: the web build
   // has no system language, crates/ui-egui/src/i18n/system.rs:55-58) or one of its codes
-  // (apps/photocraft-web/src/web.rs:395-406). It reads them once when the app is created; Edit >
+  // (apps/photocraft-web/src/web.rs:394-405). It reads them once when the app is created; Edit >
   // Preferences > Interface stores the user's choice there. BCP 47 tag -> PhotoCraft's code; left
-  // out: ja, ko, zh-Hans and zh-Hant, which the web build draws without a font.
+  // out: ja, ko, zh-Hans and zh-Hant, which the web build draws without a font, and hu, tr and vi
+  // (new in 0.8.0), which the Nextcloud app does not offer yet.
   const LANGUAGES = { en: 'en', cs: 'cs', de: 'de', el: 'el', es: 'es', fr: 'fr', id: 'id', it: 'it', nl: 'nl', pl: 'pl', 'pt-BR': 'pt-br', ru: 'ru', uk: 'uk' };
   const PREFS = 'photocraft.preferences';
   // The code this adapter wrote last; a stored language that differs (and is not 'auto') is the

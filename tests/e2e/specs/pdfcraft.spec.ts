@@ -9,8 +9,9 @@
 //              file; a link with target _self opens a new window and the editor stays in the
 //              frame; after Sanitize document, Save rewrites the file and arrives as an export
 //              under the opened name, and the next Save, which extends it, as the document that
-//              follows that export; nothing becomes a download, also not after the deadlines for
-//              the host's confirmation and result have passed
+//              follows that export; a PDF made from a file of the user's under the opened name
+//              (Create separate PDFs...) arrives as a new file; nothing becomes a download, also
+//              not after the deadlines for the host's confirmation and result have passed
 //   fallbacks  silent host: an unconfirmed save becomes a download after the timeout
 //              failing host: a save the host could not store is downloaded at once, with the edit
 //   inactive   top level: the translator stays inactive, Save is a download
@@ -145,16 +146,17 @@ async function scenario(context: BrowserContext, title: string, body: (page: Pag
 
 type Box = { x: number; y: number; width: number; height: number };
 
-// Pointer targets (measured on PdfCraft 0.5.0, still right in 0.6.0), relative to the app frame at
-// the pinned viewport. This is the only layout knowledge in this file; when a release moves
-// something, fix it here.
+// Pointer targets (measured on PdfCraft 0.5.0, the attachments row again on 0.7.1; all right in
+// 0.7.1), relative to the app frame at the pinned viewport. This is the only layout knowledge in
+// this file; when a release moves something, fix it here.
 const AT = {
   // Mode bar, right end: Print, Save (floppy icon), Document properties.
   toolbarSave: (b: Box) => ({ x: b.x + b.width - 64, y: b.y + 62 }),
   // Right rail: the paperclip, sixth icon after Comments, Bookmarks, Pages, Fields, Layers.
   attachmentsRail: (b: Box) => ({ x: b.x + b.width - 23, y: b.y + 302 }),
-  // Attachments panel, first row: "Open in a new tab", left of "Save attachment".
-  openAttachment: (b: Box) => ({ x: b.x + b.width - 114, y: b.y + 161 }),
+  // Attachments panel, first row: "Open in a new tab", left of "Save attachment". In 0.7.1 the
+  // panel sits below an "Inspector" tab, 26 px lower than in 0.6.0 (y 161).
+  openAttachment: (b: Box) => ({ x: b.x + b.width - 114, y: b.y + 187 }),
   // Action Wizard, a modal centred in the frame: Start, its bottom-right button.
   wizardStart: (b: Box) => ({ x: b.x + b.width / 2 + 282, y: b.y + b.height / 2 + 162 }),
   // About PdfCraft, a modal centred in the frame and sized to its tab. On the About tab: the
@@ -381,6 +383,17 @@ test('contract: an allowed host opens the file and stores every save, nothing is
     const continued = await hostSave(page, 5);
     expect(continued.save).toMatchObject({ kind: 'document', openId: 1, follows: rewritten.save.id, name: 'craftsuite-probe.pdf' });
     expectAppended(continued.bytes, rewritten.bytes, '/Rotate 270');
+  });
+
+  await test.step('a PDF made from a file of the user\'s under the opened name arrives as a new file', async () => {
+    // Create separate PDFs… (new in PdfCraft 0.7.1) downloads <stem>.pdf for each file picked from
+    // the disk: a text file named like the document gives the document's name, but a new PDF.
+    const chooser = page.waitForEvent('filechooser', { timeout: 15_000 });
+    await runCommand(page, app, 'Create separate PDFs');
+    await (await chooser).setFiles({ name: 'craftsuite-probe.txt', mimeType: 'text/plain', buffer: Buffer.from('Not the document\n') });
+    const created = await hostSave(page, 6);
+    expectExport(created.save, 'craftsuite-probe.pdf');
+    expect(created.bytes.subarray(0, 5).toString('latin1'), 'a PDF').toBe('%PDF-');
   });
 
   await test.step('nothing becomes a download, also not after both deadlines', async () => {

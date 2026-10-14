@@ -8,12 +8,13 @@
 |---|---|
 | Upstream | [github.com/storytold/pdfcraft](https://github.com/storytold/pdfcraft) |
 | Adapter | [`translators/pdfcraft.js`](../../translators/pdfcraft.js) |
-| Tested version | `tested` in [`tests/e2e/craft-versions.json`](../../tests/e2e/craft-versions.json) (0.5.0 when this page was written, checked again with 0.6.0) |
+| Tested version | `tested` in [`tests/e2e/craft-versions.json`](../../tests/e2e/craft-versions.json) (0.5.0 when this page was written, checked again with 0.6.0 and 0.7.1) |
 | Tests | [`tests/e2e/specs/pdfcraft.spec.ts`](../../tests/e2e/specs/pdfcraft.spec.ts) (Chromium and WebKit, see [Tests](#tests)), plus [`tests/e2e/specs/translator.spec.ts`](../../tests/e2e/specs/translator.spec.ts) against a stub app that imitates PdfCraft: every scenario in Chromium, those that depend on the browser also in Firefox and WebKit |
 
 This page records what the PdfCraft web build does in the browser, as far as the translator
-depends on it, and how the adapter follows from it. The facts were checked against the 0.6.0
-source and web build (first written for 0.5.0); source references are to the `v0.6.0` tag.
+depends on it, and how the adapter follows from it. The facts were checked against the 0.7.1
+source and web build (first written for 0.5.0, checked again with 0.6.0); source references are
+to the `v0.7.1` tag.
 Upstream may change any of them; the daily canary run (see
 [development.md](../development.md#continuous-integration)) is there to notice.
 
@@ -30,7 +31,7 @@ Upstream may change any of them; the daily canary run (see
 - Since 0.6.0, `?host=parent` turns on a `postMessage` bridge for a parent page on the app's own
   origin (`apps/pdfcraft-web/src/main.rs:57-73`, `:122-246`): the parent sends files
   (`pdfcraft:open`), and Save posts the bytes to the parent (`pdfcraft:save`) instead of
-  downloading them (`crates/ui-egui/src/editing.rs:419-425`). The layer runs the app on an origin
+  downloading them (`crates/ui-egui/src/editing.rs:620-626`). The layer runs the app on an origin
   of its own, so it cannot use the bridge and does not turn it on; see
   [Hosting notes](#hosting-notes) for why the app URL must not contain `host=parent`.
 - There is no JavaScript-visible signal that a file was opened, could not be opened, or has
@@ -42,25 +43,26 @@ Upstream may change any of them; the daily canary run (see
 
 **Saving and downloads**
 
-- Every download goes through one helper (`crates/ui-egui/src/editing.rs:684-700`, unchanged in
-  0.6.0): a `Blob` with type `application/pdf` (even for `.docx`, `.csv`, `.xfdf` or `.png`),
-  `URL.createObjectURL`, a detached `<a download>`, `click()`, then the URL is revoked at once.
-  The type says nothing, so the translator keeps the `Blob` from `createObjectURL` and the `save`
-  message carries no MIME type.
+- Every download goes through one helper (`crates/ui-egui/src/editing.rs:952-968`, unchanged
+  since 0.5.0): a `Blob` with type `application/pdf` (even for `.docx`, `.csv`, `.xfdf` or
+  `.png`), `URL.createObjectURL`, a detached `<a download>`, `click()`, then the URL is revoked at
+  once. The type says nothing, so the translator keeps the `Blob` from `createObjectURL` and the
+  `save` message carries no MIME type. The browser print (0.7.1, see the table) also makes
+  `blob:` URLs, of PNG pictures for a hidden print frame, but downloads nothing.
 - Firefox gives a download typed `application/pdf` a `.pdf` extension, so it saves the app's own
   exports as, for example, `<stem>.pdf` instead of `<stem>.docx` (checked with the stub app,
   which downloads the same way). The translator's fallback download is a copy typed
   `application/octet-stream`, which keeps the name in every engine.
 - Save and Save As write the document's name exactly as it was opened (no `.pdf` appended,
-  `crates/ui-egui/src/editing.rs:382`, `:424`). Usually they write an incremental update: the
+  `crates/ui-egui/src/editing.rs:581`, `:625`). Usually they write an incremental update: the
   original bytes plus an appended section. PdfCraft then marks the document saved and shows
-  "Downloaded <name>" (`editing.rs:426-437`), without knowing whether the host stored it.
+  "Downloaded <name>" (`editing.rs:627-638`), without knowing whether the host stored it.
 - Save rewrites the whole file instead after redaction, Sanitize document, Remove hidden
   information or a security change (a password added or removed), and for a file PdfCraft
   repaired on open (damaged cross-reference data): the previous revision would still hold what
-  was removed (`crates/cos/src/writer.rs:184-187`, `crates/redact/src/lib.rs:420-422`,
-  `crates/redact/src/sanitize.rs:385`, `:394`, `crates/cos/src/document.rs:315-326`). PdfCraft
-  then goes on editing the bytes it wrote (`crates/engine/src/lib.rs:2722-2734`, `mark_saved`), so
+  was removed (`crates/cos/src/writer.rs:184-187`, `crates/redact/src/lib.rs:488-490`,
+  `crates/redact/src/sanitize.rs:397`, `:406`, `crates/cos/src/document.rs:317-328`). PdfCraft
+  then goes on editing the bytes it wrote (`crates/engine/src/lib.rs:3605-3620`, `mark_saved`), so
   every later Save appends to those, not to the opened file.
 - Other downloads have other names, or rewrite the file. Examples:
 
@@ -68,16 +70,18 @@ Upstream may change any of them; the daily canary run (see
 |---|---|---|
 | Save (Ctrl+S), Save As | the document's name, incremental update | `document` |
 | Save after redaction, Sanitize document, Remove hidden information or a security change, or of a repaired file | the document's name, file rewritten | `export` (a new file); every later Save `document` with `follows`, see below |
-| Print | `<stem> (print).pdf` | `export` |
+| Print with the printer "Browser's print dialog" (the web build's default in 0.7.1) | nothing: the pages go as pictures to the browser's print dialog, from a hidden frame (`crates/ui-egui/src/web_print.rs`; `print_ui.rs:211-217`, `:408-459`) | |
+| Print with Save as PDF, or a print the browser refused | `<stem> (print).pdf` (`crates/ui-egui/src/print_ui.rs:461-476`, `:504-520`) | `export` |
 | Reduce file size, PDF Optimizer | `<stem> (reduced).pdf`, `<stem> (optimized).pdf` | `export` |
-| Export to Word, HTML, RTF | `<stem>.docx`, `<stem>.html`, `<stem>.rtf` | `export` |
+| Export to Word, PowerPoint (0.7.1), HTML, RTF | `<stem>.docx`, `<stem>.pptx`, `<stem>.html`, `<stem>.rtf` | `export` |
 | Export form data | `<stem>.xfdf` | `export` |
-| Split document, Extract pages | the parts' names; Extract pages also takes a name typed in its dialog (`crates/ui-egui/src/files.rs:451-462`, `:495`) | `export` |
+| Split document, Extract pages | the parts' names; Extract pages also takes a name typed in its dialog (`crates/ui-egui/src/files.rs:576-587`, `:620`) | `export` |
+| Create separate PDFs… (0.7.1) | each file picked from the user's disk under its own name with `.pdf` for its extension, numbered when two are alike (`crates/ui-egui/src/create_multiple_ui.rs:56-81`); can be the opened name | `export`: a new PDF does not extend the stored bytes |
 | Export to Image | the images' names | `export` |
 | Export measurements as CSV | `measurements.csv` | `export` |
 | Action Wizard | the document's name, file rewritten (`crates/ui-egui/src/actions_ui.rs:110`) | `export`; signed PDFs see [known gaps](#known-gaps) |
 | Recognize Text on several files | each input file's name | `export`, unless the result extends the stored bytes |
-| Attachment opened in a tab, then saved | the attachment's own name, taken from the document (`crates/ui-egui/src/lib.rs:1080-1084`) | `export` (name sanitised) |
+| Attachment opened in a tab, then saved | the attachment's own name, taken from the document (`crates/ui-egui/src/lib.rs:1227-1231`) | `export` (name sanitised) |
 
 `<stem>` is the document's name without its extension. Any download whose name differs from the
 opened document's is an `export`.
@@ -120,16 +124,16 @@ the adapter's `language` member before the app's module runs (see [protocol.md](
 - Only from its own preferences: the JSON it keeps in `localStorage` under `pdfcraft` (or, saved
   under its former name, `printcraft`), read once as the app is created
   (`apps/pdfcraft-web/src/main.rs:27-29`). Their field `language` counts if it is `auto` or one of
-  PdfCraft's codes (`de`, `pt-br`, ...) in any letter case (`crates/ui-egui/src/lib.rs:1454-1456`,
-  `crates/ui-egui/src/i18n/mod.rs:260-265`); anything else, such as `de-AT`, leaves the default
-  `auto` (`lib.rs:720`).
+  PdfCraft's codes (`de`, `pt-br`, ...) in any letter case (`crates/ui-egui/src/lib.rs:1869-1871`,
+  `crates/ui-egui/src/i18n/mod.rs:290-295`); anything else, such as `de-AT`, leaves the default
+  `auto` (`lib.rs:826`).
 - `auto` means English on the web, whatever the browser's language: the web build detects no
-  system language (`i18n/mod.rs:360-363`), and PdfCraft reads neither `navigator.language(s)` nor
+  system language (`i18n/mod.rs:390-393`), and PdfCraft reads neither `navigator.language(s)` nor
   its address for it. Its fallbacks from locale tags (`de-AT` to `de`, `pt-PT` to `pt-br`, `zh-TW`
-  to `zh-hant`, `i18n/mod.rs:269-297`) serve only the system locale of the desktop builds.
-- Menu > Edit > Preferences… (Ctrl+,) > Interface language offers Auto and all 17 languages
-  (`crates/ui-egui/src/js_ui.rs:234-254`). A choice applies at once and is stored with the other
-  preferences, which PdfCraft writes back whole (`lib.rs:1362-1375`, `:1880-1882`) every 30
+  to `zh-hant`, `i18n/mod.rs:299-327`) serve only the system locale of the desktop builds.
+- Menu > Edit > Preferences… (Ctrl+,) > Interface language offers Auto and all 22 languages
+  (`crates/ui-egui/src/js_ui.rs:264-284`). A choice applies at once and is stored with the other
+  preferences, which PdfCraft writes back whole (`lib.rs:1746-1766`, `:2388-2390`) every 30
   seconds and whenever it loses the focus, also when its page is hidden or unloaded while it has
   the focus (eframe 0.36.2 `src/web/events.rs:58`, `:68-69`, `:112-140`,
   `src/web/app_runner.rs:237-247`; eframe's own save on close listens for an event named
@@ -155,13 +159,23 @@ the adapter's `language` member before the app's module runs (see [protocol.md](
 
 **Languages**
 
-The settings offer `en`, `ar`, `bg`, `cs`, `de`, `es`, `fr`, `hu`, `it`, `ja`, `pl`, `pt-BR`, `ru`
-and `uk`, the keys of the adapter's `LANGUAGES` table. All of them were checked in the web build:
-translated and drawn correctly (Arabic right to left), except Czech, which is translated only in
-part (159 entries in `crates/ui-egui/src/i18n/cs.tsv`, about 2,170 in `de.tsv`): `Nabídka` and
-`Úpravy`, but `All tools`, `Read` and `Open`. Left out are the three languages the web build
-cannot draw: Simplified Chinese (many characters as boxes), Traditional Chinese (boxes in common
-labels such as Open and Read) and Telugu (boxes only).
+The settings offer the keys of the adapter's `LANGUAGES` table: `en`, `bg`, `cs`, `de`, `es`,
+`fr`, `hu`, `it`, `pl`, `pt-BR`, `ru` and `uk`. All of them were checked in the web build:
+translated and drawn correctly. Czech, translated only in part in 0.6.0, is complete in 0.7.1
+(about 2,400 rows in `crates/ui-egui/src/i18n/cs.tsv`, as many as in `de.tsv`). Left out are
+the languages the web build cannot draw:
+
+- Japanese and Arabic, since 0.7.1: its web build draws every label in them as boxes. The 0.6.0
+  web build drew both correctly (Arabic right to left). The fonts come from an optional build
+  input (craft-fonts, see PdfCraft's `NOTICE`), and the 0.7.1 release was built without them: its
+  web zip has none of the `OFL-*.txt` licences that come with those fonts, and its `.wasm` is
+  2.7 MB smaller. Once a release draws them again, they go back into `LANGUAGES` and the Nextcloud
+  app's list.
+- Simplified Chinese (many characters as boxes), Traditional Chinese (boxes in common labels such
+  as Open and Read) and Telugu (boxes only).
+
+Greek, Kazakh, Lithuanian, Slovenian and Turkish are new in 0.7.1 and drawn correctly, but not
+offered yet: that needs entries in `LANGUAGES` and in the Nextcloud app's list.
 
 **A language the user picks in the app**
 
@@ -201,13 +215,13 @@ choice made in either place, apply to both.
   headers (no COOP/COEP). It asks not to send `X-Frame-Options: DENY` or a `frame-ancestors`
   that excludes the embedding page. For a sandboxed iframe it needs at least
   `allow-scripts allow-same-origin allow-downloads allow-popups`.
-- The web build (0.5.0 and 0.6.0) renders with WebGL2 (eframe's glow renderer,
+- The web build (0.5.0 to 0.7.1) renders with WebGL2 (eframe's glow renderer,
   `apps/pdfcraft-web/Cargo.toml`). Without WebGL2 it cannot run, and the translator reports
   `the app registered no drop target`. `HOSTING.md` also mentions WebGPU and `?webgl`/`?cpu`
   flags; the build does not read them.
-- The configured app URL must not contain `host=parent`. With it, PdfCraft 0.6.0 posts every
-  Save to its parent on the app's own origin instead of downloading it and marks the document
-  saved (`crates/ui-egui/src/editing.rs:419-439`). Under a parent on another origin, such as
+- The configured app URL must not contain `host=parent`. With it, PdfCraft (since 0.6.0) posts
+  every Save to its parent on the app's own origin instead of downloading it and marks the document
+  saved (`crates/ui-egui/src/editing.rs:620-640`). Under a parent on another origin, such as
   Nextcloud, the browser drops that message without an error, so the save reaches neither the
   translator nor the user.
 - The loader is Trunk's inline module script in `index.html`. It imports
@@ -219,6 +233,10 @@ choice made in either place, apply to both.
 - Preferences live in the frame's `localStorage`, the interface language among them (see
   [Interface language](#interface-language)). Browsers that partition or block third-party
   storage may forget them between visits.
+- Print opens the browser's print dialog from a hidden frame inside the app's frame (0.7.1).
+  A sandboxed iframe needs `allow-modals` for that dialog, which `HOSTING.md` does not list; the
+  Nextcloud editor page's frame has it. Print with Save as PDF still downloads
+  `<stem> (print).pdf`.
 - Keyboard shortcuts reach the app after the user clicks into the frame.
 
 ## Tests
@@ -234,7 +252,7 @@ contract tests; the canary runs them apart from the `language` test (tagged `@la
 
 | Test | What it checks |
 |---|---|
-| `contract` | An allowed host: the handshake with the served app version, then the open. An edit saved with Ctrl+S arrives as the document, and a second save extends the stored bytes. A link with target `_self` opens a new window and the editor stays in the frame. Export to Word arrives as an export. After Sanitize document (confirmed with Tab and Enter), Save rewrites the file and arrives as an export under the opened name; the next Save extends it and arrives as the document with `follows` set to that export. Nothing becomes a browser download, also not after the deadlines for the host's confirmation and result. |
+| `contract` | An allowed host: the handshake with the served app version, then the open. An edit saved with Ctrl+S arrives as the document, and a second save extends the stored bytes. A link with target `_self` opens a new window and the editor stays in the frame. Export to Word arrives as an export. After Sanitize document (confirmed with Tab and Enter), Save rewrites the file and arrives as an export under the opened name; the next Save extends it and arrives as the document with `follows` set to that export. Create separate PDFs… with a text file named like the document (`craftsuite-probe.txt`, picked in the file chooser) downloads a new PDF under the opened name, which arrives as an export (the command is new in 0.7.1, so this step fails with 0.6.0). Nothing becomes a browser download, also not after the deadlines for the host's confirmation and result. |
 | `fallbacks` | A host that never confirms: the save becomes a download after the confirmation timeout. A host that reports a failed store: the save is downloaded at once, with the edit. |
 | `inactive` | At top level, and under a host on an origin that is not allowed (which sends forged `init` and `open` messages), the translator stays inactive and Save is an ordinary download. |
 | `startup` | The `.wasm` module cannot load: the host gets one error, of `startup`, saying `the app failed to load: ...`, and no `ready`. |
@@ -248,9 +266,10 @@ reports every scenario that fails as `scenario failed: <title>`, not only the fi
 The tests drive PdfCraft with the keyboard and the command palette, typing the English command
 labels from PdfCraft's `crates/engine/src/commands.rs`; the `language` test types the German
 `Öffnen`, from `crates/ui-egui/src/i18n/de.tsv`. Only the `ui` test also clicks with the
-pointer; its click positions are in the `AT` table of the spec, measured on 0.5.0 (and still
-right in 0.6.0) at a 1400x900 viewport with the locale `en-US` and PdfCraft in English (no host
-language: German moves things). It runs with a longer time limit (`test.slow()`), so that a
+pointer; its click positions are in the `AT` table of the spec, measured on 0.5.0 (the
+attachments row again on 0.7.1, where the panel moved down below an Inspector tab) at a 1400x900
+viewport with the locale `en-US` and PdfCraft in English (no host language: German moves
+things). It runs with a longer time limit (`test.slow()`), so that a
 path that misses its button can run into its waits and every such path still gets reported.
 When a new release fails the canary:
 
@@ -264,13 +283,13 @@ When a new release fails the canary:
   [Interface language](#interface-language): files still open and save, but the start language
   does not apply until the adapter's `language` member is updated.
 - **A command label changed upstream.** The palette then runs another command or none, and the
-  tests that run it fail: for `Rotate pages clockwise`, `Export to Word` and `Sanitize document`
-  these are contract tests, for `Prepare for distribution` and `About PdfCraft` the `@ui` test,
-  and for the German `Öffnen…` (`Open…` in `de.tsv`) the `language` test. Before holding a
-  release back for a failing test that runs a command, check its label against `commands.rs`
-  (or `de.tsv`) and update it in the spec. The Sanitize document dialog is confirmed with Tab
-  (the focus to its first button, Sanitize) and Enter; should a release reorder its buttons, the
-  save after it is an update instead of a rewrite, and the contract test says so.
+  tests that run it fail: for `Rotate pages clockwise`, `Export to Word`, `Sanitize document` and
+  `Create separate PDFs` these are contract tests, for `Prepare for distribution` and
+  `About PdfCraft` the `@ui` test, and for the German `Öffnen…` (`Open…` in `de.tsv`) the
+  `language` test. Before holding a release back for a failing test that runs a command, check its label against
+  `commands.rs` (or `de.tsv`) and update it in the spec. The Sanitize document dialog is confirmed
+  with Tab (the focus to its first button, Sanitize) and Enter; should a release reorder its
+  buttons, the save after it is an update instead of a rewrite, and the contract test says so.
 
 ## Upstream
 
@@ -279,9 +298,13 @@ An embedding API for the web build is requested in
 of 2026-10-10). With such an API, the open and save paths would no longer depend on drops and
 downloads; see [architecture.md](../architecture.md#native-embedding-apis).
 
-PdfCraft 0.6.0 has a first such bridge (`?host=parent`, see
+Since 0.6.0 PdfCraft has a first such bridge (`?host=parent`, see
 [Opening](#what-the-web-build-does)), but only for a parent page on the app's own origin: it
 posts to and hears from that origin alone. PdfCraft marks the document saved as soon as
 `pdfcraft:save` is posted; the parent reports a failed store itself. The bridge also reports
 unsaved changes (`pdfcraft:dirty`), which the translator cannot see. A host on another origin, as
 Nextcloud is for the layer, would need the bridge to accept a configured parent origin.
+
+Worth reporting upstream: the 0.7.1 web release was built without the craft-fonts input, so
+Japanese and Arabic draw as boxes (see [Languages](#interface-language)); the 0.6.0 web build had
+those fonts.

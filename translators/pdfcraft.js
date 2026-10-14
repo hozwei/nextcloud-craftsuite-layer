@@ -3,12 +3,12 @@
  * SPDX-FileCopyrightText: 2026 The nextcloud-craftsuite-layer contributors
  * SPDX-License-Identifier: AGPL-3.0-or-later
  *
- * Load right after core.js. What PdfCraft (web build, checked with 0.6.0) does and why the rules
+ * Load right after core.js. What PdfCraft (web build, checked with 0.7.1) does and why the rules
  * below follow from it is described in docs/apps/pdfcraft.md:
  *  - It takes dropped files on its canvas; the core's default drop target fits.
  *  - Every download (Save, Print to PDF, exports, Action Wizard, split parts) is a Blob behind a
- *    detached <a download>. Its type is always application/pdf, so it says nothing. (With
- *    '?host=parent' in its URL, 0.6.0 posts saves to a parent on its own origin instead; the
+ *    detached <a download>. Its type is always application/pdf, so it says nothing. (Since 0.6.0,
+ *    with '?host=parent' in its URL, it posts saves to a parent on its own origin instead; the
  *    hosting must not set it.)
  *  - Save names the file exactly like the opened document. It writes an incremental update (the
  *    saved bytes start with the bytes last saved), except after redaction, Sanitize document,
@@ -19,7 +19,7 @@
  *  - Its interface language comes only from its own preferences, the JSON in localStorage
  *    'pdfcraft' (formerly 'printcraft'), field 'language': 'auto' (English on the web) or one of
  *    its codes in any letter case (apps/pdfcraft-web/src/main.rs:27-29, crates/ui-egui/src/lib.rs
- *    1454-1456). It reads them once when the app is created, and Edit > Preferences stores the
+ *    1869-1871). It reads them once when the app is created, and Edit > Preferences stores the
  *    user's choice there.
  */
 (() => {
@@ -27,8 +27,9 @@
   if (!window.craftsuiteLayer) return; // core inactive (not framed, not configured, no https)
 
   // The languages the web build shows, BCP 47 tag -> PdfCraft's code. Left out: zh-Hans, zh-Hant
-  // and te, which it draws with missing glyphs.
-  const LANGUAGES = { en: 'en', ar: 'ar', bg: 'bg', cs: 'cs', de: 'de', es: 'es', fr: 'fr', hu: 'hu', it: 'it', ja: 'ja', pl: 'pl', 'pt-BR': 'pt-br', ru: 'ru', uk: 'uk' };
+  // and te, which it draws with missing glyphs, and ja and ar, which the 0.7.1 web build draws as
+  // boxes (its release lacks their fonts; 0.6.0 drew them).
+  const LANGUAGES = { en: 'en', bg: 'bg', cs: 'cs', de: 'de', es: 'es', fr: 'fr', hu: 'hu', it: 'it', pl: 'pl', 'pt-BR': 'pt-br', ru: 'ru', uk: 'uk' };
   const PREFS = 'pdfcraft';
   // The codes this adapter has written (a JSON list). A stored language that is none of them (and
   // not 'auto') is the user's own choice in the app, which the host's language does not replace.

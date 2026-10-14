@@ -3,39 +3,44 @@
  * SPDX-FileCopyrightText: 2026 The nextcloud-craftsuite-layer contributors
  * SPDX-License-Identifier: AGPL-3.0-or-later
  *
- * Load right after core.js. What GridCraft (web build, checked with 0.5.0) does and why the rules
- * below follow from it is described in docs/apps/gridcraft.md (source paths at the v0.5.0 tag;
- * web.rs is apps/gridcraft-web/src/web.rs, the other paths are under crates/):
+ * Load right after core.js. What GridCraft (web build, checked with 0.5.0 and 0.6.1) does and why
+ * the rules below follow from it is described in docs/apps/gridcraft.md (source paths at the
+ * v0.6.1 tag; web.rs is apps/gridcraft-web/src/web.rs, the other paths are under crates/):
  *  - It takes dropped files on its canvas (canvas#gridcraft_canvas), where eframe registers its
- *    only drop listener once the app exists (web.rs:27-54); the core's default drop target fits.
+ *    only drop listener once the app exists (web.rs:28-56); the core's default drop target fits.
  *    Every dropped file opens as a new workbook window, never into the open one
- *    (ui-egui/src/lib.rs:571-584): the content decides the format before the name (XLSX, ODS and
- *    XLSB as data imports, CSV for anything else, engine/src/io.rs:40-91). Import warnings
- *    (dropped macros, ...) show in a message box.
+ *    (web.rs:76-92, ui-egui/src/lib.rs:948-970): the content decides the format before the name
+ *    (XLSX; ODS, XLSB and legacy XLS as data imports; CSV for anything else,
+ *    engine/src/io.rs:87-140). Import warnings (macros not run, ...) show in a message box.
  *  - A dropped file has no path, so Save (Ctrl+S) and Save As (Ctrl+Shift+S) both download at once,
- *    without a dialog, named '<stem of the title>.xlsx' (ui-egui/src/lib.rs:395-408,
- *    engine/src/cmd/file.rs:80-113). The title is the opened name, or '<stem> (imported).xlsx' for
- *    ODS and XLSB (file.rs:50-56). So 'x.xlsx' saves as 'x.xlsx', 'x.xlsm' and 'x.csv' as 'x.xlsx',
- *    'x.ods' as 'x (imported).xlsx', and every later Save writes that name again.
+ *    without a dialog, named '<stem of the title>.xlsx' (ui-egui/src/lib.rs:615-630,
+ *    engine/src/cmd/file.rs:94-133). The title is the opened name, or '<stem> (imported).xlsx' for
+ *    ODS, XLSB and XLS (file.rs:60-67). So 'x.xlsx' saves as 'x.xlsx', 'x.xlsm' and 'x.csv' as
+ *    'x.xlsx', 'x.ods' as 'x (imported).xlsx', and every later Save writes that name again. The File
+ *    view's Save opens its Save As page, whose Download (.xlsx) does the same
+ *    (ui-egui/src/backstage.rs:221-233, :517-551).
  *  - Every download is a Blob behind an <a download> that is clicked and removed at once
- *    (web.rs:182-205). Besides Save, only Export as PDF (in Search Commands) downloads, as
- *    '<title with .pdf>' (ui-egui/src/lib.rs:266-275).
- *  - Save rewrites the whole package from GridCraft's model (xlsx/src/write.rs:138-358), with
- *    docProps/app.xml '<Application>GridCraft</Application>'. What the model lacks is lost, some
- *    of it with an import warning (a VBA project, external links, embedded objects and form
- *    controls), some silently (custom properties, customXml items, the creation time). A file
- *    GridCraft wrote comes back as it was: an unchanged save of it equals the opened bytes.
+ *    (web.rs:358-379); since 0.6.1 only where the browser has no window.showSaveFilePicker or
+ *    refuses it (a cross-origin frame in Chromium), web.rs:250-334. Besides Save, Export as PDF
+ *    downloads '<title with .pdf>' (ui-egui/src/lib.rs:395-406) and, since 0.6.1, the File view's
+ *    Export and Save As pages '<stem>.csv' and '<stem>.html' (backstage.rs:713-791).
+ *  - Save rewrites the whole package from GridCraft's model (xlsx/src/write.rs:164-420), with
+ *    docProps/app.xml '<Application>GridCraft</Application>'. What the model lacks is lost: in
+ *    0.5.0 every part it does not write (custom properties, customXml items, external links, ...);
+ *    since 0.6.1 it keeps most such parts unread under their names (xlsx/src/passthrough.rs), but
+ *    still drops the creation time, Excel's own properties and what reaches a part it rewrites. A
+ *    file GridCraft wrote comes back as it was: an unchanged save of it equals the opened bytes.
  *  - There is no document identity (no creation time, no id; the writer is deterministic). New
- *    workbooks are 'Book<N>' (engine/src/lib.rs:245-254), the samples of the Start dialog
+ *    workbooks are 'Book<N>' (engine/src/lib.rs:296-305), the samples of the Start dialog
  *    'Household Budget', 'Quarterly Sales Dashboard' and 'Gradebook' (engine/src/sample.rs:11-15),
  *    not translated; they save under those names, also while a file of that name is open.
  *    (sample.rs falls back to the title 'Sample', but file.new fails for an unknown sample before
- *    it gets there, file.rs:23-29.)
+ *    it gets there, file.rs:32-42.)
  *  - Files can also reach the app from the user: a drop from the desktop, or File > Open… (Ctrl+O),
- *    which reads a file input (web.rs:107-122). They open as further workbooks and save as
+ *    which reads a file input (web.rs:109-124). They open as further workbooks and save as
  *    '<stem>.xlsx' like the opened file.
  *  - View > New Window makes a copy of the active workbook titled '<title>:2'
- *    (engine/src/cmd/extra.rs:609-614). Path::file_stem cuts 'x.xlsx:2' at its last dot, so the
+ *    (engine/src/cmd/extra.rs:764-770). Path::file_stem cuts 'x.xlsx:2' at its last dot, so the
  *    copy of the opened workbook saves under the opened name and passes as the opened document, as
  *    on the desktop; the copy of 'Book1' has no dot and saves as 'Book1:2.xlsx'.
  *
@@ -44,9 +49,10 @@
  * file the user brought in, and written by GridCraft. Then:
  *  - a file saved under its own name (an opened .xlsx, also 'X.XLSX', which saves as 'X.xlsx': a
  *    host that compares names without letter case takes that for the opened file) is 'document'
- *    only if GridCraft wrote it (docProps/app.xml says GridCraft, and the package has no part
- *    GridCraft's writer never writes); a file of another program is 'copy': the first save becomes
- *    a new file next to it, later saves replace that file, and the opened file stays as it is;
+ *    only if GridCraft wrote it (docProps/app.xml says GridCraft) and the save still has every part
+ *    of it that GridCraft does not rebuild from its model; a file of another program, or a save
+ *    that lost such a part, is 'copy': the first save becomes a new file next to it, later saves
+ *    replace that file, and the opened file stays as it is;
  *  - a file saved under another name (.xlsm, .ods, .csv) is 'document': the host stores it next to
  *    the original, which is never replaced, and later saves replace it.
  * Everything else is an export.
@@ -54,6 +60,14 @@
 (() => {
   'use strict';
   if (!window.craftsuiteLayer) return; // core inactive (not framed, not configured, no https)
+
+  // GridCraft 0.6.1 saves through the browser's save picker where there is one (web.rs:250-334). A
+  // cross-origin frame may not show it in Chromium, and GridCraft then downloads; a frame the
+  // browser let show it would write the save to the user's disk, never to the host. Without the
+  // function GridCraft downloads at once, as 0.5.0 always did.
+  try {
+    delete window.showSaveFilePicker;
+  } catch { /* not configurable: the browser's refusal still leads to a download */ }
 
   // The name up to its last dot, as Rust's Path::file_stem cuts it (a leading dot is kept).
   const stem = (name) => {
@@ -86,11 +100,15 @@
   const ODS = 'application/vnd.oasis.opendocument.spreadsheet';
   const APPLICATION = '<Application>GridCraft</Application>';
 
-  // Every part GridCraft's writer can produce (xlsx/src/write.rs, sheet_write.rs:455-523,
-  // pivot.rs:284-344, richdata.rs:297-339, image types from drawing.rs:380-401). A package with
-  // any other part (customXml/, docProps/custom.xml, xl/vbaProject.bin, xl/externalLinks/,
-  // xl/embeddings/, xl/activeX/, xl/ctrlProps/, xl/calcChain.xml, xl/printerSettings/, ...) was
-  // changed by another program since, even if app.xml still says GridCraft.
+  // The parts GridCraft rebuilds from its model on every save, as every release since 0.5.0 writes
+  // them (xlsx/src/write.rs, sheet_write.rs:495-575, pivot.rs:284-350, richdata.rs:280-340, image
+  // types from drawing.rs:466-489); a save may renumber them or leave them out as the workbook
+  // changes. Every other part of a file GridCraft wrote must still be in the save under its name:
+  // parts GridCraft keeps unread since 0.6.1 (customXml/, docProps/custom.xml, xl/externalLinks/,
+  // xl/embeddings/, xl/ctrlProps/, ...) and parts only newer releases write from their model
+  // (xl/threadedComments/, xl/persons/, xl/featurePropertyBag/), which an older release drops; and
+  // parts another program added, which GridCraft may drop (xl/vbaProject.bin, xl/calcChain.xml, a
+  // part no relationship reaches, ...).
   const WRITER_PART = new RegExp('^(?:' + [
     '\\[Content_Types\\]\\.xml',
     '_rels/\\.rels',
@@ -181,40 +199,44 @@
   // What the adapter needs to know about a package, kept per byte array: the core asks savedName()
   // and classify() about the same bytes.
   //   gridcraft: docProps/app.xml says GridCraft (every GridCraft save does)
-  //   pure: also no part GridCraft's writer never writes (the file was not changed elsewhere)
-  //   ods: an ODS package (a 'mimetype' entry with exactly the ODS type, xlsx/src/ods.rs:33-44)
+  //   names: the names of its parts
+  //   others: those that are not a WRITER_PART
+  //   ods: an ODS package (a 'mimetype' entry with exactly the ODS type, xlsx/src/ods.rs:34-45)
+  const NO_PACKAGE = { gridcraft: false, names: new Set(), others: [], ods: false };
   const packages = new WeakMap();
   const packageOf = (bytes) => {
     if (!packages.has(bytes)) {
       packages.set(bytes, (async () => {
         const list = entries(bytes);
-        if (!list) return { gridcraft: false, pure: false, ods: false };
+        if (!list) return NO_PACKAGE;
         const app = await partText(bytes, list, 'docProps/app.xml');
         const gridcraft = app !== null && app.includes(APPLICATION);
-        const pure = gridcraft && list.every((e) => WRITER_PART.test(e.name));
+        const names = new Set(list.map((e) => e.name));
+        const others = [...names].filter((name) => !WRITER_PART.test(name));
         const ods = (await partText(bytes, list, 'mimetype')) === ODS;
-        return { gridcraft, pure, ods };
-      })().catch(() => ({ gridcraft: false, pure: false, ods: false })));
+        return { gridcraft, names, others, ods };
+      })().catch(() => NO_PACKAGE));
     }
     return packages.get(bytes);
   };
 
-  // GridCraft's title rule (file.rs:50-56): ODS and XLSB, by extension in any letter case or by
-  // content, are imports titled '<stem> (imported).xlsx'. An XLSB under another name is not
-  // recognised here: GridCraft then saves under a name other than savedName, and its saves stay
-  // exports.
-  const importedName = (name, pkg) => ['ods', 'xlsb'].includes(extension(name)) || pkg.ods;
+  // GridCraft's title rule (file.rs:60-67, io.rs:25-39): ODS, XLSB and, since 0.6.1, XLS (also
+  // .xlt), by extension in any letter case or by content, are imports titled
+  // '<stem> (imported).xlsx'. An XLSB or XLS under another name is not recognised here: GridCraft
+  // then saves under a name other than savedName, and its saves stay exports.
+  const importedName = (name, pkg) => ['ods', 'xlsb', 'xls', 'xlt'].includes(extension(name)) || pkg.ods;
 
-  // Opened names whose save under the same name, in any letter case, would replace a file another
-  // program wrote: such saves are copies.
-  const foreign = new Set();
+  // Opened names whose saves come back under the same name, in any letter case: null for a file
+  // GridCraft did not write (every save of it is a copy), else the parts of the opened file that a
+  // save must still have to replace it (see WRITER_PART).
+  const ownName = new Map();
 
   // Save names of files the user brought in: a drop from the desktop or a file chosen in a file
   // input (File > Open…). They open as further workbooks and save as '<stem>.xlsx' (or
   // '<stem> (imported).xlsx') like the opened file, so a save under such a name may be that other
   // workbook. The core's drop is synthetic (isTrusted false) and the core uses no file input, so
-  // neither counts. GridCraft 0.5.0 reads both through `files` (eframe's drop handler, rfd's file
-  // input); should a release read them another way, such files go unnoticed again (see
+  // neither counts. GridCraft (0.5.0 and 0.6.1) reads both through `files` (eframe's drop handler,
+  // rfd's file input); should a release read them another way, such files go unnoticed again (see
   // docs/apps/gridcraft.md, known gaps). The picture picker (Insert > Picture) is not counted: its
   // files go into the workbook, not into a window of their own.
   const userNames = new Set();
@@ -253,9 +275,8 @@
 
   // The interface language: GridCraft reads navigator.language (only the first preference, by
   // its primary subtag) when the app is created, and stores no choice on the web
-  // (crates/ui-egui/src/i18n.rs:64-88). BCP 47 tag -> what navigator.language has to say. Its
-  // Spanish only switches the formula function names; zh, ja and ko the web build itself drops
-  // (no font, apps/gridcraft-web/src/web.rs:41-50).
+  // (crates/ui-egui/src/i18n.rs:76-104). BCP 47 tag -> what navigator.language has to say. Chinese,
+  // Japanese and Korean the web build itself drops (no font, apps/gridcraft-web/src/web.rs:42-50).
   const LANGUAGES = { en: 'en', es: 'es', 'pt-BR': 'pt', ru: 'ru' };
 
   window.craftsuiteLayer.register({
@@ -265,15 +286,15 @@
       if (key) util.preferLanguages(LANGUAGES[key]);
       return key;
     },
-    // The name Save gives the opened file. Also notes whether a save under the opened name would
-    // replace a file GridCraft did not write. 'X.XLSX' saves as 'X.xlsx': only the letter case
-    // differs, and a host may take that for the opened file (it is one on a file system that
-    // ignores case), so it counts as the opened name.
+    // The name Save gives the opened file. Also notes what a save under the opened name must keep
+    // to replace it. 'X.XLSX' saves as 'X.xlsx': only the letter case differs, and a host may take
+    // that for the opened file (it is one on a file system that ignores case), so it counts as the
+    // opened name.
     async savedName(name, bytes) {
       const pkg = await packageOf(bytes);
       const saved = stem(name) + (importedName(name, pkg) ? ' (imported).xlsx' : '.xlsx');
-      if (saved.toLowerCase() === name.toLowerCase() && !pkg.pure) foreign.add(name);
-      else foreign.delete(name);
+      if (saved.toLowerCase() === name.toLowerCase()) ownName.set(name, pkg.gridcraft ? pkg.others : null);
+      else ownName.delete(name);
       return saved;
     },
     // 'document' may replace the opened file (or, under another name, the file the host stored
@@ -284,9 +305,11 @@
     async classify(save, entry) {
       if (save.name !== entry.savedName || !save.name.endsWith('.xlsx')) return 'export';
       if (NEW_DOCUMENT.test(stem(save.name)) || userNames.has(save.name)) return 'export';
-      if (!(await packageOf(save.bytes)).gridcraft) return 'export';
-      if (foreign.has(entry.name)) return 'copy';
-      return 'document';
+      const pkg = await packageOf(save.bytes);
+      if (!pkg.gridcraft) return 'export';
+      if (!ownName.has(entry.name)) return 'document';
+      const keep = ownName.get(entry.name);
+      return keep && keep.every((part) => pkg.names.has(part)) ? 'document' : 'copy';
     },
   });
 })();

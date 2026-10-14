@@ -8,14 +8,15 @@
 // craftsuite-probe.dxf  (not written here) saved by CADCraft 0.5.0: a circle and a text with
 //                       PROBE_MARKER, see docs/apps/cadcraft.md
 // foreign.dxf           an R2018 ASCII DXF as another CAD program writes it, with what CADCraft
-//                       0.5.0 does not keep: header variables ($ACADMAINTVER, $TDCREATE,
-//                       $FINGERPRINTGUID, $VERSIONGUID), another application's xdata on a LINE,
-//                       an MLINE (an entity type CADCraft reads but does not write) and that
+//                       does not keep: header variables ($ACADMAINTVER, $TDCREATE,
+//                       $FINGERPRINTGUID, $VERSIONGUID); and with what 0.5.0 did not keep and
+//                       0.6.2 keeps: another application's xdata on a LINE, an MLINE and that
 //                       application's XRECORD in the named object dictionary; a TEXT with
 //                       FOREIGN_MARKER
-// newer-cadcraft.dxf    craftsuite-probe.dxf with what a newer CADCraft might write and 0.5.0 does
-//                       not keep: $FINGERPRINTGUID, another application's xdata on the TEXT and an
-//                       MLINE. Its layout is still CADCraft's (header start, APPID, CRLF)
+// newer-cadcraft.dxf    craftsuite-probe.dxf with what no CADCraft release writes: $FINGERPRINTGUID
+//                       (which CADCraft drops), another application's xdata on the TEXT, and an
+//                       MLINE (0.5.0 drops both, 0.6.2 keeps them). Its layout is still CADCraft's
+//                       (header start, APPID, CRLF)
 //
 // DXF is CRLF text: the files must stay byte for byte as written.
 

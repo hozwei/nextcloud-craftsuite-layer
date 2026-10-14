@@ -9,10 +9,12 @@
 //              CADCraft DXF with the edit, and Save As (Ctrl+Shift+S) after another edit is the
 //              document again; an SVG export (saveas with a typed path) and the save of a new
 //              drawing (Ctrl+N, 'Drawing2.dxf') arrive as new files; nothing becomes a download,
-//              also not after the deadlines for the host's confirmation and result
+//              also not after the deadlines for the host's confirmation and result; the DXF this
+//              CADCraft saved, opened again, saves in place, and saved in an older DXF version
+//              than its own (saveas with a typed version) it is a copy
 //   saved-as   saves that must not replace the opened file: a DXF from another program and one in
-//              CADCraft's layout with what 0.5.0 drops are copies (the first save a new file, the
-//              next one replaces that file), with the edit and without what CADCraft does not
+//              CADCraft's layout with data CADCraft drops are copies (the first save a new file,
+//              the next one replaces that file), with the edit and without what CADCraft does not
 //              keep; an opened 'Drawing2.dxf' or 'Bracket.dxf' is never saved back, and the new
 //              drawing (Ctrl+N) or the sample (ui.sample) saved under that name is a new file; a
 //              drawing the user brings in that saves under the opened name (dropped as
@@ -51,13 +53,17 @@ const PROBE = fixture('craftsuite-probe.dxf');
 const FOREIGN = fixture('foreign.dxf');
 const PROBE_MARKER = 'CRAFTSUITE-PROBE-cc01';
 const FOREIGN_MARKER = 'CRAFTSUITE-FOREIGN-cc02';
-// What CADCraft 0.5.0 drops on save from the two fixtures that are not its own DXF: an entity type
-// it does not write, a header variable outside its list, another application's xdata.
-const NOT_KEPT = ['MLINE', '$FINGERPRINTGUID', 'ACME_APP'];
-// How every DXF CADCraft 0.5.0 writes starts (crates/io/src/dxf_write.rs): R2000, CRLF.
-const CADCRAFT_HEAD = '  0\r\nSECTION\r\n  2\r\nHEADER\r\n  9\r\n$ACADVER\r\n  1\r\nAC1015\r\n';
+// What CADCraft drops on save from the two fixtures that are not its own DXF: a header variable
+// outside its list. (0.5.0 also dropped their MLINE and the other application's xdata, which 0.6.2
+// keeps.)
+const NOT_KEPT = ['$FINGERPRINTGUID'];
+// How every DXF CADCraft writes starts (crates/io/src/dxf_write.rs): R2000 (0.5.0 writes no
+// other) to R2018 ($ACADVER), CRLF.
+const CADCRAFT_START = /^ {2}0\r\nSECTION\r\n {2}2\r\nHEADER\r\n {2}9\r\n\$ACADVER\r\n {2}1\r\nAC10(15|18|21|24|27|32)\r\n/;
+const acadver = (text: string) => CADCRAFT_START.exec(text)?.[1] ?? '';
 // English chosen in Edit > Interface Language, as CADCraft 0.5.0 stores it in the frame's
-// localStorage, the other preferences at their defaults (crates/ui-egui/src/lib.rs prefs_json).
+// localStorage, the other preferences at their defaults (crates/ui-egui/src/lib.rs prefs_json;
+// 0.6.2 adds saveVersion, which it then takes as its default, 2018).
 const PREFS_KEY = 'cadcraft.prefs';
 const ENGLISH_CHOSEN = '{"interfaceLanguage":"en","saveFormat":"dxf","theme":"dark"}';
 const portBase = Number(process.env.CRAFTSUITE_PORT_BASE || 8701);
@@ -156,9 +162,9 @@ async function scenario(context: BrowserContext, title: string, body: (page: Pag
 
 type Box = { x: number; y: number; width: number; height: number };
 
-// Pointer targets and the menu bar (measured on CADCraft 0.5.0), relative to the app frame at the
-// pinned viewport. This is the only layout knowledge in this file; when a release moves something,
-// fix it here.
+// Pointer targets and the menu bar (measured on CADCraft 0.5.0, unchanged in 0.6.2), relative to
+// the app frame at the pinned viewport. This is the only layout knowledge in this file; when a
+// release moves something, fix it here.
 const AT = {
   // The menu bar below the toolbar: File, the first entry, and Help, the last.
   fileMenu: (b: Box) => ({ x: b.x + 17, y: b.y + 43 }),
@@ -347,7 +353,7 @@ function expectExport(save: HostSave, name: string) {
 
 // A DXF as CADCraft writes it (every save is a full rewrite), with the given texts.
 function expectCadcraftDxf(text: string, contains: string[], lacks: string[] = []) {
-  expect(text.startsWith(CADCRAFT_HEAD), 'CADCraft\'s R2000 DXF (header start)').toBe(true);
+  expect(text, 'CADCraft\'s DXF (header start, R2000 to R2018)').toMatch(CADCRAFT_START);
   expect(text.endsWith('  0\r\nEOF\r\n'), 'a complete DXF (0 EOF at the end)').toBe(true);
   for (const s of contains) expect.soft(text, `the save holds ${s}`).toContain(s);
   for (const s of lacks) expect.soft(text, `the save lacks ${s}`).not.toContain(s);
@@ -380,7 +386,7 @@ async function compareMenuBars(shown: Buffer, other: Buffer, otherStart: string,
 
 test('contract: an allowed host opens the file and stores every save, nothing is downloaded', async ({ page }) => {
   // A checkout that turned the fixture's CRLF into LF makes it another program's DXF: a copy.
-  expect(PROBE.toString('latin1').startsWith(CADCRAFT_HEAD), 'craftsuite-probe.dxf as CADCraft wrote it, with CRLF (see .gitattributes)').toBe(true);
+  expect(PROBE.toString('latin1'), 'craftsuite-probe.dxf as CADCraft wrote it, with CRLF (see .gitattributes)').toMatch(CADCRAFT_START);
   const downloads = trackDownloads(page);
   await recordAppVersions(page);
   const app = await openInHost(page, 'craftsuite-probe.dxf', `&app-ack=${SHORT_ACK}&app-result=${SHORT_RESULT}`);
@@ -439,6 +445,29 @@ test('contract: an allowed host opens the file and stores every save, nothing is
     expect.soft((await hostRecord(page)).saves, 'saves the host got').toHaveLength(4);
     expectNoDownloads(downloads);
   });
+
+  await test.step('the DXF this CADCraft saved, opened again, saves in place; saved in an older DXF version, it is a copy', async () => {
+    // A later open of the file gets the bytes of its last save. The adapter must know the
+    // release's writer (RELEASES in translators/cadcraft.js) to take it for a DXF that this
+    // CADCraft writes again without losses: a writer with something new fails here.
+    const stored = Buffer.from((await hostRecord(page)).saves[1].base64, 'base64');
+    const again = await openInHost(page, 'craftsuite-probe.dxf', '', stored);
+    await addText(page, again, 'CRAFTSUITE-EDIT-3', 8);
+    await press(page, again, 'Control+s');
+    const { save, text } = await hostSave(page, 1);
+    expectDocument(save, 'craftsuite-probe.dxf');
+    expectCadcraftDxf(text, [PROBE_MARKER, 'CRAFTSUITE-EDIT-2', 'CRAFTSUITE-EDIT-3']);
+    // R2000, the oldest version CADCraft writes. Older than the file's own (an older version holds
+    // less), the save is a copy: the document following its own id. 0.5.0 writes only R2000 and
+    // ignores `version`: the document.
+    await runJson(page, again, 'saveas {"path": "craftsuite-probe.dxf", "version": 2000}');
+    const older = await hostSave(page, 2);
+    expectCadcraftDxf(older.text, [PROBE_MARKER, 'CRAFTSUITE-EDIT-3']);
+    const copy = acadver(older.text) < acadver(text);
+    expect(older.save, `saved as ${acadver(older.text)}, the file is ${acadver(text)}`)
+      .toMatchObject({ kind: 'document', openId: 1, follows: copy ? older.save.id : null, name: 'craftsuite-probe.dxf' });
+    expectNoDownloads(downloads);
+  });
 });
 
 test('saved-as: saves that must not replace the opened file become new files; the + New blank\'s first save replaces it', async ({ context }) => {
@@ -450,7 +479,7 @@ test('saved-as: saves that must not replace the opened file become new files; th
   // goes next to it, and the next one replaces that copy.
   const copies: [file: string, what: string, bytes: Buffer, marker: string][] = [
     ['foreign.dxf', 'a DXF from another program', FOREIGN, FOREIGN_MARKER],
-    ['newer-cadcraft.dxf', 'CADCraft\'s layout with what 0.5.0 drops', fixture('newer-cadcraft.dxf'), PROBE_MARKER],
+    ['newer-cadcraft.dxf', 'CADCraft\'s layout with data CADCraft drops', fixture('newer-cadcraft.dxf'), PROBE_MARKER],
   ];
   for (const [file, what, bytes, marker] of copies) {
     await scenario(context, `'${file}' (${what}): the first save is a new file, the next one replaces it`, async (page, downloads) => {

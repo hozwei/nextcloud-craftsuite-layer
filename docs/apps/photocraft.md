@@ -8,12 +8,12 @@
 |---|---|
 | Upstream | [github.com/storytold/photocraft](https://github.com/storytold/photocraft) |
 | Adapter | [`translators/photocraft.js`](../../translators/photocraft.js) |
-| Tested version | `tested` in [`tests/e2e/craft-versions.json`](../../tests/e2e/craft-versions.json) (0.7.0 when this page was last checked) |
+| Tested version | `tested` in [`tests/e2e/craft-versions.json`](../../tests/e2e/craft-versions.json) (0.8.2 when this page was last checked) |
 | Tests | [`tests/e2e/specs/photocraft.spec.ts`](../../tests/e2e/specs/photocraft.spec.ts) (Chromium and WebKit, see [Tests](#tests)) |
 
 This page records what the PhotoCraft web build does in the browser, as far as the translator
-depends on it, and how the adapter follows from it. The facts were checked against the 0.7.0
-source and web build; source references are to the `v0.7.0` tag. Upstream may change any of
+depends on it, and how the adapter follows from it. The facts were checked against the 0.8.2
+source and web build; source references are to the `v0.8.2` tag. Upstream may change any of
 them; the daily canary run (see [development.md](../development.md#continuous-integration)) is
 there to notice.
 
@@ -39,43 +39,45 @@ there to notice.
   drop target fits.
 - On the web, every dropped file opens as a new document tab, also while a document is open: the
   web shell takes the dropped files, reads them asynchronously and opens each one
-  (`web.rs:287-300`, `crates/ui-egui/src/lib.rs:1378-1384`). It never places a dropped file into
+  (`web.rs:287-300`, `crates/ui-egui/src/lib.rs:1592-1598`). It never places a dropped file into
   the open document.
 - The document's name is the file name, unchanged. The file has no path on the web
-  (`lib.rs:1008`: "a bare name isn't a location to save back to").
+  (`lib.rs:1136`: "a bare name isn't a location to save back to").
 - The decoder is chosen by content, with routes by name only for `.pcraft`, Affinity, OpenRaster
-  (`.ora`, new in 0.7.0), `.pdn` and `.svg`, where an `.svg` name no longer wins over bytes of a
-  known raster format (`crates/io/src/lib.rs:210-257`, `crates/codecs/src/format.rs:216-263`).
-  The MIME type the host sends does not matter. Brush, gradient and swatch files go to the preset
-  libraries and open no document (`crates/ui-egui/src/preset_files_ui.rs:16`); see
-  [File types](#file-types).
+  (`.ora`, new in 0.7.0), Krita (`.kra`, new in 0.8.0), `.pdn` and `.svg`, where an `.svg` or
+  `.kra` name does not win over bytes of a known raster format (`crates/io/src/lib.rs:253-303`,
+  `crates/codecs/src/format.rs:234-287`). The MIME type the host sends does not matter. Brush,
+  gradient and swatch files go to the preset libraries and open no document
+  (`crates/ui-egui/src/preset_files_ui.rs:16`); see [File types](#file-types).
 - Files also reach the app from the user: a drop from the desktop, and File > Open (Ctrl+O), a
-  file picker (`<input type=file>` through rfd) that since 0.7.0 takes several files at once
-  (`web.rs:358-382`, `file_dialog.rs:188`, `196-202`). Each file opens as another tab.
+  file picker (`<input type=file>` through rfd) that since 0.7.0 takes several files at once and
+  since 0.8.0 opens them in name order (`web.rs:355-379`, `file_dialog.rs:210`, `220-227`). Each
+  file opens as another tab.
 - There is no JavaScript-visible signal that a file was opened or could not be opened. Two
   prompts can appear on open: the embedded-profile mismatch prompt (on by default, for images
   with an ICC profile other than the working space) and the Camera Raw dialog for raw files
-  (`lib.rs:1016-1028`). The host only gets `delivered`.
+  (`lib.rs:1144-1156`). The host only gets `delivered`.
 
 **Saving and downloads**
 
 - Every download goes through one helper: a `Blob` typed by the extension
   (`image/vnd.adobe.photoshop` for `.psd`, `image/png`, ... else `application/octet-stream`),
   `URL.createObjectURL`, an `<a download>` (hidden, appended to the body), `click()`, removal; the
-  object URL is revoked after 10 s (`web.rs:409-446`). No File System Access API.
+  object URL is revoked after 10 s (`web.rs:408-445`). No File System Access API.
 - Save and Save As show no dialog on the web: the suggested name becomes the download name
-  (`web.rs:383-387`). Because the document has no path, Save goes through Save As, which suggests
+  (`web.rs:382-386`). Because the document has no path, Save goes through Save As, which suggests
   the document's name with the extension replaced by `.psd`, or `.pcraft` for a `.pdn`
-  (`lib.rs:1084-1102`), and lowercases the extension (`crates/ui-egui/src/file_dialog.rs:110-156`,
-  preference on by default, `crates/engine/src/prefs.rs:484`). So `photo.png` and `Photo.PSD`
+  (`lib.rs:1218-1236`), and lowercases the extension (`crates/ui-egui/src/file_dialog.rs:132-178`,
+  preference on by default, `crates/engine/src/prefs.rs:537`). So `photo.png` and `Photo.PSD`
   save as `photo.psd` and `Photo.psd`; only a PSD opened under a lowercase `.psd` name comes back
-  under its own name.
+  under its own name. Since 0.8.0 Save keeps a JPEG's quality and a WebP's encoding when it writes
+  that format (`lib.rs:1307-1322`), which on the web, without a path, never happens.
 - A save writes the whole file (PSD version 1; PSB version 2 under the `.psd` name above
-  30000 px or 2 GB, `crates/io/src/psd_export.rs:1246-1248`). There is no incremental update.
+  30000 px or 2 GB, `crates/io/src/psd_export.rs:1366-1368`). There is no incremental update.
 - After a save, the document takes the saved name as its name and path
   (`crates/engine/src/file_cmds.rs:138-146`), and later saves write that name again: since 0.7.0
   File > Save writes such a layered path in place without going through Save As
-  (`crates/ui-egui/src/menus.rs:272-281`, `lib.rs:1119`), which on the web is the same download
+  (`crates/ui-egui/src/menus.rs:298-308`, `lib.rs:1260`), which on the web is the same download
   under the same name.
 - PhotoCraft then marks the document saved and shows "Saved <name>", without knowing whether the
   host stored it.
@@ -86,31 +88,35 @@ there to notice.
 | Save (Ctrl+S), Save As (Ctrl+Shift+S) | `<stem>.psd` (`<stem>.pcraft` for a `.pdn`), full rewrite | `document` when the adapter's rules hold, see below |
 | File > Export > Quick Export as PNG | `<stem>.png`, flattened | `export` |
 | File > Export > Export As (Ctrl+Alt+Shift+W) | `<stem>.png`, `.jpg`, `.webp`, `.tif` or `.tga` | `export` |
-| Layer > Quick Export as PNG | `<layer name>.png` | `export` |
-| Layer > Smart Objects > Export Contents (since 0.7.0) | the file name stored with the smart object, extension lower case: `<layer name>.pcraft` for one made in PhotoCraft, else the name its PSD recorded (`crates/ui-egui/src/view_cmds.rs:1143-1156`) | `export`, unless it is the saved name, see [Known gaps](#known-gaps) |
+| Layer > Quick Export as PNG | `<layer name>.png`; since 0.8.0 with several layers selected one PNG each, the first `<document name>.png` (`photo.psd.png`), the others `<document name>-<n>-<layer name>.png` (`crates/ui-egui/src/export_dialog.rs:76-108`, `118-146`) | `export` |
+| Layer > Export As with several layers selected (since 0.8.0) | one file each in the dialog's format (PNG, JPG, WebP, TIFF or TGA, `export_dialog.rs:14`): the first `<stem>.<ext>`, the others `<stem>-<n>-<layer name>.<ext>` (`export_dialog.rs:386-414`) | `export` |
+| Layer > Smart Objects > Export Contents (since 0.7.0) | the file name stored with the smart object, extension lower case: `<layer name>.pcraft` for one made in PhotoCraft, else the name its PSD recorded (`crates/ui-egui/src/view_cmds.rs:1377-1391`) | `export`, unless it is the saved name, see [Known gaps](#known-gaps) |
 | Save for Web (Legacy) | `<stem with _ for other characters>.gif`, `.png`, `.jpg`, `.wbmp`, or `.html` with images | `export` |
-| Swatch, preset, measurement exports | `Swatches.<ext>`, `Presets.pcpresets`, `Measurements.csv` | `export` |
+| Swatch, preset, contour (since 0.8.0), measurement exports | `Swatches.<ext>`, `Presets.pcpresets`, `<contour name>.shc` (`crates/ui-egui/src/layer_style/contour.rs:388`), `Measurements.csv` | `export` |
 
 `<stem>` is the document's name without its extension. Save a Copy, Print, Revert, Place and
-Package are disabled on the web and download nothing.
+Package are disabled on the web and download nothing. None of the downloads 0.8.0 added is a
+Photoshop file.
 
 **Links**
 
 - Help items and the About dialog's link row open in a new tab
-  (`crates/ui-egui/src/links.rs:24-31`): on the web, without a platform service, through
+  (`crates/ui-egui/src/links.rs:24-32`): on the web, without a platform service, through
   `ctx.open_url` with a new tab, which eframe opens with `window.open` and target `_blank`
   (eframe `src/web/mod.rs:351-358`).
 - Since 0.7.0 the names on About > Contributors open the same way
-  (`crates/ui-egui/src/credits.rs:327-336`). Up to 0.6.0 they were egui hyperlinks, which eframe
+  (`crates/ui-egui/src/credits.rs:330-339`). Up to 0.6.0 they were egui hyperlinks, which eframe
   opens with target `_self`; in a frame that would replace the editor, so the translator opens
-  such links in a new window. PhotoCraft 0.7.0 has no link with `_self` left; the core's link
+  such links in a new window. PhotoCraft 0.8.2 has no link with `_self` left; the core's link
   checks (schemes, `noopener` for other origins) still apply to all of them.
 
 **Unsaved changes**
 
 - The app registers a `beforeunload` handler that asks before the page is left while a document
   has unsaved changes (`web.rs:146-159`, refreshed every frame at `web.rs:249`). A host could use
-  it as a signal; the protocol has none yet. There is no autosave or recovery on the web.
+  it as a signal; the protocol has none yet. There is no autosave or recovery on the web: the
+  desktop's crash-recovery autosave is a service (`crates/ui-egui/src/lib.rs:419-425`) that the
+  web shell does not set (`web.rs:331-399`).
 
 ## How the adapter classifies
 
@@ -141,31 +147,35 @@ Why:
   of an opened `photo.png` downloads `photo.png`, a flattened copy. Only a Photoshop file can be
   a save.
 - **New documents.** File > New names a document `Untitled-1` (the New dialog's default,
-  `crates/ui-egui/src/state.rs:1170-1173`, `new_doc_ui.rs:424`), New from Clipboard `Untitled`
-  (`crates/engine/src/edit_cmds.rs:324`), a template the first free `Untitled-N` with the
-  translated base (`Unbenannt-1` in German, `crates/ui-egui/src/file_open.rs:77-84`), Photomerge
-  and Merge to HDR `Untitled_Panorama<n>` and `Untitled_HDR<n>`
-  (`crates/engine/src/photo_cmds.rs:407`, `705`). Each saves as `<name>.psd` without a dialog.
-  With a file of the same stem open (`Untitled-1.png`, or `Untitled-1.psd`, also Photoshop's
-  default name), that is the opened file's saved name, and a PSD carries nothing that tells two
-  documents apart. So a save whose stem is one of these names, in English or in one of the 16
-  translations of "Untitled" in PhotoCraft's catalogs (`crates/ui-egui/src/i18n/*.tsv`), is never
+  `crates/ui-egui/src/state.rs:1360-1363`; since 0.8.0 its name field shows the translation,
+  `Unbenannt-1` in German, which becomes the name only when the user edits the field,
+  `new_doc_ui.rs:548-554`), New from Clipboard and Select and Mask's Output To New Document
+  (since 0.8.0) `Untitled` (`crates/engine/src/edit_cmds.rs:406`, `smartselect_cmds.rs:327`), a
+  template the first free `Untitled-N` with the translated base (`Unbenannt-1` in German,
+  `crates/ui-egui/src/file_open.rs:77-84`), Photomerge and Merge to HDR `Untitled_Panorama<n>` and
+  `Untitled_HDR<n>` (`crates/engine/src/photo_cmds.rs:494`, `792`). Each saves as `<name>.psd`
+  without a dialog. With a file of the same stem open (`Untitled-1.png`, or `Untitled-1.psd`, also
+  Photoshop's default name), that is the opened file's saved name, and a PSD carries nothing that
+  tells two documents apart. So a save whose stem is one of these names, in English or in one of
+  the 19 translations of "Untitled" in PhotoCraft's catalogs (`crates/ui-egui/src/i18n/*.tsv`;
+  0.8.0 added Hungarian `Névtelen`, Turkish `İsimsiz` and Vietnamese `Chưa đặt tên`), is never
   the document: a new document never replaces the opened file, at the price that a file named
   like one is never saved back (see [Known gaps](#known-gaps)).
 - **Files from elsewhere.** PhotoCraft saves most documents as `<stem>.psd`, also a file the user
   dropped from the desktop or opened with File > Open. One with the opened file's stem would come
   back under the saved name, as a valid PSD, with other content. The adapter watches the `files`
   getters of `DataTransfer` (only during a trusted `drop`) and of `<input type=file>`, which is
-  how PhotoCraft 0.7.0 reads such files (File > Open with several files too), and records the
+  how PhotoCraft 0.8.2 reads such files (File > Open with several files too), and records the
   stems of the names PhotoCraft would save them under, cleaned up as the core cleans every save
   name (`.photo.png` saves as `.photo.psd`, which arrives as `photo.psd`). A `.pcraft` saves under
   the name stored inside it and a template (`.psdt`) opens as `Untitled-N`, so their save names
   do not follow from their file names: after one of them (a `.pcraft` also by its content, a zip),
-  no save is the document any more. An OpenRaster file (`.ora`, since 0.7.0) is a zip too and
-  counts the same way, although it saves as `<stem>.psd`: the adapter does not tell the two kinds
-  of zip apart, which errs on the side of new files. Preset files (`.abr`, `.grd`, `.aco`, `.ase`,
-  `.kys`, `.psp`, `.pcpresets`), which the same file picker loads and which open no document, do
-  not count, and neither does the translator's own drop, which is synthetic (`isTrusted` false).
+  no save is the document any more. An OpenRaster file (`.ora`, since 0.7.0) and a Krita file
+  (`.kra`, since 0.8.0) are zips too and count the same way, although they save as `<stem>.psd`:
+  the adapter does not tell the kinds of zip apart, which errs on the side of new files. Preset
+  files (`.abr`, `.grd`, `.aco`, `.ase`, `.kys`, `.psp`, `.pcpresets`), which the same file
+  picker loads and which open no document, do not count, and neither does the translator's own
+  drop, which is synthetic (`isTrusted` false).
 - **A later drop target.** The adapter sets `dropTargetTimeout` to 15 s: PhotoCraft registers its
   drop target only after its preset storage answered or 10 s passed. With the core's default of
   3 s, a slow storage would first report `the app registered no drop target` to the host, and
@@ -180,10 +190,11 @@ What PhotoCraft opens from a drop, by the routing above:
 | `psd`, `psb` | Opens with layers. Saves back under a lowercase `.psd` name (a `.psb` as `<stem>.psd`). |
 | `png`, `jpg`, `jpeg`, `webp`, `gif`, `bmp`, `tif`, `tiff`, `tga`, `ico` | Opens flat. Save writes `<stem>.psd` next to it; Export As replaces nothing. |
 | `heic`, `heif`, `hif` | Opens flat (the web build has the `heif` feature, `apps/photocraft-web/index.html:7`). Saves as `<stem>.psd`. |
-| `qoi`, `exr`, `hdr`, `pbm`, `pgm`, `ppm`, `pam`, `pfm` | Open flat. Rarely edited in Nextcloud. |
+| `qoi`, `exr`, `hdr`, `pbm`, `pgm`, `ppm`, `pam`, `pfm`, and since 0.8.0 `fits`, `fit`, `fts` (`crates/codecs/src/format.rs:156`) | Open flat. Rarely edited in Nextcloud. |
 | `dng`, `cr2`, `cr3`, `nef`, `nrw`, `arw`, `pef`, `orf`, `rw2`, `raf` | Opens the Camera Raw dialog first. |
-| `pcraft` | PhotoCraft's own format. It keeps the document name stored inside it (`crates/format/src/convert.rs:223`), so Save writes `<stored name's stem>.psd`; the web build cannot write `.pcraft` back except from a `.pdn`. |
-| `ora` (OpenRaster, since 0.7.0) | Opens with layers (`crates/io/src/lib.rs:232-234`). Save writes `<stem>.psd`. A zip: one opened from the user's disk makes every later save an export, see above. |
+| `pcraft` | PhotoCraft's own format. It keeps the document name stored inside it (`crates/format/src/convert.rs:224`), so Save writes `<stored name's stem>.psd`; the web build cannot write `.pcraft` back except from a `.pdn`. |
+| `ora` (OpenRaster, since 0.7.0) | Opens with layers (`crates/io/src/lib.rs:273-275`). Save writes `<stem>.psd`. A zip: one opened from the user's disk makes every later save an export, see above. |
+| `kra` (Krita, since 0.8.0) | Opens its merged image flat, without the layers (`crates/io/src/lib.rs:276-280`); not in File > Open's list, but a drop opens it. Save writes `<stem>.psd`. A zip like `ora`. |
 | `pdn` (Paint.NET) | Opens with layers. Save writes `<stem>.pcraft`, which the adapter never takes for the document: every save is a new file. |
 | `afphoto`, `afdesign`, `afpub`, `af` (Affinity) | Opens read-only as a source; Save writes `<stem>.psd`. |
 | `svg`, `svgz` | Opens as shape layers. VectorCraft's type. |
@@ -207,21 +218,21 @@ it registers `application/x-photoshop` for `psb` and `application/x-photocraft` 
 ([nextcloud-app.md](../nextcloud-app.md#file-type-icons)). Left out on purpose: `pdn` (every save
 becomes another new `.pcraft` file, see [Known gaps](#known-gaps)), the Affinity types (read-only
 import, untested), `svg` (VectorCraft), the raw types (the Camera Raw dialog needs the pointer,
-untested), the templates and the preset files. OpenRaster (`ora`), new in 0.7.0, is not offered
-either; it is untested.
+untested), the templates and the preset files. OpenRaster (`ora`), new in 0.7.0, and FITS and
+Krita (`kra`), new in 0.8.0, are not offered either; they are untested.
 
 ## Interface language
 
 **How PhotoCraft picks it**
 
 - Only from its own preferences: the JSON in the frame's `localStorage` under
-  `photocraft.preferences`, field `interface.language` (`apps/photocraft-web/src/web.rs:395-406`),
-  read once when the app is created, before its first frame (`crates/ui-egui/src/lib.rs:725`,
-  `prefs_ui.rs:129-146`).
-- The value is `auto` (the default, `crates/engine/src/prefs.rs:227-230`, `:262`) or a language
-  code (`de`, `pt-br`, ..., `crates/ui-egui/src/i18n/mod.rs:125-147`) in any letter case; a locale
+  `photocraft.preferences`, field `interface.language` (`apps/photocraft-web/src/web.rs:394-405`),
+  read once when the app is created, before its first frame (`crates/ui-egui/src/lib.rs:822`,
+  `prefs_ui.rs:205-226`).
+- The value is `auto` (the default, `crates/engine/src/prefs.rs:263-266`, `:303`) or a language
+  code (`de`, `pt-br`, ..., `crates/ui-egui/src/i18n/mod.rs:190-219`) in any letter case; a locale
   tag works too (`de-AT` and `de_DE` give German, `pt-PT` Brazilian Portuguese), anything else
-  gives English (`i18n/mod.rs:194-201`, `222-252`). `auto` means the system's language, which the
+  gives English (`i18n/mod.rs:265-272`, `298-328`). `auto` means the system's language, which the
   web build does not know (`i18n/system.rs:55-58`): English.
 - The browser's language does not count: `navigator.languages` only decides which served fonts
   are fetched first (`web.rs:187-197`). There is no URL parameter for the language. So without
@@ -250,21 +261,26 @@ either; it is untested.
 - Left out: `ja`, `ko`, `zh-Hans` and `zh-Hant`. The web build draws its interface with its own
   fonts, Inter and JetBrains Mono (`HOSTING.md` of the web build), which have no Chinese, Japanese
   or Korean glyphs, and loads no fallback for them on the web
-  (`crates/ui-egui/src/cjk_fonts.rs:3-19`, `:68-71`): their labels show as boxes.
-- None is known to be partial: each of the 16 catalogs (`crates/ui-egui/src/i18n/*.tsv`) claims
+  (`crates/ui-egui/src/cjk_fonts.rs:3-24`, `:81-91`): their labels show as boxes.
+- Not offered yet: Hungarian (`hu`), Turkish (`tr`) and Vietnamese (`vi`), new in 0.8.0
+  (`i18n/mod.rs:213-218`). Their menus, options bar and panels were seen complete with 0.8.2, and
+  0.7.0 would show English for them; offering them needs the Nextcloud app's list in
+  `CraftApps.php` as well as the adapter's table.
+- None is known to be partial: each of the 19 catalogs (`crates/ui-egui/src/i18n/*.tsv`) claims
   complete menus, which upstream's tests check for every menu label and every translated literal
-  of the interface (`i18n/mod.rs:711-776`). German, Greek, Russian, Ukrainian and Brazilian
+  of the interface (`i18n/mod.rs:832-1005`). German, Greek, Russian, Ukrainian and Brazilian
   Portuguese were seen in a frame, French on PhotoCraft's own page; the others were not looked at.
 - Save names do not depend on the language: File > New names a document `Untitled-1` in every
-  language. Only a template opens under the translated `Untitled-N`, which the adapter knows (see
-  [How the adapter classifies](#how-the-adapter-classifies)).
+  language (since 0.8.0 the New dialog shows the translated name but keeps `Untitled-1` unless
+  the user edits it). Only a template opens under the translated `Untitled-N`, which the adapter
+  knows (see [How the adapter classifies](#how-the-adapter-classifies)).
 
 **A language the user picks in PhotoCraft**
 
-- Edit > Preferences > Interface… > Language offers Auto and all 17 languages, the left-out ones
-  too (`crates/ui-egui/src/prefs_ui.rs:1353-1360`). On Apply or OK the interface switches at once
-  (`prefs_ui.rs:789-802`, `lib.rs:1327`), and PhotoCraft stores the choice in the same field,
-  merged with what the storage holds (`prefs_ui.rs:364-454`).
+- Edit > Preferences > Interface… > Language offers Auto and all 20 languages, the left-out ones
+  too (`crates/ui-egui/src/prefs_ui.rs:1489-1496`). On Apply or OK the interface switches at once
+  (`prefs_ui.rs:919-932`, `lib.rs:1538`), and PhotoCraft stores the choice in the same field,
+  merged with what the storage holds (`prefs_ui.rs:466-558`).
 - It differs from the adapter's mark, so it wins at every later start, whatever the host's
   language; Auto hands the start back to the host's language. A choice equal to the host's
   language at the time looks like the adapter's own (see [Known gaps](#known-gaps)).
@@ -283,10 +299,10 @@ either; it is untested.
   price of never replacing the opened file with a new document. Renaming the file in Nextcloud
   before opening it avoids it.
 - **Copies made from the opened document replace it when saved.** Image > Duplicate names the
-  copy `<name> copy` (`engine/src/image_cmds.rs:602`), Split Channels `<name>_<channel>`
-  (`channel_cmds.rs:1349`, `:1352`) and Crop and Straighten Photos `<name> copy <k>`
-  (`photo_cmds.rs:772`). Save replaces everything after the last dot with `psd`
-  (`ui-egui/src/lib.rs:1095-1100`), so the copy of an opened `photo.psd` saves as `photo.psd`, is a
+  copy `<name> copy` (`engine/src/image_cmds.rs:682`), Split Channels `<name>_<channel>`
+  (`channel_cmds.rs:1456`, `:1459`) and Crop and Straighten Photos `<name> copy <k>`
+  (`photo_cmds.rs:859`). Save replaces everything after the last dot with `psd`
+  (`ui-egui/src/lib.rs:1229-1234`), so the copy of an opened `photo.psd` saves as `photo.psd`, is a
   Photoshop file and passes as the document: in Nextcloud it replaces the opened file (or the
   `<stem>.psd` created next to an opened PNG), and both tabs then save into it. Nextcloud's file
   versions (where enabled) keep the previous state. A PSD carries nothing that tells the copy from
@@ -299,7 +315,7 @@ either; it is untested.
   Nextcloud's file versions (where enabled) keep the previous state.
 - **A smart object's contents stored under the saved name.** Since 0.7.0, Layer > Smart Objects >
   Export Contents downloads a smart object's embedded file under the name stored with it (enabled
-  whenever the active layer is a smart object, `engine/src/smart_cmds.rs:1153`). When a PSD
+  whenever the active layer is a smart object, `engine/src/smart_cmds.rs:1135`). When a PSD
   stored its smart object's file as `photo.psd`, the export of an opened `photo.psd` (or
   `photo.png`) is a Photoshop file under the saved name and passes as the document, as the copies
   above do. PhotoCraft's own smart objects store `<layer name>.pcraft`, which never does.
@@ -308,8 +324,8 @@ either; it is untested.
   unnoticed again. The `another type` test fails then.
 - **After a file from elsewhere with the same save name**, every later save under the saved name
   is an export, also a save of the opened document, until the frame is reloaded. After a
-  `.pcraft` (or any zip, also an OpenRaster `.ora`) or a template from elsewhere, every later
-  save is.
+  `.pcraft` (or any zip, also an OpenRaster `.ora` or a Krita `.kra`) or a template from
+  elsewhere, every later save is.
 - **Upper-case extensions.** `Photo.PSD` opened as is saves as `Photo.psd`, a document under
   another name, which a host would store next to `Photo.PSD`; two names that differ only in case
   clash on Windows sync clients. The Nextcloud editor page therefore sends the name with a
@@ -339,8 +355,8 @@ either; it is untested.
   `allow-scripts allow-same-origin allow-downloads allow-popups`.
 - The app reads `cpu` and `webgl` anywhere in its query string as renderer flags
   (`web.rs:55-63`): the app URL must not contain those letters in its query by accident.
-- The `.wasm` file of 0.7.0 has 24,996,331 bytes. Serve it compressed and with a long cache time,
-  as `HOSTING.md` says.
+- The `.wasm` file of 0.8.2 has 24,164,396 bytes (about 11.1 MB with gzip, 9.6 MB with Brotli at
+  quality 6). Serve it compressed and with a long cache time, as `HOSTING.md` says.
 - A `.wasm` file that is missing or cannot be compiled makes the loader fail, and the host gets
   `the app failed to load: ...` (see [protocol.md](../protocol.md#errors)).
 - Preferences live in the frame's `localStorage` (`photocraft.preferences`), brush presets in its
@@ -380,15 +396,16 @@ a 64x48 PSD and the same picture as a PNG, and a different 40x40 PSD under the s
 The tests drive PhotoCraft with the keyboard and the command palette (Ctrl+F), with the
 shortcuts and English command labels from PhotoCraft's `crates/ui-egui/src/menu_catalog.rs`. They
 check the saved picture in the PSD's merged image. Only the `ui` test also clicks with the
-pointer; its click positions are in the `AT` table of the spec, measured on 0.7.0 at a 1400x900
-viewport with the locale `en-US`. The position of File > Save follows from `FILE_MENU`: the File
-menu's rows down to Save as `menu_catalog.rs` and `menus.rs` build them (24 px per row, 9 px per
-separator), and the top of its first row, which is 22 px lower once the menu is taller than the
-frame and gets scroll arrows (the File menu since 0.7.0). Two things differ in WebKit:
+pointer; its click positions are in the `AT` table of the spec, measured on 0.7.0 (still right
+for 0.8.2, whose File menu rows are unchanged) at a 1400x900 viewport with the locale `en-US`.
+The position of File > Save follows from `FILE_MENU`: the File menu's rows down to Save as
+`menu_catalog.rs` and `menus.rs` build them (24 px per row, 9 px per separator), and the top of
+its first row, which is 22 px lower once the menu is taller than the frame and gets scroll arrows
+(the File menu since 0.7.0). Two things differ in WebKit:
 
 - Playwright's Desktop Safari has a macOS user agent, and egui takes the platform from it. So
   PhotoCraft orders dialog buttons the macOS way (Cancel, then Export;
-  `crates/ui-egui/src/widgets.rs:763-770`), and `AT` has both positions.
+  `crates/ui-egui/src/widgets.rs:1070-1077`), and `AT` has both positions.
 - The spec sets the device scale factor to 1. At Desktop Safari's 2, software rendering made
   PhotoCraft's frames 6 to 10 times slower, and a click on a contributor's link mostly selected
   its text instead of following it: egui takes a press it sees for longer than 0.8 s for a drag
@@ -427,5 +444,5 @@ An embedding API for the web build is requested in
 [storytold/photocraft#1614](https://github.com/storytold/photocraft/issues/1614), and
 [pull request #2263](https://github.com/storytold/photocraft/pull/2263) proposes
 `window.photocraft` and a `postMessage` API enabled with `?embed=<origin>` (open, not merged as of
-2026-10-10; 0.7.0 does not have it). The host must not enable it while it relies on the
+2026-10-10; 0.8.2 does not have it). The host must not enable it while it relies on the
 translator; see [architecture.md](../architecture.md#native-embedding-apis).

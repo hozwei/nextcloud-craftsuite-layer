@@ -3,17 +3,17 @@
  * SPDX-FileCopyrightText: 2026 The nextcloud-craftsuite-layer contributors
  * SPDX-License-Identifier: AGPL-3.0-or-later
  *
- * Load right after core.js. What LightCraft (web build, checked with 0.6.0) does and why the rules
+ * Load right after core.js. What LightCraft (web build, checked with 0.7.1) does and why the rules
  * below follow from it is described in docs/apps/lightcraft.md. Source references are to the
- * v0.6.0 tag; web.rs, backend.rs, bench.rs and safety.rs are in apps/lightcraft-web/src/, the
+ * v0.7.1 tag; web.rs, backend.rs, bench.rs and safety.rs are in apps/lightcraft-web/src/, the
  * other paths under crates/.
  *  - LightCraft is a photo library and raw developer, not a document editor. A dropped file is
- *    imported into the library and selected (web.rs:476-496); a second drop adds a second photo.
+ *    imported into the library and selected (web.rs:480-500); a second drop adds a second photo.
  *    eframe reads the dropped files and does not check isTrusted. Its drop listener is the page's
- *    first and comes once the library and the graphics run (web.rs:665-705), so the core's
+ *    first and comes once the library and the graphics run (web.rs:669-709), so the core's
  *    default drop target (the canvas) and its `ready` fit.
  *  - By default the library lives in the browser's storage for the app's origin, OPFS or else
- *    IndexedDB, with the bytes of every imported photo, and is kept across visits (web.rs:278-363,
+ *    IndexedDB, with the bytes of every imported photo, and is kept across visits (web.rs:282-367,
  *    backend.rs): a second copy of the user's photos next to Nextcloud. The page reads `?store`,
  *    `?workers`, `?reset` and `?bench` from its URL when its module starts (web.rs:67-96).
  *    `store=memory` keeps nothing; in that mode the render workers cannot read a photo (they read
@@ -23,21 +23,22 @@
  *    `?store=memory&workers=0` (and drops `reset` and `bench`) with history.replaceState before
  *    the module runs (both scripts run in <head>, the module is deferred), and its started() asks
  *    the app (`lightcraft.command('web.stats')`, the automation call index.html exposes,
- *    web.rs:576-617) whether the library is in memory and no worker runs. If not, or if it cannot
+ *    web.rs:580-621) whether the library is in memory and no worker runs. If not, or if it cannot
  *    tell, the host gets a startup error and no file is handed over. In memory mode the page also
  *    skips its Web Lock and the persistent-storage request.
  *  - Nothing saves the opened file. Save (Ctrl+S) is Save Metadata to File, an XMP sidecar written
- *    with std::fs, which fails on the web without a download (engine/src/cmd/xmp.rs:72-80,
- *    engine/src/sidecar.rs:475-486). Export (File > Export..., Shift+E; Export with Previous,
- *    Ctrl+E) renders the photo with its edits and downloads '<stem>.jpg|png|tif|webp'
- *    (engine/src/export.rs:577-620, 1035-1052): for an opened JPEG that is the opened name, a new,
+ *    with std::fs, which fails on the web without a download (engine/src/cmd/xmp.rs:78-86,
+ *    engine/src/sidecar.rs:546-576). Export (File > Export..., Shift+E; Export with Previous,
+ *    Ctrl+E) renders the photo with its edits and downloads '<stem>.jpg|png|tif|psd|webp'
+ *    (engine/src/export.rs:640-697, 1195-1212): for an opened JPEG that is the opened name, a new,
  *    lossy rendering (by default 2048 px on the long edge). The formats Original files and DNG read
- *    the original with std::fs and fail on the web; AVIF is not compiled into the web build.
+ *    the original with std::fs and fail on the web; AVIF and JPEG XL are not compiled into the web
+ *    build.
  *  - Every download is a Blob typed after the extension behind a detached <a download> that is
  *    clicked; the URL is revoked after 5 s (web.rs:142-165).
  *  - The page never dispatches TrunkApplicationStarted. A failed load or start shows only as text:
  *    'LightCraft failed to load: ...' in #lightcraft_loading (index.html), 'LightCraft failed to
- *    start: ...' in #lightcraft_status (web.rs:699-702), and a panic covers the page with
+ *    start: ...' in #lightcraft_status (web.rs:703-706), and a panic covers the page with
  *    #lightcraft_blocking (safety.rs:49-89). None raises an error event, so the core would report
  *    the failure only after data-startup-timeout, as 'the app did not start in time'. This adapter
  *    raises those texts as error events until the app has a drop target (the core reports them at
