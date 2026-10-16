@@ -8,14 +8,15 @@
 |---|---|
 | Upstream | [github.com/storytold/gridcraft](https://github.com/storytold/gridcraft) |
 | Adapter | [`translators/gridcraft.js`](../../translators/gridcraft.js) |
-| Tested version | `tested` in [`tests/e2e/craft-versions.json`](../../tests/e2e/craft-versions.json) (0.5.0 when this page was written, checked again with 0.6.1) |
+| Tested version | `tested` in [`tests/e2e/craft-versions.json`](../../tests/e2e/craft-versions.json) (0.5.0 when this page was written, checked again with 0.6.1 and 0.7.0) |
 | Tests | [`tests/e2e/specs/gridcraft.spec.ts`](../../tests/e2e/specs/gridcraft.spec.ts) (Chromium and WebKit, see [Tests](#tests)) |
 
 This page records what the GridCraft web build does in the browser, as far as the translator
 depends on it, and how the adapter follows from it. The facts were checked against the 0.6.1
-source and web build (first written for 0.5.0; where 0.5.0 differs, the page says so). Upstream
-may change any of them; the daily canary run (see
-[development.md](../development.md#continuous-integration)) is there to notice. Source
+source and web build (first written for 0.5.0; where 0.5.0 differs, the page says so); what
+0.7.0 changed in the web shell, the save path and the writer was checked against the `v0.7.0`
+tag, and the page says so where it matters. Upstream may change any of them; the daily canary
+run (see [development.md](../development.md#continuous-integration)) is there to notice. Source
 references are to the `v0.6.1` tag; `web.rs` is `apps/gridcraft-web/src/web.rs`, the other paths
 are under `crates/`.
 
@@ -26,8 +27,10 @@ are under `crates/`.
 - It takes dropped files on its canvas (`canvas#gridcraft_canvas`, `web.rs:8`), where eframe
   registers its only drop listener once the app exists (`web.rs:28-56`). The drop handler does
   not check `isTrusted`, so the translator's simulated drop works like a user's drop. The core's
-  default drop target and timing fit: the listener came 0.1 to 0.2 s after
-  `TrunkApplicationStarted` in Chromium.
+  default drop target fits. The listener came 0.1 to 0.2 s after `TrunkApplicationStarted` in
+  Chromium with 0.6.1, but more than 3 s with 0.7.0 on the first start in a fresh browser
+  (Chromium with SwiftShader): the adapter gives it 10 s (`dropTargetTimeout`) before the core
+  reports a startup error.
 - Every dropped file goes to `file.open` with its name and bytes (`web.rs:76-92`,
   `ui-egui/src/lib.rs:948-970`) and opens as a new workbook window; nothing is ever placed into
   the open workbook. An untouched blank `Book1` is replaced, as in Excel
@@ -54,8 +57,15 @@ are under `crates/`.
   `.xlsx,.xlsm,.xls,.xlsb,.ods,.csv,.tsv,.txt,.json`, `web.rs:109-124`). Each file opens as a
   further window titled with its own name. Insert > Picture has a picker of its own (PNG and
   JPEG, `web.rs:125-136`), whose file goes into the workbook.
-- There is no `?file=` and no embedding API. The only query flags are `webgl` and `sample` (see
-  [Hosting notes](#hosting-notes)).
+- There is no `?file=`. The query flags are `webgl` and `sample` (see
+  [Hosting notes](#hosting-notes)) and, since 0.7.0, `host=parent` (with `author=`): an opt-in
+  embedding bridge for a page that frames GridCraft **on its own origin**
+  (`apps/gridcraft-web/src/host.rs`, storytold/gridcraft#237). It takes `gridcraft:open` from
+  the parent, sends every download to it as `gridcraft:save` instead, and reports
+  `gridcraft:ready`, `gridcraft:failed` and `gridcraft:dirty`; no sample opens meanwhile. Only the
+  same-origin parent is heard or answered, and without the flag nothing changes. The translator
+  does not set it: it serves GridCraft to a host on another origin, so the bridge stays off (see
+  [Upstream](#upstream)).
 - There is no JavaScript-visible signal that a file was opened, could not be opened, or has
   unsaved changes. The host only gets `delivered`. (GridCraft sets the window title with an egui
   command that eframe's web backend does not implement and reports on the console, `Unhandled
@@ -96,10 +106,12 @@ are under `crates/`.
   1980-01-01 (`xlsx/src/package.rs:164-175`), `docProps/app.xml` holds
   `<Application>GridCraft</Application>` (and a company, if set), and `docProps/core.xml` only
   title, subject, author, keywords and description, no creation or change time
-  (`write.rs:360-386`). An unchanged save of a file GridCraft wrote equals the opened bytes; the
-  tests check this with GridCraft's sales sample (charts, a table, notes). (0.5.0 wrote the
-  sample's icon set without its thresholds, which 0.6.1 writes; both save 0.6.1's file back
-  unchanged.)
+  (`write.rs:360-386`). An unchanged save of a file the same release wrote equals the opened
+  bytes; the tests check this with GridCraft's sales sample (charts, a table, notes), saved and
+  then opened and saved again. Another release may write the same workbook a little differently:
+  0.5.0 wrote the sample's icon set without its thresholds, which 0.6.1 writes, and 0.7.0 adds
+  `<scheme val="minor"/>` to the default font in `xl/styles.xml` of 0.6.1's file (it keeps the
+  workbook's default font). The parts stay the same.
 - **Parts GridCraft does not model.** 0.5.0 dropped every part its writer does not produce.
   Since 0.6.1 GridCraft keeps such parts unread and writes them back under their names
   (`xlsx/src/passthrough.rs`): custom document properties (`docProps/custom.xml`), customXml
@@ -108,6 +120,12 @@ are under `crates/`.
   settings. Not kept: anything whose relationships reach a part GridCraft rewrites (sheets,
   drawings, charts, tables, comments, ...), parts no relationship reaches, Strict Open XML
   files, and more than 64 MB per part or 256 MB per workbook (`passthrough.rs:1-22`, `:41-46`).
+  Since 0.7.0 it also keeps XML maps (`xl/xmlMaps.xml`), the workbook's `<fileVersion>` and
+  calcFeatures extension, and chart sheets with their drawing and chart, unless a series refers
+  to a sheet that is gone (`passthrough.rs` at `v0.7.0`, `:1-24`, `:142-161`, `:393-410`). Kept
+  parts keep their names only in the folders GridCraft never writes itself (`customXml/`,
+  `xl/externalLinks/`, `xl/xmlMaps.xml`, `xl/embeddings/`, ...); a kept chart sheet and its
+  drawing and chart get new names (`kept<N>.xml` in their folders, `passthrough.rs:844-866`).
 - **What is still lost** on the first save of another program's file: the creation and change
   times and the other properties GridCraft does not write (checked with `from-excel.xlsx`), the
   VBA project of an `.xlsm` (on the web, see above), and what the model lacks inside the parts it
@@ -184,7 +202,9 @@ save name of a file the user brought in; and its `docProps/app.xml` says GridCra
   `xl/embeddings/`, `xl/ctrlProps/`, ...), the parts only 0.6.1 writes (threaded comments in
   `xl/threadedComments/` and `xl/persons/`, the checkbox property bag in
   `xl/featurePropertyBag/`), and parts another program added (`xl/vbaProject.bin`,
-  `xl/calcChain.xml`, a part no relationship reaches, ...). Otherwise the save is `copy`: the
+  `xl/calcChain.xml`, a part no relationship reaches, ...); a part GridCraft keeps under a new
+  name (a chart sheet since 0.7.0) counts as missing, the safe side. Otherwise the save is
+  `copy`: the
   first save of the open becomes a new file next to the original, and later saves replace that
   file (see [protocol.md](../protocol.md#copies)). A file of another program (another
   `docProps/app.xml`, or no zip, such as a password-protected workbook) is always `copy`: GridCraft
@@ -389,7 +409,7 @@ contract tests; the canary runs them apart from the `language` test (tagged `@la
 | Test | What it checks |
 |---|---|
 | `contract` | An allowed host: the handshake with the served app version, then the open of an `.xlsx` GridCraft wrote. An edit saved with Ctrl+S arrives as the document under the opened name, with the edit; Save As (Ctrl+Shift+S) after another edit is the document again. The save of a new workbook (Ctrl+N, `Book1.xlsx`) arrives as a new file. Nothing becomes a browser download, also not after the deadlines for the host's confirmation and result. |
-| `saved-as` | `from-excel.xlsx` (whose creation time GridCraft drops), and a GridCraft file with a customXml part no relationship reaches (which GridCraft drops) under an upper-case name (`CHANGED-ELSEWHERE.XLSX`, saved as `CHANGED-ELSEWHERE.xlsx`), are never replaced: the first save is a `document` that follows its own id, the next a `document` that follows the first (a copy). The copy, opened again, saves back as the document, with every part it had (with 0.6.1 the custom properties and the customXml item of Excel's file). `macros.xlsm`, `data.ods` and `data.csv` save as `macros.xlsx`, `data (imported).xlsx` and `data.xlsx`, the document, twice. GridCraft's sales sample saves back unchanged as the document. An opened `Book1.xlsx` is never saved back, and neither is a new workbook's save under that name. The blanks of the "+ New" entry in Files (`blank.xlsx` on A4 and `blank-letter.xlsx`, from `craftsuite_layer/assets/`, served by the test server) open, and their first saves are the document. A different `craftsuite-probe.xlsx` the user opens with File > Open (in Chromium also one dropped from the desktop) is never the document. |
+| `saved-as` | `from-excel.xlsx` (whose creation time GridCraft drops), and a GridCraft file with a customXml part no relationship reaches (which GridCraft drops) under an upper-case name (`CHANGED-ELSEWHERE.XLSX`, saved as `CHANGED-ELSEWHERE.xlsx`), are never replaced: the first save is a `document` that follows its own id, the next a `document` that follows the first (a copy). The copy, opened again, saves back as the document, with every part it had (with 0.6.1 the custom properties and the customXml item of Excel's file). `macros.xlsm`, `data.ods` and `data.csv` save as `macros.xlsx`, `data (imported).xlsx` and `data.xlsx`, the document, twice. GridCraft's sales sample saves as the document with the same parts, and that save, opened again, saves back unchanged. An opened `Book1.xlsx` is never saved back, and neither is a new workbook's save under that name. The blanks of the "+ New" entry in Files (`blank.xlsx` on A4 and `blank-letter.xlsx`, from `craftsuite_layer/assets/`, served by the test server) open, and their first saves are the document. A different `craftsuite-probe.xlsx` the user opens with File > Open (in Chromium also one dropped from the desktop) is never the document. |
 | `language` | The host's language under the browser locale `en-US`: with `lang=ru`, `ready` reports `ru` and the app frame's `navigator.language` is `ru`. GridCraft draws its labels into the canvas, so the rest is a picture: the ribbon's tab row is, byte for byte, the one a start without `lang` under the browser locale `ru-RU` shows (in a browser context of its own), and not the one of an English start. |
 | `ui` (`@ui`) | With the pointer, on an opened `data.csv`: File > Save, then Download (.xlsx) on the Save As page, saves the document `data.xlsx`; File > Export > Create PDF downloads `data.pdf`, a new file; File > Export > CSV downloads `data.csv`, under the opened name, a new file. |
 
@@ -413,9 +433,9 @@ fails the canary:
   own files are read. The rules fail towards new files, not towards overwriting: a save under a
   name the adapter does not expect, or one that lost a part the adapter does not know, arrives as
   an `export` or a copy. Sites that host the app should hold the release back until the adapter
-  is fixed. A release whose writer changes the bytes of the sales sample fails its byte check:
-  the fixture is GridCraft's own save, so save the sample again (see below) once the change is
-  understood.
+  is fixed. The sales sample's check does not depend on the release's bytes: the first save must
+  have the fixture's parts, and that save, opened again, must come back byte for byte. A release
+  whose writer adds or drops a part of the sample, or is no longer deterministic, fails it.
 - **The `language` test fails.** The report has the tab rows that did not compare as expected.
   If the `ru-RU` start is Russian and the `lang=ru` start is not, the override no longer reaches
   the app; if both are English, the release no longer takes its language from
@@ -433,7 +453,7 @@ The fixtures in `tests/e2e/fixtures/gridcraft/`: `craftsuite-probe.xlsx` was sav
 `sales-sample.xlsx` is the Start dialog's `Quarterly Sales Dashboard` sample saved with Ctrl+S
 by GridCraft 0.6.1 (GridCraft's own sample content, `engine/src/sample.rs`, under GridCraft's
 license, MIT or Apache-2.0; the app opened with `?sample=sales`), which 0.5.0 saves back
-unchanged too.
+unchanged too, and 0.7.0 with one more attribute (see Saving and downloads).
 `make-fixtures.mjs` writes the files of other programs: `from-excel.xlsx` and `macros.xlsm` as
 Excel writes them (with custom properties and a customXml item, and a VBA project), `data.ods`
 and `data.csv`. The tests derive the other files they open from these (`Book1.xlsx`, the changed
@@ -441,10 +461,15 @@ GridCraft file, the file from the user's disk, the reopened copies).
 
 ## Upstream
 
-GridCraft has no embedding API. With one, as requested for PdfCraft in
-[storytold/pdfcraft#422](https://github.com/storytold/pdfcraft/issues/422), the open and save
-paths would no longer depend on drops and downloads; see
-[architecture.md](../architecture.md#native-embedding-apis). Worth reporting upstream as well: no
+Since 0.7.0 GridCraft has an embedding bridge (`?host=parent`, storytold/gridcraft#237, see
+[Opening](#what-the-web-build-does)), but only for a parent page on GridCraft's own origin. The
+translator serves a host on another origin (the Nextcloud editor page frames the app hosted
+elsewhere), so the open and save paths still depend on drops and downloads. A version of the
+bridge that a host on another origin could opt into (a list of allowed parent origins, like the
+translator's), with the save's kind left to the host, would let the adapter's rules go; see
+[architecture.md](../architecture.md#native-embedding-apis) and, for PdfCraft,
+[storytold/pdfcraft#422](https://github.com/storytold/pdfcraft/issues/422). Worth reporting
+upstream as well: no
 document identity in saved files (a new workbook cannot be told from the opened one); no clock in
 the web build's interface (AutoSave never fires, and messages that should disappear stay; since
 0.6.1 only `NOW()` and `TODAY()` read the browser's clock); the unsaved marker not cleared after

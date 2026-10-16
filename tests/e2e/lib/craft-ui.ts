@@ -35,9 +35,19 @@ export async function settle(view: Locator | Page, app: Frame, timeout = 15_000)
   test.info().annotations.push({ type: 'warning', description: `the app did not settle within ${timeout} ms` });
 }
 
-// eframe takes keys only while its canvas (or its hidden text <input>) has the focus.
+// eframe takes keys only while its canvas (or its hidden text <input>) has the focus. An app may
+// act on a key with the focus it saw in the frame before (WordCraft 0.7.0 does,
+// crates/ui-egui/src/canvas.rs show()): a key that arrives in the frame the focus comes back is
+// lost, so after moving the focus wait some frames before the first key.
+export async function focusCanvas(app: Frame) {
+  const canvas = app.locator('canvas').first();
+  if (await canvas.evaluate((c) => document.hasFocus() && document.activeElement === c)) return;
+  await canvas.focus();
+  await appFrames(app, 3);
+}
+
 export async function press(page: Page, app: Frame, key: string) {
-  await app.locator('canvas').first().focus();
+  await focusCanvas(app);
   await page.keyboard.press(key);
 }
 

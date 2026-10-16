@@ -50,7 +50,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { test as baseTest, expect, type BrowserContext, type Download, type Frame, type Page } from '@playwright/test';
 import { strFromU8, strToU8, unzipSync, zipSync, type Zippable } from 'fflate';
-import { appFrames, press, settle, waitForTextEditing } from '../lib/craft-ui.ts';
+import { appFrames, focusCanvas, press, settle, waitForTextEditing } from '../lib/craft-ui.ts';
 
 const PROBE = readFileSync(new URL('../fixtures/wordcraft/craftsuite-probe.docx', import.meta.url));
 const PROBE_CREATED = '2026-10-11T21:25:10Z'; // the creation time WordCraft stored in PROBE
@@ -154,20 +154,20 @@ async function scenario(context: BrowserContext, title: string, body: (page: Pag
 
 type Box = { x: number; y: number; width: number; height: number };
 
-// Pointer targets (measured on WordCraft 0.5.0, checked again on 0.6.1), relative to the app frame
-// at the pinned viewport. This is the only layout knowledge in this file; when a release moves
-// something, fix it here.
+// Pointer targets (measured on WordCraft 0.5.0, checked again on 0.6.1 and 0.7.0), relative to the
+// app frame at the pinned viewport. This is the only layout knowledge in this file; when a release
+// moves something, fix it here.
 const AT = {
   // Ribbon tabs: File (opens the backstage) and Mailings.
   fileTab: (b: Box) => ({ x: b.x + 27, y: b.y + 53 }),
   mailingsTab: (b: Box) => ({ x: b.x + 452, y: b.y + 53 }),
-  // Backstage: Export in the list on the left, then the first, second and fourth button of the
+  // Backstage: Export in the list on the left, then the first, second and fifth button of the
   // Export page: PDF document, Word document, OpenDocument Text (0.6.1 added Word XML Document as
-  // the third).
+  // the third, 0.7.0 Word 2003 XML Document as the fourth).
   backstageExport: (b: Box) => ({ x: b.x + 44, y: b.y + 375 }),
   exportPdf: (b: Box) => ({ x: b.x + 400, y: b.y + 128 }),
   exportWord: (b: Box) => ({ x: b.x + 400, y: b.y + 170 }),
-  exportOdt: (b: Box) => ({ x: b.x + 400, y: b.y + 254 }),
+  exportOdt: (b: Box) => ({ x: b.x + 400, y: b.y + 296 }),
   // Mailings: Select Recipients and, in its menu, Type a New List… and Use an Existing List…; in
   // the list Type a New List… shows, the first field (First Name) of the first recipient; Finish
   // & Merge, the last button of the ribbon; then Don't Save in the question about the open
@@ -221,7 +221,7 @@ async function exportAs(page: Page, app: Frame, what: string, button: (b: Box) =
 // Typing into the document at the caret (the start of the text after an open).
 async function typeText(page: Page, app: Frame, text: string) {
   await test.step(`ui: type "${text}"`, async () => {
-    await app.locator('canvas').first().focus();
+    await focusCanvas(app);
     await page.keyboard.type(text, { delay: 10 });
     await appFrames(app, 3);
   });

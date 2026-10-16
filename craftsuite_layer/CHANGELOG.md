@@ -14,6 +14,13 @@ Each GitHub release takes its text from the section whose heading matches the ve
 
 ## [Unreleased]
 
+## [0.4.2] - 2026-10-16
+
+### Changed
+
+- No change in the app itself. Released together with translators 0.4.2, which handle the Craft
+  releases of 2026-10-14; see the repository's CHANGELOG.md.
+
 ## [0.4.1] - 2026-10-14
 
 ### Changed

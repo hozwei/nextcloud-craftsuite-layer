@@ -8,15 +8,17 @@
 |---|---|
 | Upstream | [github.com/storytold/wordcraft](https://github.com/storytold/wordcraft) |
 | Adapter | [`translators/wordcraft.js`](../../translators/wordcraft.js) |
-| Tested version | `tested` in [`tests/e2e/craft-versions.json`](../../tests/e2e/craft-versions.json) (0.5.0 when this page was written, checked again with 0.6.1) |
+| Tested version | `tested` in [`tests/e2e/craft-versions.json`](../../tests/e2e/craft-versions.json) (0.5.0 when this page was written, checked again with 0.6.1 and 0.7.0) |
 | Tests | [`tests/e2e/specs/wordcraft.spec.ts`](../../tests/e2e/specs/wordcraft.spec.ts) (Chromium and WebKit, see [Tests](#tests)) |
 
 This page records what the WordCraft web build does in the browser, as far as the translator
 depends on it, and how the adapter follows from it. The facts were checked against the 0.5.0
-source and web build, and again against 0.6.1; where the two differ, the page says so. Upstream
-may change any of them; the daily canary run (see
-[development.md](../development.md#continuous-integration)) is there to notice. Source references
-are to the `v0.6.1` tag; `web.rs` is `apps/wordcraft-web/src/web.rs`, the other paths are under
+source and web build, and again against 0.6.1; where the two differ, the page says so. 0.7.0
+changed none of the paths the adapter relies on (the web shell only takes WMF and EMF pictures
+too, the save name and the save stamp are as in 0.6.1; checked against the `v0.7.0` tag), but
+it handles keys differently, see [Tests](#tests). Upstream may change any of them; the daily
+canary run (see [development.md](../development.md#continuous-integration)) is there to notice.
+Source references are to the `v0.6.1` tag; `web.rs` is `apps/wordcraft-web/src/web.rs`, the other paths are under
 `crates/`.
 
 ## What the web build does
@@ -34,7 +36,8 @@ are to the `v0.6.1` tag; `web.rs` is `apps/wordcraft-web/src/web.rs`, the other 
   does a file chosen in any of WordCraft's pickers (document, picture, recipient list and, from
   0.6.1 on, font, `web.rs:203-223`). Then the name decides, whatever the picker, in any letter
   case (`ui-egui/src/lib.rs:1552-1578`, `drain_inbox`):
-  - `.png`, `.jpg`, `.jpeg`, `.gif`, `.webp`, `.bmp`: a picture inserted into the document;
+  - `.png`, `.jpg`, `.jpeg`, `.gif`, `.webp`, `.bmp`, and from 0.7.0 on `.wmf` and `.emf`: a
+    picture inserted into the document;
   - `.ttf`, `.otf`, `.ttc`, `.otc`, `.woff`, `.woff2` (0.6.1): a font added to WordCraft and kept
     in the frame's IndexedDB (see [Hosting notes](#hosting-notes));
   - `.csv`, `.tsv` and, from 0.6.1 on, the workbooks `.xlsx`, `.xlsm` and `.ods`: mail-merge
@@ -429,10 +432,19 @@ List…, not Use an Existing List…. So the contract tests use the shortcuts of
 `engine/src/cmd/file.rs:31-40` (Ctrl+S, F12, Ctrl+N, Ctrl+O), and only the `ui` test clicks with
 the pointer; its click positions are in the `AT` table of the spec, measured on 0.5.0 at a
 1400x900 viewport with the locale `en-US`, and checked again on 0.6.1 (only OpenDocument Text
-moved, to the fourth button of the Export page, below the new Word XML Document). The locale
+moved, to the fourth button of the Export page, below the new Word XML Document) and on 0.7.0
+(OpenDocument Text is the fifth button, below the new Word 2003 XML Document; the backstage's
+new Close comes after Export and moves nothing the test clicks). The locale
 matters from 0.6.1 on, which starts in the browser's language. WordCraft blinks its caret while
 its page has the focus, so before the spec waits for a still picture it moves the focus to the
-host page. When a new release fails the canary:
+host page. Since 0.7.0 WordCraft handles a frame's keys with the page focus of the frame before
+(`ui-egui/src/canvas.rs`, `show()`, from storytold/wordcraft#1107), and the shortcuts outside the
+page only while it is not focused: a key that arrives in the frame in which the page gets the
+focus back is lost, a letter as well as Ctrl+S. A user's click comes frames before their first
+key; the spec's steps focus the canvas and then wait some frames before the first key
+(`focusCanvas()` in `tests/e2e/lib/craft-ui.ts`). Without that wait, saves of the canary run of
+2026-10-15 never reached the host and typed text lost its first letter. When a new release
+fails the canary:
 
 - **Contract tests fail.** The release changed something the translator relies on: the drop
   routing (`ui-egui/src/lib.rs:1552-1578`), the save name (`lib.rs:1268-1274`), the download

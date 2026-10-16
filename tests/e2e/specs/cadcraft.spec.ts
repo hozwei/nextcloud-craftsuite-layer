@@ -162,17 +162,18 @@ async function scenario(context: BrowserContext, title: string, body: (page: Pag
 
 type Box = { x: number; y: number; width: number; height: number };
 
-// Pointer targets and the menu bar (measured on CADCraft 0.5.0, unchanged in 0.6.2), relative to
-// the app frame at the pinned viewport. This is the only layout knowledge in this file; when a
-// release moves something, fix it here.
+// Pointer targets and the menu bar (measured on CADCraft 0.5.0, unchanged in 0.6.2; File > Save
+// again on 0.7.0), relative to the app frame at the pinned viewport. This is the only layout
+// knowledge in this file; when a release moves something, fix it here.
 const AT = {
   // The menu bar below the toolbar: File, the first entry, and Help, the last.
   fileMenu: (b: Box) => ({ x: b.x + 17, y: b.y + 43 }),
   helpMenu: (b: Box) => ({ x: b.x + 465, y: b.y + 43 }),
   // The menu bar's labels: File to Help in English, Файл to Довідка (up to x 680) in Ukrainian.
   menuBar: (b: Box) => ({ x: b.x, y: b.y + 33, width: 700, height: 20 }),
-  // File menu: Save, the fifth row (after New Drawing…, Open…, Close and Close All).
-  fileSave: (b: Box) => ({ x: b.x + 40, y: b.y + 166 }),
+  // File menu: Save, the sixth row (after New Drawing…, Open…, Open Recent, which 0.7.0 added,
+  // Close and Close All).
+  fileSave: (b: Box) => ({ x: b.x + 40, y: b.y + 189 }),
   // Help menu: Open Sample Drawing, the first row.
   helpSample: (b: Box) => ({ x: b.x + 520, y: b.y + 70 }),
 };

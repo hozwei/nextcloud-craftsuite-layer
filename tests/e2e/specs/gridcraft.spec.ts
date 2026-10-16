@@ -17,9 +17,10 @@
 //              itself, also with the parts of Excel's file that GridCraft keeps; macros.xlsm,
 //              data.ods and data.csv save as 'macros.xlsx', 'data (imported).xlsx' and
 //              'data.xlsx', the document (a new file next to the original), and so does the next
-//              save; GridCraft's sales sample (charts, a table, notes) saves back unchanged as the
-//              document; an opened Book1.xlsx, named like a new workbook, is never saved back, and
-//              the save of a new workbook under that name is a new file too; the blanks of the
+//              save; GridCraft's sales sample (charts, a table, notes) saves as the document with
+//              the same parts, and that save, opened again, saves back unchanged; an opened
+//              Book1.xlsx, named like a new workbook, is never saved back, and the save of a new
+//              workbook under that name is a new file too; the blanks of the
 //              "+ New" entry in Files (blanks/blank.xlsx on A4, and blank-letter.xlsx) open, and
 //              their first saves are the document; a different craftsuite-probe.xlsx that the user
 //              brings in (File > Open; in Chromium also a drop from the desktop) is never the
@@ -555,15 +556,26 @@ test('saved-as: interchange files, copies, new workbooks and files the user brin
     });
   }
 
-  await scenario(context, 'GridCraft\'s sales sample (charts, a table, notes) saves back unchanged as the document', async (page, downloads) => {
-    // Every part of it is one GridCraft's writer produces, and the writer is deterministic. The
-    // bytes are 0.6.1's (0.5.0 wrote the sample's icon set without its thresholds); 0.5.0 saves
-    // them back unchanged too.
+  await scenario(context, 'GridCraft\'s sales sample (charts, a table, notes) saves as the document, and its save saves back unchanged', async (page, downloads) => {
+    // Every part of it is one GridCraft's writer produces. The fixture is 0.6.1's; a later release
+    // may write the same workbook a little differently (0.7.0 adds <scheme val="minor"/> to the
+    // default font in xl/styles.xml), so the first save is compared by its parts. The writer is
+    // deterministic, so the save, opened again, comes back byte for byte from the release that
+    // wrote it.
     const { app } = await openInHost(page, 'sales-sample.xlsx');
     await press(page, app, 'Control+s');
-    const { save, bytes } = await hostSave(page, 1);
-    expectDocument(save, 'sales-sample.xlsx');
-    expect(bytes.equals(fixture('sales-sample.xlsx')), 'the same bytes as the opened file').toBe(true);
+    const first = await hostSave(page, 1);
+    expectDocument(first.save, 'sales-sample.xlsx');
+    expect(workbook(first.bytes).parts.sort(), 'the parts of the opened file').toEqual(workbook(fixture('sales-sample.xlsx')).parts.sort());
+
+    await test.step('the save, opened again, saves back unchanged', async () => {
+      const again = await openInHost(page, 'sales-sample.xlsx', '', first.bytes);
+      await press(page, again.app, 'Control+s');
+      const second = await hostSave(page, 1);
+      expectDocument(second.save, 'sales-sample.xlsx');
+      expect(second.bytes.equals(first.bytes), 'the same bytes as the opened save').toBe(true);
+    });
+
     expectNoDownloads(downloads);
   });
 

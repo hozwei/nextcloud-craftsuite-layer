@@ -170,18 +170,21 @@ async function scenario(context: BrowserContext, title: string, body: (page: Pag
 
 type Box = { x: number; y: number; width: number; height: number };
 
-// Pointer targets (measured on FilmCraft 0.6.0), relative to the app frame at the pinned
-// viewport. This is the only layout knowledge in this file; when a release moves something, fix
-// it here.
+// Pointer targets (measured on FilmCraft 0.6.0, Save again on 0.8.0), relative to the app frame
+// at the pinned viewport. This is the only layout knowledge in this file; when a release moves
+// something, fix it here. The clicks take the place FilmCraft reports for the element where it
+// lists one (clickElement()), so these are the fallback, and the target of the Export row, which
+// FilmCraft does not list.
 const AT = {
-  // Menu bar, after the Import, Edit and Export modes: File.
+  // Menu bar, after the Import, Edit and Export modes: File (element menu.File).
   fileMenu: (b: Box) => ({ x: b.x + 254, y: b.y + 19 }),
   // File menu: Export, the third row (after New and Import From), which opens a submenu.
   fileExport: (b: Box) => ({ x: b.x + 300, y: b.y + 96 }),
-  // File > Export: EDL…, the first row of the submenu, level with Export.
+  // File > Export: EDL…, the first row of the submenu, level with Export (menu.file.exportEdl).
   exportEdl: (b: Box) => ({ x: b.x + 629, y: b.y + 96 }),
-  // File menu: Save, the ninth row (after Close All Other Projects).
-  fileSave: (b: Box) => ({ x: b.x + 300, y: b.y + 240 }),
+  // File menu: Save, the tenth row (after Close All Other Projects; 0.8.0 added Open Recent),
+  // menu.file.save.
+  fileSave: (b: Box) => ({ x: b.x + 300, y: b.y + 264 }),
 };
 
 function appFrame(page: Page): Frame {
@@ -190,13 +193,19 @@ function appFrame(page: Page): Frame {
   return frame;
 }
 
-// What FilmCraft lists as on screen (window.filmcraft's ui.elements), by element id and label.
+// What FilmCraft lists as on screen (window.filmcraft's ui.elements), by element id and label, and
+// where it draws it (rect: [x, y, width, height] in the app frame, 0.8.0 lists it; null without).
+type Element = { id: string; label: string; rect: [number, number, number, number] | null };
 const elements = (app: Frame) => app.evaluate(() => (window as AppWindow).filmcraft!.request('ui.elements')
-  .then((list) => (list as { id: string; label: string }[]).map(({ id, label }) => ({ id, label })), () => []));
+  .then((list) => (list as { id: string; label: string; rect?: unknown }[]).map(({ id, label, rect }) => ({
+    id,
+    label,
+    rect: Array.isArray(rect) && rect.length === 4 && rect.every((n) => Number.isFinite(n)) ? rect as [number, number, number, number] : null,
+  })), () => [] as Element[]));
 
 // Waits until FilmCraft shows what `shown` looks for. Should a release list its elements
 // otherwise, fall back to waiting until the picture stands still; the contract checks decide.
-async function untilShown(page: Page, app: Frame, what: string, shown: (list: { id: string; label: string }[]) => boolean) {
+async function untilShown(page: Page, app: Frame, what: string, shown: (list: Element[]) => boolean) {
   try {
     await expect.poll(async () => shown(await elements(app)), { message: what, timeout: 30_000 }).toBe(true);
   } catch {
@@ -264,9 +273,18 @@ async function clickApp(page: Page, app: Frame, what: string, at: (b: Box) => { 
   });
 }
 
+// For the @ui test: a click on the element FilmCraft lists under `id`, in the middle of where it
+// reports it drawn, so a menu that gains a row does not move the click. Where it lists no such
+// element or no place for it, the click goes to `fallback` from AT, with a warning.
+async function clickElement(page: Page, app: Frame, what: string, id: string, fallback: (b: Box) => { x: number; y: number }) {
+  const rect = (await elements(app)).find((e) => e.id === id)?.rect;
+  if (!rect) test.info().annotations.push({ type: 'warning', description: `FilmCraft lists no place for ${id}: clicked at AT` });
+  await clickApp(page, app, what, rect ? (b) => ({ x: b.x + rect[0] + rect[2] / 2, y: b.y + rect[1] + rect[3] / 2 }) : fallback);
+}
+
 // For the @ui test: File > ... The menu opens on the click; a submenu on hovering its row.
 async function fileMenu(page: Page, app: Frame) {
-  await clickApp(page, app, 'the File menu', AT.fileMenu);
+  await clickElement(page, app, 'the File menu', 'menu.File', AT.fileMenu);
   await untilShown(page, app, 'the File menu', (list) => list.some((e) => e.id === 'menu.file.save'));
 }
 
@@ -786,7 +804,7 @@ test('ui: File > Save and File > Export > EDL… with the pointer', { tag: '@ui'
 
   await test.step('File > Save saves the document, like Ctrl+S', async () => {
     await fileMenu(page, app);
-    await clickApp(page, app, 'Save in the File menu', AT.fileSave);
+    await clickElement(page, app, 'Save in the File menu', 'menu.file.save', AT.fileSave);
     const { save, bytes } = await hostSave(page, 1);
     expectDocument(save, 'craftsuite-probe.fcproj');
     expectSavedProject(bytes, 'craftsuite-probe', 1);
@@ -796,7 +814,7 @@ test('ui: File > Save and File > Export > EDL… with the pointer', { tag: '@ui'
     await fileMenu(page, app);
     await clickApp(page, app, 'Export in the File menu', AT.fileExport);
     await untilShown(page, app, 'the Export submenu', (list) => list.some((e) => e.id === 'menu.file.exportEdl'));
-    await clickApp(page, app, 'EDL… in the Export submenu', AT.exportEdl);
+    await clickElement(page, app, 'EDL… in the Export submenu', 'menu.file.exportEdl', AT.exportEdl);
     const { save, bytes } = await hostSave(page, 2);
     expectExport(save, 'Main Edit.edl');
     expect(bytes.toString('utf8'), 'an EDL of the sequence').toMatch(/^TITLE: Main Edit\r?\n/);

@@ -423,8 +423,9 @@ own drop; the adapter counts every drop. Only the `ui` test clicks with the poin
 positions are in the `AT` table of the spec, with the menu bar the `language` test compares,
 measured on 0.5.0 at a 1400x900 viewport with the locale `en-US` (the same in Chromium and
 WebKit, and unchanged in 0.6.2: File at x 17, Help at x 465, the menu bar at y 43, Save the fifth
-row of the File menu at y 166, Open Sample Drawing the first of the Help menu at y 70). When a new
-release fails the canary:
+row of the File menu at y 166, Open Sample Drawing the first of the Help menu at y 70). 0.7.0 added
+Open Recent as the File menu's third row, so Save is the sixth, at y 189; at y 166 the click would
+hit Close All. When a new release fails the canary:
 
 - **Contract tests fail.** The release changed something the translator relies on: the drop
   routing (`upload.rs`, `ui-egui/src/lib.rs:385-394`), the title and save name

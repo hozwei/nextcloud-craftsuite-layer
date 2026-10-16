@@ -375,11 +375,15 @@ file a drop delivered), and run File > Export > EDL… and Selection as FilmCraf
 `saved-as` test with `window.filmcraft.execute('file.exportEdl')` and
 `execute('file.exportSelectionProject')`, which go the menu item's way
 (`ui-egui/src/control.rs:103-110`), after selecting the sequence as a click in the Project panel
-does (`execute('project.select', …)`). Only the `ui` test clicks with the pointer; its click
-positions are in the `AT` table of the spec, measured on 0.6.0 at a 1400x900 viewport with the
-locale `en-US`. Only the `language` test sets a host language: German moves those menu items,
-and Spanish, French and Japanese translate the name `saved-as` expects from Export Selection as
-Project. When a new release fails the canary:
+does (`execute('project.select', …)`). Only the `ui` test clicks with the pointer. It clicks in
+the middle of the rectangle `request('ui.elements')` reports for the File menu (`menu.File`), its
+Save (`menu.file.save`) and the Export submenu's EDL… (`menu.file.exportEdl`), so a menu that
+gains a row does not move the click (0.8.0 added Open Recent above Save). The `AT` table of the
+spec has the fallback positions for a release that reports no rectangle, and the Export row,
+which FilmCraft does not list; measured on 0.6.0 (Save again on 0.8.0) at a 1400x900 viewport
+with the locale `en-US`. Only the `language` test sets a host language: German moves those menu
+items, and Spanish, French and Japanese translate the name `saved-as` expects from Export
+Selection as Project. When a new release fails the canary:
 
 - **Contract tests fail.** The release changed something the translator relies on: the start
   (`#loading`, `#status.err`, the order in `web/src/lib.rs` `start()`), the drop routing
@@ -397,7 +401,9 @@ Project. When a new release fails the canary:
   over it: the adapter needs another way in. If it reports German but labels Save otherwise, or
   `project.inspect` answers otherwise, the test needs the new label or reply. Files open and save
   as before either way.
-- **Only the `@ui` test fails.** A menu item moved. Re-measure the positions in `AT`
+- **Only the `@ui` test fails.** A menu item moved that FilmCraft does not list (the Export row),
+  or the report has the warning `FilmCraft lists no place for ...`: the element's id or
+  rectangle changed. Re-measure the positions in `AT`, or fix the id
   (`window.filmcraft.request('ui.elements')` lists the open menu's items with their rectangles);
   the translator is not at fault.
 - **A shortcut changed upstream.** The tests that press it fail: Ctrl+S, Ctrl+Shift+S,

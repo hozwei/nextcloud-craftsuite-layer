@@ -269,10 +269,10 @@ Pull request #2263 proposes `window.photocraft` and a `postMessage` API enabled 
 | What | Where | Current |
 |---|---|---|
 | Protocol | `version` in every message | 1 |
-| Translator | `LAYER_VERSION` in `translators/core.js`, reported as `layerVersion` in `hello` and `ready` | 0.4.1 |
-| Nextcloud app | `<version>` in `craftsuite_layer/appinfo/info.xml` | 0.4.1, Nextcloud 34 and 35 |
-| Release | the tag `v<version>` | v0.4.1 |
-| Tested app versions | `tests/e2e/craft-versions.json` | PdfCraft 0.7.1, PhotoCraft 0.8.2, VectorCraft 0.10.0, DesignCraft 0.7.1, WordCraft 0.6.1, GridCraft 0.6.1, DeckCraft 0.6.1, CADCraft 0.6.2, LightCraft 0.7.1, FilmCraft 0.7.2, EffectCraft 0.9.2 |
+| Translator | `LAYER_VERSION` in `translators/core.js`, reported as `layerVersion` in `hello` and `ready` | 0.4.2 |
+| Nextcloud app | `<version>` in `craftsuite_layer/appinfo/info.xml` | 0.4.2, Nextcloud 34 and 35 |
+| Release | the tag `v<version>` | v0.4.2 |
+| Tested app versions | `tests/e2e/craft-versions.json` | PdfCraft 0.8.0, PhotoCraft 0.9.0, VectorCraft 0.11.0, DesignCraft 0.8.0, WordCraft 0.7.0, GridCraft 0.7.0, DeckCraft 0.7.0, CADCraft 0.7.0, LightCraft 0.8.0, FilmCraft 0.8.0, EffectCraft 0.10.0 |
 
 The translator and the Nextcloud app share one version number, and a release carries both: the
 app, and the translators with the injector for the hosting

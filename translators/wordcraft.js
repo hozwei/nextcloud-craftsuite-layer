@@ -112,7 +112,8 @@
   //                  can make a copy of the opened document that saves under its name.
   //   foreignSaves:  the save names of documents the user opened from their own disk.
   // Should a release read such files another way, they go unnoticed (docs/apps/wordcraft.md).
-  const NO_DOCUMENT = /\.(png|jpe?g|gif|webp|bmp|ttf|otf|ttc|otc|woff2?)$/i; // pictures and fonts
+  // Pictures (WMF and EMF from 0.7.0 on, web.rs IMAGE_EXTS) and fonts.
+  const NO_DOCUMENT = /\.(png|jpe?g|gif|webp|bmp|wmf|emf|ttf|otf|ttc|otc|woff2?)$/i;
   const RECIPIENTS = /\.(csv|tsv|xlsx|xlsm|ods)$/i;
   const MAYBE_RECIPIENTS = /\.(csv|tsv|txt|xlsx|xlsm|ods)$/i;
   let recipientList = false;

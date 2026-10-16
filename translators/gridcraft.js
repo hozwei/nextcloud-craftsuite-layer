@@ -3,9 +3,9 @@
  * SPDX-FileCopyrightText: 2026 The nextcloud-craftsuite-layer contributors
  * SPDX-License-Identifier: AGPL-3.0-or-later
  *
- * Load right after core.js. What GridCraft (web build, checked with 0.5.0 and 0.6.1) does and why
- * the rules below follow from it is described in docs/apps/gridcraft.md (source paths at the
- * v0.6.1 tag; web.rs is apps/gridcraft-web/src/web.rs, the other paths are under crates/):
+ * Load right after core.js. What GridCraft (web build, checked with 0.5.0, 0.6.1 and 0.7.0) does
+ * and why the rules below follow from it is described in docs/apps/gridcraft.md (source paths at
+ * the v0.6.1 tag; web.rs is apps/gridcraft-web/src/web.rs, the other paths are under crates/):
  *  - It takes dropped files on its canvas (canvas#gridcraft_canvas), where eframe registers its
  *    only drop listener once the app exists (web.rs:28-56); the core's default drop target fits.
  *    Every dropped file opens as a new workbook window, never into the open one
@@ -29,7 +29,12 @@
  *    0.5.0 every part it does not write (custom properties, customXml items, external links, ...);
  *    since 0.6.1 it keeps most such parts unread under their names (xlsx/src/passthrough.rs), but
  *    still drops the creation time, Excel's own properties and what reaches a part it rewrites. A
- *    file GridCraft wrote comes back as it was: an unchanged save of it equals the opened bytes.
+ *    file GridCraft wrote comes back with the same parts, and an unchanged save of a file the same
+ *    release wrote equals the opened bytes. Kept parts outside the folders GridCraft never writes
+ *    itself may get new names (a chart sheet since 0.7.0); a save without the old name is a copy.
+ *  - Since 0.7.0, ?host=parent turns on a bridge for a parent on GridCraft's own origin
+ *    (apps/gridcraft-web/src/host.rs); the translator's host is on another origin and never
+ *    sets it.
  *  - There is no document identity (no creation time, no id; the writer is deterministic). New
  *    workbooks are 'Book<N>' (engine/src/lib.rs:296-305), the samples of the Start dialog
  *    'Household Budget', 'Quarterly Sales Dashboard' and 'Gradebook' (engine/src/sample.rs:11-15),
@@ -281,6 +286,10 @@
 
   window.craftsuiteLayer.register({
     app: 'gridcraft',
+    // The drop listener came 0.1-0.2 s after the start with 0.6.1, but more than the default 3 s
+    // with 0.7.0 on the first start in a fresh browser, in Chromium with SwiftShader. More room
+    // for slow machines; a browser without WebGL2 is then reported this much later.
+    dropTargetTimeout: 10000,
     language(tag, util) {
       const key = util.matchLanguage(tag, LANGUAGES);
       if (key) util.preferLanguages(LANGUAGES[key]);

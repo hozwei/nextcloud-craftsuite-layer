@@ -13,6 +13,40 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.4.2] - 2026-10-16
+
+Translators for the Craft releases of 2026-10-14 (canary issue #3): PdfCraft 0.8.0, PhotoCraft
+0.9.0, VectorCraft 0.11.0, DesignCraft 0.8.0, WordCraft 0.7.0, GridCraft 0.7.0, CADCraft 0.7.0,
+DeckCraft 0.7.0, FilmCraft 0.8.0, LightCraft 0.8.0 and EffectCraft 0.10.0 are the tested versions
+(`tests/e2e/craft-versions.json`). The adapters keep working with the previous releases.
+
+### Fixed
+
+- GridCraft 0.7.0 took more than 3 s to take files on a first start in a fresh browser, and the
+  layer reported a startup error to the host before the file arrived. GridCraft now gets 10 s.
+- WordCraft 0.7.0 inserts dropped WMF and EMF files as pictures: they no longer count as a
+  document of the user's own, so saves after such a picture are no longer all new files.
+
+### Changed
+
+- Tests: the steps that type into a Craft app wait some frames after focusing it before the first
+  key (`focusCanvas()` in `tests/e2e/lib/craft-ui.ts`). WordCraft 0.7.0 handles a frame's keys
+  with the focus of the frame before, so a key sent at once was lost: Ctrl+S saved nothing and
+  typed text lost its first letter. This, not the translator, failed the WordCraft contract
+  tests of the canary.
+- Tests: GridCraft's sales sample no longer has to come back byte for byte from a release other
+  than the one that wrote it (0.7.0 adds `<scheme val="minor"/>` to the default font). Its first
+  save must have the fixture's parts, and that save, opened again, must come back unchanged, so
+  the fixture needs no new save with each release.
+- Tests: FilmCraft's pointer test clicks where FilmCraft reports its menu items
+  (`request('ui.elements')`), so a menu that gains a row (0.8.0 added Open Recent) no longer
+  breaks it; the positions in `AT` stay as the fallback. The pointer tests of WordCraft (Word 2003
+  XML Document on the Export page) and CADCraft (Open Recent in the File menu) follow the new
+  releases.
+- `docs/apps/` describe what changed: GridCraft's opt-in embedding bridge for a parent on its own
+  origin (`?host=parent`, which the translator does not use), the parts GridCraft 0.7.0 keeps
+  (chart sheets, XML maps), and WordCraft 0.7.0's key handling.
+
 ## [0.4.1] - 2026-10-14
 
 Translators for the Craft releases of 2026-10-13 (canary issue #2): PdfCraft 0.7.1, PhotoCraft
@@ -283,7 +317,8 @@ DeckCraft 0.6.1, FilmCraft 0.7.2, LightCraft 0.7.1 and EffectCraft 0.9.2 are the
 - Documentation: an index (`docs/README.md`), architecture, protocol, security, hosting,
   development, the Nextcloud app, and one page per Craft app.
 
-[Unreleased]: https://github.com/hozwei/nextcloud-craftsuite-layer/compare/v0.4.1...main
+[Unreleased]: https://github.com/hozwei/nextcloud-craftsuite-layer/compare/v0.4.2...main
+[0.4.2]: https://github.com/hozwei/nextcloud-craftsuite-layer/compare/v0.4.1...v0.4.2
 [0.4.1]: https://github.com/hozwei/nextcloud-craftsuite-layer/compare/v0.4.0...v0.4.1
 [0.4.0]: https://github.com/hozwei/nextcloud-craftsuite-layer/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/hozwei/nextcloud-craftsuite-layer/compare/v0.2.0...v0.3.0

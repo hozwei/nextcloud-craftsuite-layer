@@ -44,17 +44,17 @@ opens them in the app ([docs/nextcloud-app.md](docs/nextcloud-app.md#new-files))
 
 | App | Tested version | In the action menu for | Also on a click on the file |
 |---|---|---|---|
-| PdfCraft | 0.7.1 | `pdf` | none |
-| PhotoCraft | 0.8.2 | `psd` `psb` `pcraft` `tga` `png` `jpg` `jpeg` `webp` `gif` `bmp` `tif` `tiff` `ico` `heic` `heif` | `psd` `psb` `pcraft` `tga` |
-| VectorCraft | 0.10.0 | `vectorcraft` `drawcraft` `ai` `eps` `svgz` `dxf` `svg` `emf` `wmf` `pdf` | `vectorcraft` `drawcraft` `eps` `svgz` `dxf` |
-| DesignCraft | 0.7.1 | `designcraft` `idml` | `designcraft` `idml` |
-| WordCraft | 0.6.1 | `docx` `docm` `dotx` `dotm` `doc` `dot` `odt` `rtf` | none |
-| GridCraft | 0.6.1 | `xlsx` `xlsm` `ods` `csv` | none |
-| DeckCraft | 0.6.1 | `deckcraft` `pptx` `potx` `ppsx` | `deckcraft` |
-| CADCraft | 0.6.2 | `dxf` | `dxf` (instead of VectorCraft when both are set up) |
-| LightCraft | 0.7.1 | `dng` `cr2` `cr3` `nef` `nrw` `arw` `raf` `orf` `rw2` `rwl` `pef` `srw` `jpg` `jpeg` `png` `tif` `tiff` `webp` | the camera raw types |
-| FilmCraft | 0.7.2 | `fcproj` | `fcproj` |
-| EffectCraft | 0.9.2 | `ecproj` | `ecproj` |
+| PdfCraft | 0.8.0 | `pdf` | none |
+| PhotoCraft | 0.9.0 | `psd` `psb` `pcraft` `tga` `png` `jpg` `jpeg` `webp` `gif` `bmp` `tif` `tiff` `ico` `heic` `heif` | `psd` `psb` `pcraft` `tga` |
+| VectorCraft | 0.11.0 | `vectorcraft` `drawcraft` `ai` `eps` `svgz` `dxf` `svg` `emf` `wmf` `pdf` | `vectorcraft` `drawcraft` `eps` `svgz` `dxf` |
+| DesignCraft | 0.8.0 | `designcraft` `idml` | `designcraft` `idml` |
+| WordCraft | 0.7.0 | `docx` `docm` `dotx` `dotm` `doc` `dot` `odt` `rtf` | none |
+| GridCraft | 0.7.0 | `xlsx` `xlsm` `ods` `csv` | none |
+| DeckCraft | 0.7.0 | `deckcraft` `pptx` `potx` `ppsx` | `deckcraft` |
+| CADCraft | 0.7.0 | `dxf` | `dxf` (instead of VectorCraft when both are set up) |
+| LightCraft | 0.8.0 | `dng` `cr2` `cr3` `nef` `nrw` `arw` `raf` `orf` `rw2` `rwl` `pef` `srw` `jpg` `jpeg` `png` `tif` `tiff` `webp` | the camera raw types |
+| FilmCraft | 0.8.0 | `fcproj` | `fcproj` |
+| EffectCraft | 0.10.0 | `ecproj` | `ecproj` |
 
 LightCraft develops photos and exports them as new files; it never saves a photo back, and its
 edits are gone when the editor closes. FilmCraft and EffectCraft open their project files; a
@@ -100,7 +100,7 @@ The app is not in the Nextcloud App Store. Each
 | `SHA256SUMS` | The checksums of both |
 
 ```sh
-v=0.4.1
+v=0.4.2
 base=https://github.com/hozwei/nextcloud-craftsuite-layer/releases/download/v$v
 curl -fL --remote-name-all "$base/craftsuite_layer-$v.tar.gz" \
   "$base/craftsuite-layer-hosting-$v.tar.gz" "$base/SHA256SUMS"

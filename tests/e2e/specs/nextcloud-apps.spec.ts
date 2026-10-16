@@ -33,7 +33,7 @@ import { readFileSync } from 'node:fs';
 import { gunzipSync } from 'node:zlib';
 import { test, expect, type Frame, type Page } from '@playwright/test';
 import { strFromU8, unzipSync } from 'fflate';
-import { appFrames, PALETTE_KEYS, press, runCommand, settle } from '../lib/craft-ui.ts';
+import { appFrames, focusCanvas, PALETTE_KEYS, press, runCommand, settle } from '../lib/craft-ui.ts';
 import { appView, login, nameLabel, newFolder, openEditor, status, trackDownloads, type Folder } from '../lib/nextcloud.ts';
 
 const fixture = (name: string) => readFileSync(new URL(`../fixtures/${name}`, import.meta.url));
@@ -260,7 +260,7 @@ test('designcraft: an opened IDML is saved as from-indesign.designcraft next to 
 // an open.
 async function typeText(page: Page, app: Frame, text: string) {
   await test.step(`ui: type "${text}"`, async () => {
-    await app.locator('canvas').first().focus();
+    await focusCanvas(app);
     await page.keyboard.type(text, { delay: 10 });
     await appFrames(app, 3);
   });
