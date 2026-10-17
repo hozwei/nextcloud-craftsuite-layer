@@ -5,8 +5,8 @@
 # nextcloud-craftsuite-layer
 
 Open files from Nextcloud in storytold's Craft web apps (PdfCraft, PhotoCraft, VectorCraft,
-DesignCraft, WordCraft, GridCraft, DeckCraft, CADCraft, LightCraft, FilmCraft and EffectCraft)
-and save the results back to Nextcloud, without modifying the apps.
+DesignCraft, WordCraft, GridCraft, DeckCraft, CADCraft, LightCraft, FilmCraft, EffectCraft and
+SoundCraft) and save the results back to Nextcloud, without modifying the apps.
 
 [![CI](https://github.com/hozwei/nextcloud-craftsuite-layer/actions/workflows/ci.yml/badge.svg)](https://github.com/hozwei/nextcloud-craftsuite-layer/actions/workflows/ci.yml)
 [![Canary](https://github.com/hozwei/nextcloud-craftsuite-layer/actions/workflows/canary.yml/badge.svg)](https://github.com/hozwei/nextcloud-craftsuite-layer/actions/workflows/canary.yml)
@@ -46,7 +46,7 @@ opens them in the app ([docs/nextcloud-app.md](docs/nextcloud-app.md#new-files))
 |---|---|---|---|
 | PdfCraft | 0.8.0 | `pdf` | none |
 | PhotoCraft | 0.9.0 | `psd` `psb` `pcraft` `tga` `png` `jpg` `jpeg` `webp` `gif` `bmp` `tif` `tiff` `ico` `heic` `heif` | `psd` `psb` `pcraft` `tga` |
-| VectorCraft | 0.11.0 | `vectorcraft` `drawcraft` `ai` `eps` `svgz` `dxf` `svg` `emf` `wmf` `pdf` | `vectorcraft` `drawcraft` `eps` `svgz` `dxf` |
+| VectorCraft | 0.12.0 | `vectorcraft` `drawcraft` `ai` `eps` `svgz` `dxf` `svg` `emf` `wmf` `pdf` | `vectorcraft` `drawcraft` `eps` `svgz` `dxf` |
 | DesignCraft | 0.8.0 | `designcraft` `idml` | `designcraft` `idml` |
 | WordCraft | 0.7.0 | `docx` `docm` `dotx` `dotm` `doc` `dot` `odt` `rtf` | none |
 | GridCraft | 0.7.0 | `xlsx` `xlsm` `ods` `csv` | none |
@@ -55,12 +55,14 @@ opens them in the app ([docs/nextcloud-app.md](docs/nextcloud-app.md#new-files))
 | LightCraft | 0.8.0 | `dng` `cr2` `cr3` `nef` `nrw` `arw` `raf` `orf` `rw2` `rwl` `pef` `srw` `jpg` `jpeg` `png` `tif` `tiff` `webp` | the camera raw types |
 | FilmCraft | 0.8.0 | `fcproj` | `fcproj` |
 | EffectCraft | 0.10.0 | `ecproj` | `ecproj` |
+| SoundCraft | 0.7.0 | `scraftz` | `scraftz` |
 
 LightCraft develops photos and exports them as new files; it never saves a photo back, and its
 edits are gone when the editor closes. FilmCraft and EffectCraft open their project files; a
-project refers to its media, which are not in the file. SoundCraft is not supported: its web
-build can neither open nor save files. Each app's page in [docs/apps/](docs/apps/) says what
-saves where.
+project refers to its media, which are not in the file. SoundCraft opens the sessions it saves in
+the browser, a `.scraftz` bundle with the audio inside (from SoundCraft 0.6.1 on). FigCraft is not
+supported yet: its web build can neither open nor save a file. Each app's page in
+[docs/apps/](docs/apps/) says what saves where.
 
 Files are matched by extension, in any letter case. The tested version is the Craft release the
 tests pass with; a daily canary run tests each newer release. The Nextcloud app's texts are in
@@ -100,7 +102,7 @@ The app is not in the Nextcloud App Store. Each
 | `SHA256SUMS` | The checksums of both |
 
 ```sh
-v=0.4.2
+v=0.5.0
 base=https://github.com/hozwei/nextcloud-craftsuite-layer/releases/download/v$v
 curl -fL --remote-name-all "$base/craftsuite_layer-$v.tar.gz" \
   "$base/craftsuite-layer-hosting-$v.tar.gz" "$base/SHA256SUMS"
@@ -293,12 +295,16 @@ writing tests, testing a new Craft release, releasing, adding a Craft app, conve
 ## Upstream
 
 The layer exists because the Craft web builds have no embedding API yet. Requests upstream, as
-of 2026-10-10:
+of 2026-10-17:
 
-- PdfCraft: [storytold/pdfcraft#422](https://github.com/storytold/pdfcraft/issues/422), open, no
-  response yet.
+- PdfCraft: [storytold/pdfcraft#422](https://github.com/storytold/pdfcraft/issues/422), open;
+  others who embed the apps asked for the same.
 - PhotoCraft: [storytold/photocraft#1614](https://github.com/storytold/photocraft/issues/1614)
-  and [pull request #2263](https://github.com/storytold/photocraft/pull/2263), not merged.
+  and [pull request #2263](https://github.com/storytold/photocraft/pull/2263), open, not merged;
+  two hosts have built a bridge of their own on a fork.
+- FigCraft: its web build can neither open nor save a file yet (0.6.0; `main` hands saves to the
+  browser as downloads since), so it is not supported. It joins once it can do both
+  ([docs/development.md](docs/development.md#adding-a-craft-app)).
 
 When an app gains a native API, the translator is planned to stand down for it (see
 [docs/architecture.md](docs/architecture.md#native-embedding-apis)).

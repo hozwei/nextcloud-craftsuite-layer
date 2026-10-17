@@ -2,7 +2,8 @@ The icons in this folder are the Craft apps' own app icons, from the apps' repos
 (github.com/storytold/<app>, assets/app-icon/), licensed under either of the Apache License,
 Version 2.0, or the MIT license, at your option; they are used here under the MIT license.
 The SVGs show the apps' small-size crop (viewBox "22 22 468 468", as the apps' packaging
-renders its small icons); cadcraft.png is unchanged.
+renders its small icons); cadcraft.png and soundcraft.svg, whose picture fills the whole
+canvas, are unchanged.
 
 photocraft.svg: Copyright (c) 2026 ArtCraft Team and the PhotoCraft contributors
 vectorcraft.svg: Copyright (c) 2026 ArtCraft Team and the VectorCraft contributors
@@ -12,6 +13,7 @@ cadcraft.png: Copyright (c) 2026 ArtCraft Team and the CADCraft contributors
 lightcraft.svg: Copyright (c) 2026 ArtCraft Team and the LightCraft contributors
 filmcraft.svg: Copyright (c) 2026 ArtCraft Team and the FilmCraft contributors
 effectcraft.svg: Copyright (c) 2026 ArtCraft Team and the EffectCraft contributors
+soundcraft.svg: Copyright (c) 2026 ArtCraft Team and the SoundCraft contributors
 
 MIT License
 

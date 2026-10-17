@@ -1,0 +1,104 @@
+{
+  "$comment": "The Craft apps this layer supports, in the order the Nextcloud app gives them a click. The one list of apps for the translators, the tests, the Nextcloud app (checked by npm run apps:check) and hosting updaters, which find it in the hosting bundle. Fields: docs/hosting.md#the-app-list.",
+  "format": 1,
+  "apps": {
+    "pdfcraft": {
+      "name": "PdfCraft",
+      "repo": "storytold/pdfcraft",
+      "description": { "en": "View, annotate and edit PDFs", "de": "PDFs ansehen, kommentieren und bearbeiten" },
+      "color": "#12a58a",
+      "minVersion": "0.6.0",
+      "tested": "0.8.0"
+    },
+    "photocraft": {
+      "name": "PhotoCraft",
+      "repo": "storytold/photocraft",
+      "description": { "en": "Edit photos and layers, PSD included", "de": "Fotos und Ebenen bearbeiten, auch PSD" },
+      "color": "#2f7bf5",
+      "minVersion": "0.7.0",
+      "tested": "0.9.0"
+    },
+    "vectorcraft": {
+      "name": "VectorCraft",
+      "repo": "storytold/vectorcraft",
+      "description": { "en": "Draw vector graphics and logos, SVG included", "de": "Vektorgrafiken und Logos zeichnen, auch SVG" },
+      "color": "#e8573f",
+      "minVersion": "0.9.0",
+      "tested": "0.12.0"
+    },
+    "designcraft": {
+      "name": "DesignCraft",
+      "repo": "storytold/designcraft",
+      "description": { "en": "Lay out pages and print matter", "de": "Layouts und Drucksachen setzen" },
+      "color": "#7bb51c",
+      "minVersion": "0.6.0",
+      "tested": "0.8.0"
+    },
+    "wordcraft": {
+      "name": "WordCraft",
+      "repo": "storytold/wordcraft",
+      "description": { "en": "Write and format documents, DOCX included", "de": "Texte schreiben und gestalten, auch DOCX" },
+      "color": "#3f5fe0",
+      "minVersion": "0.5.0",
+      "tested": "0.7.0"
+    },
+    "gridcraft": {
+      "name": "GridCraft",
+      "repo": "storytold/gridcraft",
+      "description": { "en": "Calculate and analyse spreadsheets, XLSX included", "de": "Tabellen berechnen und auswerten, auch XLSX" },
+      "color": "#1f9d55",
+      "minVersion": "0.5.0",
+      "tested": "0.7.0"
+    },
+    "deckcraft": {
+      "name": "DeckCraft",
+      "repo": "storytold/deckcraft",
+      "description": { "en": "Build presentations, also from PPTX", "de": "Präsentationen gestalten, auch aus PPTX" },
+      "color": "#f07a1e",
+      "minVersion": "0.5.0",
+      "tested": "0.7.0"
+    },
+    "cadcraft": {
+      "name": "CADCraft",
+      "repo": "storytold/cadcraft",
+      "description": { "en": "Draft 2D drawings in DXF", "de": "2D-Zeichnungen konstruieren, im DXF-Format" },
+      "color": "#3ea6e8",
+      "minVersion": "0.5.0",
+      "tested": "0.7.0"
+    },
+    "lightcraft": {
+      "name": "LightCraft",
+      "repo": "storytold/lightcraft",
+      "description": { "en": "Develop and export photos and camera raws", "de": "Fotos und Kamera-RAWs entwickeln und exportieren" },
+      "color": "#f2a516",
+      "startupTimeout": 180000,
+      "minVersion": "0.6.0",
+      "tested": "0.8.0"
+    },
+    "filmcraft": {
+      "name": "FilmCraft",
+      "repo": "storytold/filmcraft",
+      "description": { "en": "Edit videos and film projects", "de": "Videos und Filmprojekte schneiden" },
+      "color": "#8b5cf6",
+      "minVersion": "0.6.0",
+      "tested": "0.8.0"
+    },
+    "effectcraft": {
+      "name": "EffectCraft",
+      "repo": "storytold/effectcraft",
+      "description": { "en": "Create animations and visual effects", "de": "Animationen und visuelle Effekte gestalten" },
+      "color": "#e0368f",
+      "startupTimeout": 180000,
+      "minVersion": "0.8.0",
+      "tested": "0.10.0"
+    },
+    "soundcraft": {
+      "name": "SoundCraft",
+      "repo": "storytold/soundcraft",
+      "description": { "en": "Edit and mix audio sessions", "de": "Audio-Sessions schneiden und abmischen" },
+      "color": "#1fa5c9",
+      "minVersion": "0.6.1",
+      "tested": "0.7.0"
+    }
+  }
+}

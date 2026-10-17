@@ -35,8 +35,10 @@ What the project is and how it works in short: [README](../README.md). Changes p
 - [LightCraft](apps/lightcraft.md): develop and export only, nothing kept in the browser.
 - [FilmCraft](apps/filmcraft.md): project files, media that stay outside them.
 - [EffectCraft](apps/effectcraft.md): project files, its service worker and URL switches.
+- [SoundCraft](apps/soundcraft.md): `.scraftz` sessions with their audio, saves told from an
+  export of selected tracks.
 
-SoundCraft is not supported: its web build can neither open nor save files.
+FigCraft is not supported yet: its web build can neither open nor save a file.
 
 ## For developers
 

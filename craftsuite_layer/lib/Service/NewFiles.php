@@ -47,6 +47,7 @@ class NewFiles {
 		'cadcraft' => ['ext' => 'dxf', 'mime' => 'image/vnd.dxf', 'ratio' => 21 / 29.7],
 		'filmcraft' => ['ext' => 'fcproj', 'mime' => 'application/x-filmcraft', 'ratio' => 16 / 9],
 		'effectcraft' => ['ext' => 'ecproj', 'mime' => 'application/x-effectcraft', 'ratio' => 16 / 9],
+		'soundcraft' => ['ext' => 'scraftz', 'mime' => 'application/x-soundcraft-session', 'ratio' => 16 / 9],
 	];
 
 	/**
@@ -247,6 +248,7 @@ class NewFiles {
 			'cadcraft' => $this->l->t('New CADCraft drawing'),
 			'filmcraft' => $this->l->t('New FilmCraft project'),
 			'effectcraft' => $this->l->t('New EffectCraft project'),
+			'soundcraft' => $this->l->t('New SoundCraft session'),
 			default => $app,
 		};
 	}

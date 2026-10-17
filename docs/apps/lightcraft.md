@@ -8,7 +8,7 @@
 |---|---|
 | Upstream | [github.com/storytold/lightcraft](https://github.com/storytold/lightcraft) |
 | Adapter | [`translators/lightcraft.js`](../../translators/lightcraft.js) |
-| Tested version | `tested` in [`tests/e2e/craft-versions.json`](../../tests/e2e/craft-versions.json) (0.6.0 when this page was written, checked again with 0.7.1) |
+| Tested version | `tested` in [`apps.json`](../../apps.json) (0.6.0 when this page was written, checked again with 0.7.1) |
 | Tests | [`tests/e2e/specs/lightcraft.spec.ts`](../../tests/e2e/specs/lightcraft.spec.ts) (Chromium and WebKit, see [Tests](#tests)) |
 
 LightCraft is a photo library and raw developer. With the layer it works as **open a photo from

@@ -8,7 +8,7 @@
 |---|---|
 | Upstream | [github.com/storytold/wordcraft](https://github.com/storytold/wordcraft) |
 | Adapter | [`translators/wordcraft.js`](../../translators/wordcraft.js) |
-| Tested version | `tested` in [`tests/e2e/craft-versions.json`](../../tests/e2e/craft-versions.json) (0.5.0 when this page was written, checked again with 0.6.1 and 0.7.0) |
+| Tested version | `tested` in [`apps.json`](../../apps.json) (0.5.0 when this page was written, checked again with 0.6.1 and 0.7.0) |
 | Tests | [`tests/e2e/specs/wordcraft.spec.ts`](../../tests/e2e/specs/wordcraft.spec.ts) (Chromium and WebKit, see [Tests](#tests)) |
 
 This page records what the WordCraft web build does in the browser, as far as the translator

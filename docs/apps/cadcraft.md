@@ -8,7 +8,7 @@
 |---|---|
 | Upstream | [github.com/storytold/cadcraft](https://github.com/storytold/cadcraft) |
 | Adapter | [`translators/cadcraft.js`](../../translators/cadcraft.js) |
-| Tested version | `tested` in [`tests/e2e/craft-versions.json`](../../tests/e2e/craft-versions.json) (0.5.0 when this page was written, checked again with 0.6.2) |
+| Tested version | `tested` in [`apps.json`](../../apps.json) (0.5.0 when this page was written, checked again with 0.6.2) |
 | Tests | [`tests/e2e/specs/cadcraft.spec.ts`](../../tests/e2e/specs/cadcraft.spec.ts) (Chromium and WebKit, see [Tests](#tests)) |
 
 This page records what the CADCraft web build does in the browser, as far as the translator

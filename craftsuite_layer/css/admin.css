@@ -33,12 +33,15 @@
 	padding-inline-start: 4px;
 }
 
+/* The app's name with its tick: an unticked app is switched off. */
+.craftsuite-admin__app,
 .craftsuite-admin__default {
 	display: flex;
 	align-items: center;
 	gap: 6px;
 }
 
+.craftsuite-admin__app input,
 .craftsuite-admin__default input {
 	inline-size: 16px;
 	block-size: 16px;
@@ -51,7 +54,8 @@
 	color: var(--color-text-maxcontrast);
 }
 
-.craftsuite-admin__hint--error {
+.craftsuite-admin__hint--error,
+.craftsuite-admin__warning {
 	color: var(--color-error-text, var(--color-error));
 }
 

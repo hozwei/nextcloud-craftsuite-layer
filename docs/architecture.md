@@ -7,9 +7,9 @@
 ## Goal and constraints
 
 Open files from Nextcloud in storytold's Craft web apps (PdfCraft, PhotoCraft, VectorCraft,
-DesignCraft, WordCraft, GridCraft, DeckCraft, CADCraft, LightCraft, FilmCraft and EffectCraft) and
-save the results back to Nextcloud. SoundCraft is left out: its web build can neither open nor
-save files.
+DesignCraft, WordCraft, GridCraft, DeckCraft, CADCraft, LightCraft, FilmCraft, EffectCraft and
+SoundCraft, as listed in `apps.json`) and save the results back to Nextcloud. FigCraft is left
+out until its web build can open and save files.
 
 - The apps stay unmodified. Sites that host them take new upstream releases daily, so a patched fork
   would have to be rebuilt every day.
@@ -25,7 +25,7 @@ save files.
 |---|---|---|---|
 | Nextcloud app `craftsuite_layer` | `craftsuite_layer/` | Nextcloud, and in the browser in Files and the editor page | Files entries (also as the default app for all of an app's types), "+ New" entries with a blank document per app (`assets/`, made by `blanks.mjs`), file type icons, editor page, settings page, German; Nextcloud 34 and 35 ([nextcloud-app.md](nextcloud-app.md)) |
 | Translator core | `translators/core.js` | the Craft app's page | done, protocol version 1 |
-| Adapters, one per app | `translators/<app>.js` | the Craft app's page | one for each of the eleven apps ([translators/README.md](../translators/README.md)) |
+| Adapters, one per app | `translators/<app>.js` | the Craft app's page | one for each app in `apps.json` ([translators/README.md](../translators/README.md)) |
 | Craft hosting | `hosting/` (template) | a static web server on its own origin, plus an updater | translator injector, nginx template, Compose example; no updater yet ([hosting.md](hosting.md)) |
 | End-to-end tests | `tests/e2e/` | Playwright | the translator in Chromium, Firefox and WebKit; the apps in Chromium and WebKit; the Nextcloud app in Nextcloud 34 and 35 ([development.md](development.md)) |
 
@@ -246,12 +246,13 @@ is on its page in [`apps/`](apps/).
 
 ## Native embedding APIs
 
-Upstream status as of 2026-10-11:
+Upstream status as of 2026-10-17:
 
 | App | Request or API | State |
 |---|---|---|
 | PdfCraft | [storytold/pdfcraft#422](https://github.com/storytold/pdfcraft/issues/422) | open. PdfCraft 0.6.0 ships a `postMessage` bridge turned on by `?host=parent`, for a parent on the app's own origin only: under a Nextcloud on another origin it would drop every save, which is one reason the Nextcloud app refuses app addresses with a query ([apps/pdfcraft.md](apps/pdfcraft.md)). |
-| PhotoCraft | [storytold/photocraft#1614](https://github.com/storytold/photocraft/issues/1614), [pull request #2263](https://github.com/storytold/photocraft/pull/2263) | open, not merged |
+| PhotoCraft | [storytold/photocraft#1614](https://github.com/storytold/photocraft/issues/1614), [pull request #2263](https://github.com/storytold/photocraft/pull/2263) | open, not merged. Two hosts built a `postMessage` bridge on a fork (`?host=<origin>`), as the comments there describe. |
+| FigCraft | none | The web build cannot get a file in or out yet: 0.6.0 opens nothing from a drop or File ▸ Open and saves nothing; `main` (after 0.6.0) hands saves to the browser as downloads, while a drop still imports into the open document instead of opening it. Not supported until a release does both. |
 | FilmCraft, EffectCraft, LightCraft | `window.filmcraft`, `window.effectcraft`, `lightcraft.command` | JavaScript APIs on the app's own page, without `postMessage` or an origin check: the host cannot reach them. The LightCraft adapter uses `lightcraft.command('web.stats')` and the EffectCraft adapter `effectcraft.info()` and `effectcraft.execute('project.summary')` ([apps/lightcraft.md](apps/lightcraft.md), [apps/effectcraft.md](apps/effectcraft.md)). |
 
 Pull request #2263 proposes `window.photocraft` and a `postMessage` API enabled with
@@ -269,10 +270,10 @@ Pull request #2263 proposes `window.photocraft` and a `postMessage` API enabled 
 | What | Where | Current |
 |---|---|---|
 | Protocol | `version` in every message | 1 |
-| Translator | `LAYER_VERSION` in `translators/core.js`, reported as `layerVersion` in `hello` and `ready` | 0.4.2 |
-| Nextcloud app | `<version>` in `craftsuite_layer/appinfo/info.xml` | 0.4.2, Nextcloud 34 and 35 |
-| Release | the tag `v<version>` | v0.4.2 |
-| Tested app versions | `tests/e2e/craft-versions.json` | PdfCraft 0.8.0, PhotoCraft 0.9.0, VectorCraft 0.11.0, DesignCraft 0.8.0, WordCraft 0.7.0, GridCraft 0.7.0, DeckCraft 0.7.0, CADCraft 0.7.0, LightCraft 0.8.0, FilmCraft 0.8.0, EffectCraft 0.10.0 |
+| Translator | `LAYER_VERSION` in `translators/core.js`, reported as `layerVersion` in `hello` and `ready` | 0.5.0 |
+| Nextcloud app | `<version>` in `craftsuite_layer/appinfo/info.xml` | 0.5.0, Nextcloud 34 and 35 |
+| Release | the tag `v<version>` | v0.5.0 |
+| Supported apps, their oldest and tested versions | `apps.json` ([hosting.md](hosting.md#the-app-list)) | PdfCraft 0.8.0, PhotoCraft 0.9.0, VectorCraft 0.12.0, DesignCraft 0.8.0, WordCraft 0.7.0, GridCraft 0.7.0, DeckCraft 0.7.0, CADCraft 0.7.0, LightCraft 0.8.0, FilmCraft 0.8.0, EffectCraft 0.10.0, SoundCraft 0.7.0 (tested) |
 
 The translator and the Nextcloud app share one version number, and a release carries both: the
 app, and the translators with the injector for the hosting

@@ -61,6 +61,9 @@ class FileTypes {
 		'srw' => ['image/x-dcraw', null],
 		'fcproj' => ['application/x-filmcraft', null],
 		'ecproj' => ['application/x-effectcraft', null],
+		// SoundCraft's packaging names this type for its session file (.scraft); the browser's
+		// bundle of a session with its audio (.scraftz) has none of its own.
+		'scraftz' => ['application/x-soundcraft-session', null],
 		'dotm' => ['application/vnd.ms-word.template.macroEnabled.12', null],
 	];
 
@@ -77,6 +80,7 @@ class FileTypes {
 		'application/x-deckcraft' => 'file',
 		'application/x-filmcraft' => 'file',
 		'application/x-effectcraft' => 'file',
+		'application/x-soundcraft-session' => 'file',
 	];
 
 	/** Where this app notes the entries it added (JSON: {"mappings": {...}, "aliases": {...}}). */

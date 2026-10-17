@@ -16,9 +16,10 @@
 //                 .dxf, which VectorCraft and CADCraft both open by default, opens CADCraft while
 //                 both are configured and VectorCraft once CADCraft's address is empty
 //   settings      the admin page refuses unusable addresses (http, a Nextcloud host, a host a
-//                 Content-Security-Policy cannot name, an address with a ?query) with a reason per
-//                 field and saves nothing; usable ones are saved, also after Nextcloud's password
-//                 dialog; the apps that can start in a chosen language have a choice of it ('user'
+//                 Content-Security-Policy cannot name, an address with a ?query, also as the address
+//                 for all apps) with a reason per field and saves nothing; usable ones are saved, also
+//                 after Nextcloud's password dialog; an app without an address of its own is under
+//                 the address for all apps, and an app switched off has no entry and no editor; the apps that can start in a chosen language have a choice of it ('user'
 //                 or one of theirs), the others none; a language an app does not have is refused,
 //                 and the editor frames the app with the user's language ('user' and
 //                 ?forceLanguage=de: '#craftsuite-layer:lang=de'); a .dxf shows the icon of the
@@ -35,7 +36,8 @@
 //                 the app's blank (assets/; WordCraft's with the time it was made) and Files opens
 //                 it in the app: a PSD in PhotoCraft, a .designcraft in DesignCraft (with the time
 //                 it was made), a .deckcraft in DeckCraft (the same), a .fcproj named otherwise in
-//                 FilmCraft (with that name), a .docx in WordCraft (with the time it was made);
+//                 FilmCraft (with that name), a .scraftz in SoundCraft (typed and with SoundCraft's
+//                 icon), a .docx in WordCraft (with the time it was made);
 //                 Back from the editor returns to the folder
 //   shares        for a second user, no administrator: a file shared without permission to
 //                 download has no entry and the editor page refuses it; a read-only share opens,
@@ -66,8 +68,9 @@ const DOCX = readFileSync(new URL('../fixtures/wordcraft/craftsuite-probe.docx',
 const BLANK = (name: string) => readFileSync(new URL(`../../../craftsuite_layer/assets/${name}`, import.meta.url));
 // The test server's app origin (tests/e2e/server/serve.mjs): 127.0.0.2:<base+1>.
 const CRAFT = `http://127.0.0.2:${Number(process.env.CRAFTSUITE_PORT_BASE || 8701) + 1}`;
-// Every app on the settings page, in its order (CraftApps::APPS): the settings test restores them all.
-const APPS = ['pdfcraft', 'photocraft', 'vectorcraft', 'designcraft', 'wordcraft', 'gridcraft', 'deckcraft', 'cadcraft', 'lightcraft', 'filmcraft', 'effectcraft'];
+// Every app on the settings page, in its order (apps.json, which npm run apps:check compares with
+// CraftApps::APPS): the settings test restores them all.
+const APPS = Object.keys((JSON.parse(readFileSync(new URL('../../../apps.json', import.meta.url), 'utf8')) as { apps: object }).apps);
 // The apps the settings let start in a chosen language (CraftApps::APPS 'languages').
 const LANGUAGE_APPS = ['pdfcraft', 'photocraft', 'vectorcraft', 'gridcraft', 'cadcraft', 'lightcraft', 'filmcraft', 'effectcraft'];
 // The apps that can be made the default app for all their types (CraftApps::sharedExtensions()).
@@ -109,8 +112,9 @@ async function newMenu(page: Page): Promise<string[]> {
 }
 
 // "+ New" > entry, with the name Files proposes (or another one typed instead), and the editor
-// page Files then opens.
-async function createNew(page: Page, entry: string, name: string, app: string, typed?: string) {
+// page Files then opens. True if the editor page asked first (see below): its Open button then
+// added an entry to the tab's history.
+async function createNew(page: Page, entry: string, name: string, app: string, typed?: string): Promise<boolean> {
   await clickMenuItem(page, entry);
   const input = page.locator('[data-cy-files-new-node-dialog-input]');
   await expect(input, 'the name Files proposes').toHaveValue(name);
@@ -122,11 +126,20 @@ async function createNew(page: Page, entry: string, name: string, app: string, t
   // it does for a link, and opens the file once the user confirms.
   const root = page.locator('.craftsuite-editor');
   await root.waitFor();
-  if (await root.getAttribute('data-state') === 'confirm') {
+  const asked = await root.getAttribute('data-state') === 'confirm';
+  if (asked) {
     test.info().annotations.push({ type: 'note', description: `${app}: the editor page asked first, the click's user activation had run out` });
     await page.locator('.craftsuite-editor__open').click();
   }
   await expect(root, `${app} has the new file`).toHaveAttribute('data-state', 'ready', { timeout: 120_000 });
+  return asked;
+}
+
+// Back from an editor page that createNew() opened, to the folder: where the editor page asked
+// first (createNew() returned true), its question is a step of the tab's history before it.
+async function backToFolder(page: Page, asked: boolean) {
+  if (asked) await page.goBack();
+  await page.goBack();
 }
 
 // A click of the user (trusted, with user activation), as the entry needs to open the editor at once.
@@ -153,11 +166,15 @@ async function untraced<T>(page: Page, action: () => Promise<T>): Promise<T> {
   }
 }
 
-// Saves the settings form: addresses, languages the apps start in, and which apps are the default
-// app. With a password: Nextcloud's own password dialog asks for it first.
+// Saves the settings form: addresses, languages the apps start in, which apps are the default app,
+// and the address for all apps and which apps are used (ticked). With a password: Nextcloud's own
+// password dialog asks for it first.
 async function saveSettings(
   page: Page, values: Record<string, string>, password?: string, languages: Record<string, string> = {}, defaults: Record<string, boolean> = {},
+  { base, uses = {} }: { base?: string; uses?: Record<string, boolean> } = {},
 ): Promise<number> {
+  if (base !== undefined) await page.locator('#craftsuite-layer-base').fill(base);
+  for (const [app, on] of Object.entries(uses)) await page.locator(`#craftsuite-layer-${app}-use`).setChecked(on);
   for (const [app, url] of Object.entries(values)) await page.locator(`#craftsuite-layer-${app}`).fill(url);
   for (const [app, language] of Object.entries(languages)) await page.locator(`#craftsuite-layer-${app}-language`).selectOption(language);
   for (const [app, on] of Object.entries(defaults)) await page.locator(`#craftsuite-layer-${app}-default`).setChecked(on);
@@ -177,6 +194,8 @@ async function saveSettings(
 let found: Record<string, string> | null = null;
 let foundLanguages: Record<string, string> = {};
 let foundDefaults: Record<string, boolean> = {};
+let foundBase = '';
+let foundUses: Record<string, boolean> = {};
 
 // Notes the settings as found, for the afterEach hook.
 async function noteSettings(page: Page): Promise<Record<string, string>> {
@@ -186,6 +205,8 @@ async function noteSettings(page: Page): Promise<Record<string, string>> {
   const values: Record<string, string> = {};
   for (const app of APPS) values[app] = await page.locator(`#craftsuite-layer-${app}`).inputValue();
   found = values;
+  foundBase = await page.locator('#craftsuite-layer-base').inputValue();
+  for (const app of APPS) foundUses[app] = await page.locator(`#craftsuite-layer-${app}-use`).isChecked();
   const languageFields = await page.locator('#craftsuite-layer-admin select[data-app]').evaluateAll((selects) => selects.map((s) => (s as HTMLSelectElement).dataset.app));
   expect(languageFields, 'the apps with a choice of the language they start in').toEqual(LANGUAGE_APPS);
   for (const app of LANGUAGE_APPS) foundLanguages[app] = await page.locator(`#craftsuite-layer-${app}-language`).inputValue();
@@ -202,11 +223,13 @@ test.afterEach(async ({ browser }) => {
     const page = await context.newPage();
     await login(page);
     await page.goto(SETTINGS);
-    expect(await saveSettings(page, found, undefined, foundLanguages, foundDefaults), 'the settings found saved again').toBe(200);
+    expect(await saveSettings(page, found, undefined, foundLanguages, foundDefaults, { base: foundBase, uses: foundUses }), 'the settings found saved again').toBe(200);
     for (const app of APPS) await expect(page.locator(`#craftsuite-layer-${app}`)).toHaveValue(found[app]);
     found = null;
     foundLanguages = {};
     foundDefaults = {};
+    foundBase = '';
+    foundUses = {};
   } finally {
     await context.close();
   }
@@ -308,7 +331,8 @@ test('default and settings: unusable addresses are refused, a .designcraft and a
   expect(await saveSettings(page, {
     designcraft: 'http://craft.example.com/designcraft/', vectorcraft, photocraft: 'https://craft.example.com;x/photocraft/',
     pdfcraft: 'https://craft.example.com/pdfcraft/?host=parent',
-  }), 'refused').toBe(400);
+  }, undefined, {}, {}, { base: 'https://craft.example.com/?x' }), 'refused').toBe(400);
+  await expect(hint('base')).toHaveText('Use an https:// address without user name, password, ?query or #fragment (http:// only on localhost).');
   await expect(hint('designcraft')).toHaveText(/https:\/\//);
   await expect(hint('vectorcraft')).toHaveText(/another host name than Nextcloud/);
   await expect(hint('photocraft')).toHaveText(/host name is not valid/);
@@ -316,7 +340,8 @@ test('default and settings: unusable addresses are refused, a .designcraft and a
   await expect(page.locator('.craftsuite-admin__status')).toHaveText(/Nothing was saved/);
 
   await test.step('with CADCraft\'s address empty, VectorCraft takes the click on a .dxf, and gives it its icon', async () => {
-    expect(await saveSettings(page, { pdfcraft: values.pdfcraft, photocraft: values.photocraft, designcraft: at('designcraft'), vectorcraft: at('vectorcraft'), cadcraft: '' }), 'saved').toBe(200);
+    expect(await saveSettings(page, { pdfcraft: values.pdfcraft, photocraft: values.photocraft, designcraft: at('designcraft'), vectorcraft: at('vectorcraft'), cadcraft: '' },
+      undefined, {}, {}, { base: foundBase }), 'saved').toBe(200);
     await expect(page.locator('.craftsuite-admin__status')).toHaveText('Saved');
     expect(await folder.contentType('drawing.dxf')).toBe('image/vnd.dxf');
     expect(await iconOf(page, 'image/vnd.dxf')).toMatch(CRAFT_ICON('vectorcraft'));
@@ -335,6 +360,25 @@ test('default and settings: unusable addresses are refused, a .designcraft and a
   await click('drawing.dxf', 'cadcraft');
   expect(await iconOf(page, 'image/vnd.dxf')).toMatch(CRAFT_ICON('cadcraft'));
   await click('layout.designcraft', 'designcraft');
+
+  await test.step('the address for all apps: DesignCraft without one of its own is under it; switched off, it has no entry', async () => {
+    await page.goto(SETTINGS);
+    expect(await saveSettings(page, { designcraft: '' }, undefined, {}, {}, { base: `${CRAFT}/` }), 'saved').toBe(200);
+    await expect(hint('designcraft')).toHaveText(new RegExp(`^Address: ${CRAFT.replace(/\./g, '\\.')}/designcraft/ \\(from the address for all apps\\)\\. Opens: `));
+    await expect(page.locator('#craftsuite-layer-designcraft')).toHaveAttribute('placeholder', `${CRAFT}/designcraft/`);
+    await click('layout.designcraft', 'designcraft');
+    await expect(appView(page)).toHaveAttribute('src', `${CRAFT}/designcraft/`);
+
+    await page.goto(SETTINGS);
+    expect(await saveSettings(page, {}, undefined, {}, {}, { uses: { designcraft: false } }), 'saved').toBe(200);
+    await expect(hint('designcraft')).toHaveText('Switched off: Files offers no entries for it.');
+    await openFolder(page, folder);
+    await row(page, 'layout.designcraft').waitFor();
+    expect(await menu(page, 'layout.designcraft'), 'no entry for an app switched off').not.toContain('Open in DesignCraft');
+    await page.keyboard.press('Escape');
+    await page.goto(editUrl(await folder.fileId('layout.designcraft'), 'designcraft'));
+    await expect(page.locator('.craftsuite-editor')).toContainText('DesignCraft is switched off.');
+  });
 
   await test.step('the language an app starts in: the user\'s, or one the app has; the editor hands it over in the frame\'s address', async () => {
     await page.goto(SETTINGS);
@@ -487,6 +531,8 @@ test('default app: WordCraft and PdfCraft take the click on their types, the off
 });
 
 test('new files: + New makes a file from a Craft app\'s blank and opens it in the app', async ({ page, request }) => {
+  // Eight Craft apps open in turn: more than the other tests' time on a slow test server.
+  test.setTimeout(300_000);
   const folder = await newFolder(request, {});
   await login(page);
   trackDialogs(page); // leaving an editor page asks once the app has the file
@@ -497,18 +543,18 @@ test('new files: + New makes a file from a Craft app\'s blank and opens it in th
   await test.step('an entry for each Craft app\'s own format, none for WordCraft\'s .docx', async () => {
     await openFolder(page, folder);
     const items = await newMenu(page);
-    for (const entry of ['New PhotoCraft image', 'New VectorCraft drawing', 'New DesignCraft document', 'New DeckCraft presentation', 'New CADCraft drawing', 'New FilmCraft project', 'New EffectCraft project']) {
+    for (const entry of ['New PhotoCraft image', 'New VectorCraft drawing', 'New DesignCraft document', 'New DeckCraft presentation', 'New CADCraft drawing', 'New FilmCraft project', 'New EffectCraft project', 'New SoundCraft session']) {
       expect(items, `the entry ${entry}`).toContain(entry);
     }
     expect(items, 'no entry while WordCraft is not the default app').not.toContain('New WordCraft document');
   });
 
   await test.step('New PhotoCraft image: the blank PSD, opened in PhotoCraft; Back returns to the folder', async () => {
-    await createNew(page, 'New PhotoCraft image', 'New PhotoCraft image.psd', 'photocraft');
+    const asked = await createNew(page, 'New PhotoCraft image', 'New PhotoCraft image.psd', 'photocraft');
     expect((await folder.get('New PhotoCraft image.psd')).equals(BLANK('blank.psd')), 'the blank PSD').toBe(true);
     // Files opened the new file by itself (?openfile=true); the entry took that out of the folder's
     // history entry, so Back does not open the file again.
-    await page.goBack();
+    await backToFolder(page, asked);
     await row(page, 'New PhotoCraft image.psd').waitFor();
     await expect(page, 'the folder, without openfile').not.toHaveURL(/openfile=true/);
     await expect(page.locator('.craftsuite-editor'), 'no editor again').toHaveCount(0);
@@ -537,6 +583,15 @@ test('new files: + New makes a file from a Craft app\'s blank and opens it in th
     await createNew(page, 'New FilmCraft project', 'New FilmCraft project.fcproj', 'filmcraft', 'Mein Film.fcproj');
     const film = JSON.parse((await folder.get('Mein Film.fcproj')).toString('utf8')) as { project: { name: string; root: { name: string } } };
     expect([film.project.name, film.project.root.name], 'the project named like the file').toEqual(['Mein Film', 'Mein Film']);
+  });
+
+  await test.step('New SoundCraft session: the blank session, typed as a SoundCraft session, with SoundCraft\'s icon', async () => {
+    await openFolder(page, folder);
+    await newMenu(page);
+    await createNew(page, 'New SoundCraft session', 'New SoundCraft session.scraftz', 'soundcraft');
+    expect((await folder.get('New SoundCraft session.scraftz')).equals(BLANK('blank.scraftz')), 'the blank session').toBe(true);
+    expect(await folder.contentType('New SoundCraft session.scraftz')).toBe('application/x-soundcraft-session');
+    expect(await iconOf(page, 'application/x-soundcraft-session')).toMatch(CRAFT_ICON('soundcraft'));
   });
 
   await test.step('as the default app, WordCraft has an entry; its .docx carries the time it was made', async () => {

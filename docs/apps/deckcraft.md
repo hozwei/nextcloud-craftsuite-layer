@@ -8,7 +8,7 @@
 |---|---|
 | Upstream | [github.com/storytold/deckcraft](https://github.com/storytold/deckcraft) |
 | Adapter | [`translators/deckcraft.js`](../../translators/deckcraft.js) |
-| Tested version | `tested` in [`tests/e2e/craft-versions.json`](../../tests/e2e/craft-versions.json) (0.5.0 when this page was written) |
+| Tested version | `tested` in [`apps.json`](../../apps.json) (0.5.0 when this page was written) |
 | Tests | [`tests/e2e/specs/deckcraft.spec.ts`](../../tests/e2e/specs/deckcraft.spec.ts) (Chromium and WebKit, see [Tests](#tests)) |
 
 This page records what the DeckCraft web build does in the browser, as far as the translator

@@ -17,7 +17,10 @@ use OCP\L10N\IFactory;
 
 /**
  * The Craft apps this layer can open, which files each opens, and where an administrator says
- * they are hosted (the settings page, or occ config:app:set craftsuite_layer <app>_url).
+ * they are hosted (the settings page, or occ config:app:set craftsuite_layer <app>_url): an
+ * address of the app's own, else the address for all apps (apps_base_url) with the app's id as a
+ * folder, so that an app a new version of this app brings needs no setting of its own. An app the
+ * administrator switched off (<app>_disabled) has no address at all.
  *
  * Files are matched by extension, never by MIME type: Nextcloud stores application/octet-stream
  * for extensions it does not know (.designcraft, .vectorcraft, .idml) until FileTypes has added
@@ -44,8 +47,8 @@ class CraftApps {
 	 * PDF stays with the PDF viewer, a PNG or SVG with the Viewer and Office files with Nextcloud
 	 * Office or ONLYOFFICE). Each list follows what the app opens from a drop and saves back well;
 	 * docs/apps/<app>.md has the reasons, including the types left out on purpose (such as .pdn,
-	 * whose saves PhotoCraft writes as new .pcraft files every time). SoundCraft is missing on
-	 * purpose: its web build can neither open nor save files.
+	 * whose saves PhotoCraft writes as new .pcraft files every time). The apps and their order are
+	 * those of apps.json (npm run apps:check compares them); a new app goes at the end.
 	 *
 	 * 'languages': the BCP 47 tags of the interface languages the app's adapter can start it in,
 	 * as the tested version shows them (docs/apps/<app>.md; the adapter's LANGUAGES table must have
@@ -92,6 +95,8 @@ class CraftApps {
 		'filmcraft' => ['name' => 'FilmCraft', 'extensions' => ['fcproj'], 'default' => ['fcproj'], 'languages' => ['en', 'de', 'es', 'fr', 'ja', 'pt-BR', 'ru', 'uk']],
 		// EffectCraft's Spanish and Portuguese translate only the menu bar.
 		'effectcraft' => ['name' => 'EffectCraft', 'extensions' => ['ecproj'], 'default' => ['ecproj'], 'languages' => ['en', 'es', 'pt-BR', 'uk']],
+		// Sessions only, as the web build saves them (.scraftz; 0.6.1 and later).
+		'soundcraft' => ['name' => 'SoundCraft', 'extensions' => ['scraftz'], 'default' => ['scraftz'], 'languages' => []],
 	];
 
 	/**
@@ -111,8 +116,15 @@ class CraftApps {
 	) {
 	}
 
+	/** The address for all apps: each app without one of its own is at <address><app>/. */
+	public const BASE_KEY = 'apps_base_url';
+
 	public static function key(string $app): string {
 		return $app . '_url';
+	}
+
+	public static function disabledKey(string $app): string {
+		return $app . '_disabled';
 	}
 
 	public static function languageKey(string $app): string {
@@ -151,19 +163,26 @@ class CraftApps {
 
 	/**
 	 * The line under an app on the settings page: the types it opens, and which of them a click in
-	 * Files opens in it with the current addresses and default apps.
+	 * Files opens in it with the current addresses and default apps; first the address it takes
+	 * from the address for all apps, if it does.
 	 */
 	public function hint(string $app): string {
+		if ($this->isDisabled($app)) {
+			return $this->l->t('Switched off: Files offers no entries for it.');
+		}
 		$dotted = fn (array $extensions) => implode(', ', array_map(fn (string $ext) => '.' . $ext, $extensions));
 		$all = self::APPS[$app]['extensions'] ?? [];
 		$clicks = self::clickExtensions($app, $this->configured(), $this->defaultApps());
-		if ($clicks === []) {
-			return $this->l->t('Opens: %s. On a click: none.', [$dotted($all)]);
+		$hint = match (true) {
+			$clicks === [] => $this->l->t('Opens: %s. On a click: none.', [$dotted($all)]),
+			$clicks === $all => $this->l->t('Opens: %s. On a click: all.', [$dotted($all)]),
+			default => $this->l->t('Opens: %1$s. On a click: %2$s.', [$dotted($all), $dotted($clicks)]),
+		};
+		$base = $this->storedBaseUrl();
+		if ($this->storedUrl($app) === '' && $base !== '') {
+			$hint = $this->l->t('Address: %s (from the address for all apps).', [self::underBase($base, $app)]) . ' ' . $hint;
 		}
-		if ($clicks === $all) {
-			return $this->l->t('Opens: %s. On a click: all.', [$dotted($all)]);
-		}
-		return $this->l->t('Opens: %1$s. On a click: %2$s.', [$dotted($all), $dotted($clicks)]);
+		return $hint;
 	}
 
 	/** The stored start language of the app ('', 'user' or a tag), as typed. */
@@ -280,14 +299,45 @@ class CraftApps {
 		return null;
 	}
 
-	/** The stored address, as typed (may be empty or not acceptable). */
+	/** The app's own stored address, as typed (may be empty or not acceptable). */
 	public function storedUrl(string $app): string {
 		return trim($this->appConfig->getValueString(Application::APP_ID, self::key($app), ''));
 	}
 
+	/** The stored address for all apps, as typed (may be empty or not acceptable). */
+	public function storedBaseUrl(): string {
+		return trim($this->appConfig->getValueString(Application::APP_ID, self::BASE_KEY, ''));
+	}
+
+	/** Whether the administrator switched the app off: no entries in Files, whatever its address. */
+	public function isDisabled(string $app): bool {
+		return $this->appConfig->getValueBool(Application::APP_ID, self::disabledKey($app), false);
+	}
+
+	/**
+	 * The address the app is opened at, as stored (may not be acceptable): '' when it is switched
+	 * off or has no address, its own address, else the one for all apps with its id as a folder.
+	 */
+	public function address(string $app): string {
+		if (!isset(self::APPS[$app]) || $this->isDisabled($app)) {
+			return '';
+		}
+		$own = $this->storedUrl($app);
+		if ($own !== '') {
+			return $own;
+		}
+		$base = $this->storedBaseUrl();
+		return $base === '' ? '' : self::underBase($base, $app);
+	}
+
+	/** The address of $app under the address for all apps: https://craft.example.com/ -> https://craft.example.com/<app>/. */
+	public static function underBase(string $base, string $app): string {
+		return rtrim($base, '/') . '/' . $app . '/';
+	}
+
 	/** The configured address of the app, or null if it is missing or not acceptable. */
 	public function url(string $app): ?string {
-		$url = $this->storedUrl($app);
+		$url = $this->address($app);
 		return $url !== '' && $this->problem($url) === null ? $url : null;
 	}
 

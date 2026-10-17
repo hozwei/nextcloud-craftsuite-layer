@@ -8,7 +8,7 @@
 |---|---|
 | Upstream | [github.com/storytold/vectorcraft](https://github.com/storytold/vectorcraft) |
 | Adapter | [`translators/vectorcraft.js`](../../translators/vectorcraft.js) |
-| Tested version | `tested` in [`tests/e2e/craft-versions.json`](../../tests/e2e/craft-versions.json) (0.10.0 when this page was last checked) |
+| Tested version | `tested` in [`apps.json`](../../apps.json) (0.10.0 when this page was last checked) |
 | Tests | [`tests/e2e/specs/vectorcraft.spec.ts`](../../tests/e2e/specs/vectorcraft.spec.ts) (Chromium and WebKit, see [Tests](#tests)) |
 
 This page records what the VectorCraft web build does in the browser, as far as the translator

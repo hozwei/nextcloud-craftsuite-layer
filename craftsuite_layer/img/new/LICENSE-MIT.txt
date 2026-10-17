@@ -13,6 +13,7 @@ deckcraft.png: Copyright (c) 2026 ArtCraft Team and the DeckCraft contributors
 cadcraft.png: Copyright (c) 2026 ArtCraft Team and the CADCraft contributors
 filmcraft.png: Copyright (c) 2026 ArtCraft Team and the FilmCraft contributors
 effectcraft.png: Copyright (c) 2026 ArtCraft Team and the EffectCraft contributors
+soundcraft.png: Copyright (c) 2026 ArtCraft Team and the SoundCraft contributors
 
 MIT License
 

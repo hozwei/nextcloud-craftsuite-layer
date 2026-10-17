@@ -16,10 +16,11 @@
     "l10n:write": "node craftsuite_layer/l10n.mjs write",
     "blanks:check": "node craftsuite_layer/blanks.mjs check",
     "blanks:write": "node craftsuite_layer/blanks.mjs write",
+    "apps:check": "node tests/e2e/tools/check-apps.mjs",
     "craft:fetch": "node tests/e2e/tools/fetch-craft.mjs",
     "craft:fetch-latest": "node tests/e2e/tools/fetch-craft.mjs --latest",
     "test:e2e": "playwright test -c tests/e2e/playwright.config.ts",
-    "test": "npm run lint && npm run typecheck && npm run l10n:check && npm run blanks:check && npm run test:e2e"
+    "test": "npm run lint && npm run typecheck && npm run l10n:check && npm run blanks:check && npm run apps:check && npm run test:e2e"
   },
   "dependencies": {
     "@nextcloud/files": "4.1.0",

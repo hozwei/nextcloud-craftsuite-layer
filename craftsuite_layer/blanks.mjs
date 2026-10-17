@@ -5,11 +5,13 @@
 // SPDX-FileCopyrightText: 2026 ArtCraft Team and the CADCraft contributors
 // SPDX-FileCopyrightText: 2026 ArtCraft Team and the FilmCraft contributors
 // SPDX-FileCopyrightText: 2026 ArtCraft Team and the EffectCraft contributors
+// SPDX-FileCopyrightText: 2026 ArtCraft Team and the SoundCraft contributors
 // SPDX-License-Identifier: AGPL-3.0-or-later AND (MIT OR Apache-2.0)
 //
 // What the apps write for a new document, taken from their own saves, is theirs (MIT OR
 // Apache-2.0): VC_DOCUMENT and DC_DOCUMENT (VectorCraft, DesignCraft), GridCraft's styles part,
-// CADCraft's DXF, FilmCraft's and EffectCraft's new project. The rest is ours (AGPL-3.0-or-later).
+// CADCraft's DXF, FilmCraft's and EffectCraft's new project, SoundCraft's new session. The rest is
+// ours (AGPL-3.0-or-later).
 // assets/LICENSE-MIT.txt carries the MIT notices in the app package.
 //
 // The blank documents of the Craft apps' "+ New" entries in Files (lib/Service/NewFiles.php), in
@@ -477,6 +479,18 @@ function effectcraftBlank() {
 }`, 'utf8');
 }
 
+// --- SoundCraft (.scraftz) -----------------------------------------------------------------------
+// The session SoundCraft 0.6.1 makes for File > New, as its serde writes it compact (with the
+// fields that have defaults: without them the view changes), named 'New session', in the bundle
+// the web build saves and opens: a zip of stored entries (it reads no deflate) with the session as
+// a top-level '<name>.scraft' and no audio. Its name need not match the file's: the app names the
+// session after the file it opened, and the first Save writes the file under that name
+// (docs/apps/soundcraft.md).
+const SC_SESSION = {"format_version":1,"name":"New session","sample_rate":48000,"bit_depth":"Int24","frame_rate":"Fps30","timecode_start":0,"tempo":{"tempos":[{"tick":0,"bpm":120}],"meters":[{"tick":0,"numerator":4,"denominator":4}]},"key_signatures":[],"tracks":[],"sources":[],"videos":[],"busses":[],"outputs":[{"name":"Out 1-2","first_channel":0,"format":"Stereo"}],"markers":[],"groups":[],"edit":{"tool":"Smart","edit_mode":"Slip","selection":{"start":0,"end":0},"selected_tracks":[],"selected_clips":[],"selected_sources":[],"playhead":0,"grid":{"Note":{"value":"Sixteenth","dotted":false,"triplet":false}},"nudge":{"Seconds":1},"grid_lines":true,"main_counter":"MinSecs","sub_counter":"Samples","zoom":{"samples_per_px":1024,"scroll":0,"waveform_zoom":1,"presets":[64,256,1024,4096,16384]},"rulers":["bars_beats","min_secs","tempo","meter","markers"],"link_timeline_edit":true,"link_track_edit":false,"insertion_follows_playback":false,"loop_playback":false,"pre_post_roll":false,"pre_roll":96000,"post_roll":96000,"tab_to_transient":false,"automation_follows_edit":true,"markers_follow_edit":false,"layered_editing":false,"mirrored_midi":false,"click":false,"countoff":false,"countoff_bars":2,"midi_merge":false,"record_mode":"normal","loop_record":false,"quickpunch":false,"scrolling":"page","solo_mode":"sip","pre_fader_metering":false,"delay_compensation":true,"keyboard_focus":"commands","timeline_selection":{"start":0,"end":0},"flags":["view.clip.gain_line","view.clip.name","view.clip.overlap_shadows","view.marker.ruler_lines","waveform.peak"],"values":{}},"next_id":1,"comments":"","midi_originals":{}};
+
+function soundcraftBlank() {
+  return zipStored([['New session.scraft', Buffer.from(JSON.stringify(SC_SESSION), 'utf8')]]);
+}
 
 // FilmCraft keeps the project's name in the file, and Save As and the adapter name a save after it:
 // the server writes the new file's name instead of this one (NewFiles::stamped()).
@@ -496,6 +510,7 @@ blank.xlsx, blank-letter.xlsx: Copyright (c) 2026 ArtCraft Team and the GridCraf
 blank.dxf: Copyright (c) 2026 ArtCraft Team and the CADCraft contributors
 blank.fcproj: Copyright (c) 2026 ArtCraft Team and the FilmCraft contributors
 blank.ecproj: Copyright (c) 2026 ArtCraft Team and the EffectCraft contributors
+blank.scraftz: Copyright (c) 2026 ArtCraft Team and the SoundCraft contributors
 
 ${mit}`, 'utf8');
 }
@@ -517,6 +532,7 @@ export function blanks() {
     'blank.dxf': cadcraftBlank(),
     'blank.fcproj': filmcraftBlank(FILMCRAFT_NAME),
     'blank.ecproj': effectcraftBlank(),
+    'blank.scraftz': soundcraftBlank(),
   };
 }
 

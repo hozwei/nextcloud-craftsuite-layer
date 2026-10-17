@@ -14,6 +14,33 @@ Each GitHub release takes its text from the section whose heading matches the ve
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-10-17
+
+### Added
+
+- SoundCraft (0.6.1 and later): `.scraftz` sessions open in it from the action menu and on a
+  click, with SoundCraft's icon (as `application/x-soundcraft-session`, the type SoundCraft
+  declares for its session file), and "+ New" makes a "New SoundCraft session" from an empty
+  session. It starts in English (it reads no language).
+- An address for all apps (settings page "All apps", key `apps_base_url`): each Craft app without
+  an address of its own is at `<address><app>/`, so that an app a new version of this app brings
+  needs no setting. The line under each app says which address it takes from there.
+- A tick per app switches it off (key `<app>_disabled`): no entries in Files, Nextcloud's icons for
+  its types, and its editor page says it is switched off, whatever its addresses. Untick an app the
+  hosting does not serve, for example a new one until the hosting has it.
+
+### Changed
+
+- The settings page tells an administrator outside the groups the app is enabled for that
+  Nextcloud does not let them save it, and the status line shows Nextcloud's own message when it
+  refuses a save (HTTP 412, "App is not enabled").
+
+### Upgrading
+
+- With the address for all apps set, SoundCraft gets its entries as soon as Nextcloud runs 0.5.0:
+  switch it off until the hosting serves it. Without that address nothing changes: SoundCraft has
+  no address, so no entries.
+
 ## [0.4.2] - 2026-10-16
 
 ### Changed

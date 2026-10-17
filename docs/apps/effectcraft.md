@@ -8,7 +8,7 @@
 |---|---|
 | Upstream | [github.com/storytold/effectcraft](https://github.com/storytold/effectcraft) |
 | Adapter | [`translators/effectcraft.js`](../../translators/effectcraft.js) |
-| Tested version | `tested` in [`tests/e2e/craft-versions.json`](../../tests/e2e/craft-versions.json) (0.8.0 when this page was written, checked again with 0.9.2) |
+| Tested version | `tested` in [`apps.json`](../../apps.json) (0.8.0 when this page was written, checked again with 0.9.2) |
 | Tests | [`tests/e2e/specs/effectcraft.spec.ts`](../../tests/e2e/specs/effectcraft.spec.ts) (Chromium and WebKit, see [Tests](#tests)) |
 
 This page records what the EffectCraft web build does in the browser, as far as the translator

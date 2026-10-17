@@ -7,8 +7,9 @@
 #   craftsuite_layer-<version>.tar.gz          the Nextcloud app, as built for the App Store
 #                                              (unpack into the server's custom_apps/)
 #   craftsuite-layer-hosting-<version>.tar.gz  hosting/inject-translator.sh with the translators
-#                                              it injects, the nginx template and the Compose
-#                                              example, for a release updater
+#                                              it injects, apps.json (the supported apps), the
+#                                              nginx template and the Compose example, for a
+#                                              release updater
 #   SHA256SUMS                                 checksums of both
 #
 # A release updater takes a pinned version from
@@ -95,7 +96,7 @@ jobs:
           cp hosting/inject-translator.sh hosting/README.md hosting/compose.example.yaml "$stage/hosting/"
           cp hosting/nginx/craft-apps.conf.template "$stage/hosting/nginx/"
           cp translators/*.js translators/README.md "$stage/translators/"
-          cp LICENSE "$stage/"
+          cp apps.json LICENSE "$stage/"
           tar -C "$RUNNER_TEMP/stage" --format=gnu --sort=name --owner=0 --group=0 --numeric-owner \
             --mode=u+rwX,go+rX,go-w -cf - "$bundle" | gzip -9n > "$out/$bundle.tar.gz"
 
@@ -117,7 +118,7 @@ jobs:
             echo '### Assets'
             echo
             echo "- \`craftsuite_layer-$VERSION.tar.gz\`: the Nextcloud app. Unpack it into the server's \`custom_apps/\` and run \`occ app:enable craftsuite_layer\` ([docs/nextcloud-app.md]($base/docs/nextcloud-app.md#installing))."
-            echo "- \`craftsuite-layer-hosting-$VERSION.tar.gz\`: \`hosting/inject-translator.sh\` with the translators it injects, the nginx template and the Compose example, for the web server of the Craft apps ([docs/hosting.md]($base/docs/hosting.md))."
+            echo "- \`craftsuite-layer-hosting-$VERSION.tar.gz\`: \`hosting/inject-translator.sh\` with the translators it injects, \`apps.json\` with the supported apps, the nginx template and the Compose example, for the web server of the Craft apps ([docs/hosting.md]($base/docs/hosting.md))."
             echo "- \`SHA256SUMS\`: check both with \`sha256sum -c SHA256SUMS\`."
             echo
             echo "The full list of changes to the repository is in [CHANGELOG.md]($base/CHANGELOG.md)."

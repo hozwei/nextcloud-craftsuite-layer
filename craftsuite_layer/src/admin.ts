@@ -3,7 +3,9 @@
 //
 // Admin settings: sends the form (templates/admin.php) to SettingsController and shows the result.
 // The server checks every address, language and default app and saves nothing if one is not
-// acceptable; after a save it says per app what a click in Files opens now. It requires a recent
+// acceptable; after a save it says per app what a click in Files opens now and where the app is,
+// when it takes its address from the address for all apps. A changed address for all apps shows at
+// once as the placeholder of the apps without an address of their own. It requires a recent
 // password confirmation; Nextcloud's own dialog asks for it when needed. The languages an app can
 // start in come as tags ('pt-BR'); each is shown by its own name.
 
@@ -16,6 +18,15 @@ interface PasswordConfirmation {
 
 const form = document.querySelector<HTMLFormElement>('#craftsuite-layer-admin form');
 const status = form?.querySelector<HTMLElement>('.craftsuite-admin__status');
+const base = form?.querySelector<HTMLInputElement>('input[data-base]');
+
+// The address of an app under the address for all apps (CraftApps::underBase()).
+const underBase = (address: string, app: string) => `${address.replace(/\/+$/, '')}/${app}/`;
+base?.addEventListener('input', () => {
+  for (const input of form?.querySelectorAll<HTMLInputElement>('input[name]') ?? []) {
+    input.placeholder = underBase(base.value.trim() || 'https://craft.example.com/', input.name);
+  }
+});
 
 // 'pt-BR' -> 'português (Brasil)': each language in its own words, as language menus do.
 for (const option of form?.querySelectorAll<HTMLOptionElement>('select[data-app] option[lang]') ?? []) {
@@ -39,8 +50,9 @@ interface Problems {
   defaultAppError: string | null;
 }
 
-// The hint under an app's row shows the problem with its address, else the one with its language
-// or its default app setting, else what the app opens (and a click opens in it).
+// The hint under an app's row shows the problem with its address (its own or the one it takes from
+// the address for all apps), else the one with its language or its default app setting, else what
+// the app opens (and a click opens in it).
 function showHint(input: HTMLInputElement, { error, languageError, defaultAppError }: Problems, text?: string): void {
   const hint = document.getElementById(`${input.id}-hint`);
   if (!hint) return;
@@ -63,6 +75,7 @@ async function save(event: SubmitEvent): Promise<void> {
   const inputs = [...form.querySelectorAll<HTMLInputElement>('input[name]')];
   const selects = [...form.querySelectorAll<HTMLSelectElement>('select[data-app]')];
   const checks = [...form.querySelectorAll<HTMLInputElement>('input[type=checkbox][data-app]')];
+  const uses = [...form.querySelectorAll<HTMLInputElement>('input[type=checkbox][data-use]')];
   const button = form.querySelector<HTMLButtonElement>('button[type=submit]');
   if (button) button.disabled = true;
   status.textContent = t('craftsuite_layer', 'Saving …');
@@ -73,18 +86,32 @@ async function save(event: SubmitEvent): Promise<void> {
       credentials: 'same-origin',
       headers: { 'Content-Type': 'application/json', requesttoken: document.head.dataset.requesttoken ?? '' },
       body: JSON.stringify({
+        ...(base ? { baseUrl: base.value.trim() } : {}),
         urls: Object.fromEntries(inputs.map((input) => [input.name, input.value.trim()])),
+        disabled: Object.fromEntries(uses.map((use) => [use.dataset.use ?? '', !use.checked])),
         languages: Object.fromEntries(selects.map((select) => [select.dataset.app ?? '', select.value])),
         defaultApps: Object.fromEntries(checks.map((check) => [check.dataset.app ?? '', check.checked])),
       }),
     });
     const body = (await res.json().catch(() => ({}))) as {
+      baseError?: string | null; disabledErrors?: Record<string, string>;
       errors?: Record<string, string>; languageErrors?: Record<string, string>; defaultAppErrors?: Record<string, string>;
-      hints?: Record<string, string>; message?: string;
+      hints?: Record<string, string>; problems?: Record<string, string | null>; message?: string;
     };
+    if (base) {
+      const hint = document.getElementById('craftsuite-layer-base-hint');
+      const error = body.baseError ?? null;
+      if (hint) {
+        hint.textContent = error ?? hint.dataset.hint ?? '';
+        hint.classList.toggle('craftsuite-admin__hint--error', error !== null);
+      }
+      if (error !== null) base.setAttribute('aria-invalid', 'true');
+      else base.removeAttribute('aria-invalid');
+    }
     for (const input of inputs) {
       showHint(input, {
-        error: body.errors?.[input.name] ?? null,
+        // After a save, also the problem of the address the app takes from the one for all apps.
+        error: body.errors?.[input.name] ?? body.disabledErrors?.[input.name] ?? body.problems?.[input.name] ?? null,
         languageError: body.languageErrors?.[input.name] ?? null,
         defaultAppError: body.defaultAppErrors?.[input.name] ?? null,
       }, body.hints?.[input.name]);
@@ -92,7 +119,10 @@ async function save(event: SubmitEvent): Promise<void> {
     status.textContent = res.ok ? t('craftsuite_layer', 'Saved')
       : body.errors ? t('craftsuite_layer', 'Nothing was saved. Correct the marked fields.')
         : res.status === 403 ? t('craftsuite_layer', 'Nothing was saved: confirm your password and try again.')
-          : t('craftsuite_layer', 'Nothing was saved: the server answered HTTP {status}.', { status: res.status });
+          // Nextcloud's own refusals carry a message, such as 'App is not enabled' (HTTP 412) for an
+          // administrator outside the groups the app is enabled for.
+          : body.message ? t('craftsuite_layer', 'Nothing was saved: the server answered HTTP {status} ({message}).', { status: res.status, message: body.message })
+            : t('craftsuite_layer', 'Nothing was saved: the server answered HTTP {status}.', { status: res.status });
   } catch (err) {
     status.textContent = err instanceof Error && err.message === 'cancelled'
       ? t('craftsuite_layer', 'Nothing was saved: the password was not confirmed.')

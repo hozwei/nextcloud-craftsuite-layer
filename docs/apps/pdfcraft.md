@@ -8,7 +8,7 @@
 |---|---|
 | Upstream | [github.com/storytold/pdfcraft](https://github.com/storytold/pdfcraft) |
 | Adapter | [`translators/pdfcraft.js`](../../translators/pdfcraft.js) |
-| Tested version | `tested` in [`tests/e2e/craft-versions.json`](../../tests/e2e/craft-versions.json) (0.5.0 when this page was written, checked again with 0.6.0 and 0.7.1) |
+| Tested version | `tested` in [`apps.json`](../../apps.json) (0.5.0 when this page was written, checked again with 0.6.0 and 0.7.1) |
 | Tests | [`tests/e2e/specs/pdfcraft.spec.ts`](../../tests/e2e/specs/pdfcraft.spec.ts) (Chromium and WebKit, see [Tests](#tests)), plus [`tests/e2e/specs/translator.spec.ts`](../../tests/e2e/specs/translator.spec.ts) against a stub app that imitates PdfCraft: every scenario in Chromium, those that depend on the browser also in Firefox and WebKit |
 
 This page records what the PdfCraft web build does in the browser, as far as the translator

@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 #
 # Checks every change: the translators and their end-to-end tests against the tested Craft
-# releases (tests/e2e/craft-versions.json), and the Nextcloud app in craftsuite_layer/.
+# releases (`tested` in apps.json), and the Nextcloud app in craftsuite_layer/.
 # The newest Craft releases are tested by canary.yml.
 #
 # Actions are pinned to full commit SHAs (version in the trailing comment) so a moved tag cannot
@@ -67,7 +67,7 @@ jobs:
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: .craft-builds
-          key: craft-builds-${{ hashFiles('tests/e2e/craft-versions.json', 'tests/e2e/tools/fetch-craft.mjs') }}
+          key: craft-builds-${{ hashFiles('apps.json', 'tests/e2e/tools/fetch-craft.mjs') }}
 
       - name: Fetch Craft builds
         id: fetch
@@ -96,7 +96,7 @@ jobs:
       - name: Select test projects
         id: projects
         env:
-          NON_BLOCKING: pdfcraft-webkit photocraft-webkit vectorcraft-webkit designcraft-webkit wordcraft-webkit gridcraft-webkit deckcraft-webkit cadcraft-webkit lightcraft-webkit filmcraft-webkit effectcraft-webkit
+          NON_BLOCKING: pdfcraft-webkit photocraft-webkit vectorcraft-webkit designcraft-webkit wordcraft-webkit gridcraft-webkit deckcraft-webkit cadcraft-webkit lightcraft-webkit filmcraft-webkit effectcraft-webkit soundcraft-webkit
         run: |
           npx playwright test -c tests/e2e/playwright.config.ts --list --reporter=json > "$RUNNER_TEMP/projects.json"
           node - "$RUNNER_TEMP/projects.json" <<'JS'
@@ -253,6 +253,12 @@ jobs:
         if: matrix.package
         run: npm run blanks:check
 
+      # apps.json, the one list of the Craft apps, against CraftApps::APPS and the other places
+      # that name the apps (adapters, specs, pages, NON_BLOCKING), with this job's PHP.
+      - name: Check the app list
+        if: matrix.package
+        run: npm run apps:check
+
       - name: Build the App Store package
         id: package
         if: matrix.package
@@ -362,7 +368,7 @@ jobs:
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: .craft-builds
-          key: craft-builds-${{ hashFiles('tests/e2e/craft-versions.json', 'tests/e2e/tools/fetch-craft.mjs') }}
+          key: craft-builds-${{ hashFiles('apps.json', 'tests/e2e/tools/fetch-craft.mjs') }}
 
       - name: Fetch Craft builds
         run: npm run craft:fetch
@@ -377,7 +383,7 @@ jobs:
           occ app:enable craftsuite_layer
           occ app:disable firstrunwizard || true
           docker exec -e OC_PASS="$NEXTCLOUD_PASSWORD2" -u www-data nextcloud php occ user:add --password-from-env "$NEXTCLOUD_USER2"
-          for app in $(node -p "Object.keys(require('./tests/e2e/craft-versions.json').apps).join(' ')"); do
+          for app in $(node -p "Object.keys(require('./apps.json').apps).join(' ')"); do
             occ config:app:set craftsuite_layer "${app}_url" --value="http://127.0.0.2:$((CRAFTSUITE_PORT_BASE + 1))/$app/"
           done
 

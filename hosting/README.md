@@ -62,7 +62,7 @@ What it does with the folder (the one that holds the app's `index.html`):
 | Option | Meaning |
 |---|---|
 | `-o`, `--allowed-origins` | The Nextcloud origins allowed to frame the app, separated by spaces. Default: `$CRAFTSUITE_ALLOWED_ORIGINS`. |
-| `-a`, `--app` | The app id, such as `pdfcraft`: its adapter is `translators/<app>.js`. The layer has adapters for `pdfcraft`, `photocraft`, `vectorcraft`, `designcraft`, `wordcraft`, `gridcraft`, `deckcraft`, `cadcraft`, `lightcraft`, `filmcraft` and `effectcraft`. Default: from a folder named `<app>-web-<version>`, as in the upstream archives. |
+| `-a`, `--app` | The app id, such as `pdfcraft`: its adapter is `translators/<app>.js`. The apps the layer has adapters for are in `apps.json` ([docs/hosting.md](../docs/hosting.md#the-app-list)). Default: from a folder named `<app>-web-<version>`, as in the upstream archives. |
 | `-V`, `--app-version` | The version served, reported to Nextcloud in `ready`. Default: from the folder name. |
 | `--startup-timeout` | Milliseconds (1 to 2147483647) after the page's `load` event for the app to start, written as `data-startup-timeout`; without it the translator's default of 60000 applies. 180000 for LightCraft and EffectCraft, see below. |
 | `-t`, `--translators` | Folder with `core.js` and the adapters. Default: `$CRAFTSUITE_TRANSLATORS`, else `../translators` next to the script. |
@@ -121,8 +121,8 @@ The script needs only POSIX `sh` and `awk` and a few standard tools: `cat`, `chm
 `mkdir`, `mv`, `rm`, `tail`, `tr`, `wc`, one of `cksum`, `sha256sum` and `md5sum`, and `gzip` for
 precompressed files. CI runs ShellCheck on it and its tests under dash, `bash --posix` and
 BusyBox sh with BusyBox's tools (`--busybox`), on made-up pages and on the web builds of all
-eleven apps that `npm run craft:fetch` fetched, in the versions listed in
-`tests/e2e/craft-versions.json` (EffectCraft's with its service worker).
+apps that `npm run craft:fetch` fetched, in the versions `tested` in `apps.json` (EffectCraft's
+with its service worker).
 
 ### In a release updater
 
@@ -133,8 +133,9 @@ GitHub API:
 
 ```sh
 # Once per layer version: the bundle unpacks to craftsuite-layer-hosting-<version>/, with
-# hosting/ and translators/ side by side, so the script finds the translators by itself.
-layer_version=0.4.2
+# hosting/ and translators/ side by side, so the script finds the translators by itself, and
+# apps.json, the apps this release supports (docs/hosting.md#the-app-list).
+layer_version=0.5.0
 base=https://github.com/hozwei/nextcloud-craftsuite-layer/releases/download/v$layer_version
 cd /opt
 curl -fL --remote-name-all "$base/craftsuite-layer-hosting-$layer_version.tar.gz" "$base/SHA256SUMS"
@@ -157,7 +158,7 @@ if [ "$app" = lightcraft ]; then
     "$dir/.cargo-lock" "$dir/.cargo-artifact-lock" "$dir/.cargo-build-lock"
 fi
 # The startup timeout of each app, from the updater's configuration; the same on every run
-# (docs/hosting.md#startup-timeout).
+# (docs/hosting.md#startup-timeout). "$layer/apps.json" recommends one per app (startupTimeout).
 case $app in
   lightcraft | effectcraft) startup=180000 ;;
   *) startup= ;;
@@ -217,7 +218,7 @@ template serves every file in an app's folder: remove LightCraft's Cargo leftove
 with `pdfcraft-web-0.6.0/` injected next to the bundle as in the repository's README:
 
 ```sh
-cd craftsuite-layer-hosting-0.4.2/hosting
+cd craftsuite-layer-hosting-0.5.0/hosting
 cp compose.example.yaml compose.yaml
 mkdir -p www/releases
 mv ../../pdfcraft-web-0.6.0 www/releases/

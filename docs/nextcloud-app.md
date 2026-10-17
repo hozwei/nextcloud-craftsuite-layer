@@ -26,13 +26,13 @@ The app is not in the Nextcloud App Store. Each
 `craftsuite_layer-<version>.tar.gz`, with the checksums in `SHA256SUMS`. Both are plain
 downloads from
 `https://github.com/hozwei/nextcloud-craftsuite-layer/releases/download/v<version>/<asset>`.
-For version 0.4.2:
+For version 0.5.0:
 
 ```sh
-v=0.4.2
+v=0.5.0
 base=https://github.com/hozwei/nextcloud-craftsuite-layer/releases/download/v$v
 curl -fL --remote-name-all "$base/craftsuite_layer-$v.tar.gz" "$base/SHA256SUMS"
-sha256sum -c --ignore-missing SHA256SUMS      # craftsuite_layer-0.4.2.tar.gz: OK
+sha256sum -c --ignore-missing SHA256SUMS      # craftsuite_layer-0.5.0.tar.gz: OK
 ```
 
 `--ignore-missing` skips the line of the hosting bundle, which `SHA256SUMS` lists too. The
@@ -59,40 +59,56 @@ make -C craftsuite_layer appstore     # craftsuite_layer/build/artifacts/craftsu
 
 ## Configuring
 
-Each Craft app needs the address it is hosted at. An app without an address has no entry in
-Files. Only administrators set the addresses, on the settings page or with `occ`. They can also
-set the language each Craft app starts in, and make a Craft app the default app for all its file
-types.
+Each Craft app needs the address it is hosted at: one of its own, or the address for all apps,
+under which each app is in a folder named after it. An app without an address, or switched off,
+has no entry in Files. Only administrators set the addresses, on the settings page or with `occ`.
+They can also set the language each Craft app starts in, and make a Craft app the default app for
+all its file types.
 
-**Settings page.** Administration settings > Craft apps has one field per Craft app, and next to
-it the language the app starts in and whether it is the default app ("On a click"). The line
-under each says which file types the app opens and which of them a click in Files opens in it.
-Saving checks every field and saves nothing if one cannot be used; an empty address removes it.
-Saving needs a recent password confirmation. A stored address or language that can no longer be
-used (for example after Nextcloud got a new trusted domain) is shown with the reason.
+**Settings page.** Administration settings > Craft apps has a field for the address for all apps
+("All apps"), then one row per Craft app: a tick that switches the app on or off, its own address,
+the language the app starts in and whether it is the default app ("On a click"). The line under
+each app says where it is when it takes its address from the one for all apps, which file types it
+opens and which of them a click in Files opens in it. Saving checks every field and saves nothing
+if one cannot be used; an empty address removes it. Saving needs a recent password confirmation.
+A stored address or language that can no longer be used (for example after Nextcloud got a new
+trusted domain) is shown with the reason.
+
+**The address for all apps.** With every Craft app at `<address><app>/` on one host, as
+[hosting.md](hosting.md#layout) lays it out, one address is enough: `https://craft.example.com/`
+gives PdfCraft `https://craft.example.com/pdfcraft/`, SoundCraft
+`https://craft.example.com/soundcraft/`, and so on. An app's own address takes precedence. An app
+that a new version of this app brings then has its entries at once, without a setting: switch it
+off (untick it) while the hosting does not serve it yet, or for good if it never will. A switched
+off app has no entries in Files, its types keep Nextcloud's icons, and its editor page says it is
+switched off, whatever its addresses.
 
 **Only for some groups.** To offer the Craft apps to some users only (for example those the Craft
 hosting lets sign in), enable the app for their groups: `occ app:enable -g <group> [-g <group>]
 craftsuite_layer`, or the group setting of the app in Nextcloud's app management. Users outside
 these groups get no entries in Files (from 0.3.0 on; Nextcloud runs the app's code for every user
-and the app checks the group itself) and no editor page.
+and the app checks the group itself) and no editor page. An administrator outside these groups
+sees the settings page but cannot save it: Nextcloud refuses the app's routes to users it is not
+enabled for (HTTP 412, "App is not enabled"; HTTP 404 on a server without `memcache.local`), and
+the page says so (from 0.5.0 on). Add the administrator to one of the groups, or use `occ`.
 
-**occ.** The keys are `<app>_url`:
+**occ.** The key of the address for all apps is `apps_base_url`, those of the apps' own
+addresses are `<app>_url`, and `<app>_disabled` switches an app off:
 
 ```sh
-occ config:app:set craftsuite_layer pdfcraft_url --value=https://craft.example.com/pdfcraft/
-occ config:app:set craftsuite_layer photocraft_url --value=https://craft.example.com/photocraft/
-occ config:app:set craftsuite_layer vectorcraft_url --value=https://craft.example.com/vectorcraft/
-occ config:app:set craftsuite_layer designcraft_url --value=https://craft.example.com/designcraft/
-occ config:app:delete craftsuite_layer designcraft_url      # no DesignCraft entries again
+occ config:app:set craftsuite_layer apps_base_url --value=https://craft.example.com/
+occ config:app:set craftsuite_layer pdfcraft_url --value=https://pdf.example.com/   # its own
+occ config:app:set craftsuite_layer soundcraft_disabled --value=true --type=boolean  # no SoundCraft entries
+occ config:app:delete craftsuite_layer soundcraft_disabled                          # on again
+occ config:app:delete craftsuite_layer pdfcraft_url         # PdfCraft under apps_base_url again
 ```
 
 `occ` does not check the address. An address that cannot be used leaves its app without an entry
 in Files, and the editor page says why. The app declares its keys in Nextcloud's config lexicon:
-`<app>_url` for every app, `<app>_language` and `<app>_default_app` for the apps that have these
-settings (see below), and `file_types`, where the app notes the file types it added
-([File type icons](#file-type-icons)). A key it does not know, such as a typo, is not stored, and
-Nextcloud logs a warning.
+`apps_base_url`, `<app>_url` and `<app>_disabled` for every app, `<app>_language` and
+`<app>_default_app` for the apps that have these settings (see below), and `file_types`, where
+the app notes the file types it added ([File type icons](#file-type-icons)). A key it does not
+know, such as a typo, is not stored, and Nextcloud logs a warning.
 
 **The language an app starts in.** The keys are `<app>_language`, for the apps that can be
 started in a chosen language. The value is empty (the default: the app decides, as it does
@@ -116,8 +132,8 @@ occ config:app:set craftsuite_layer photocraft_language --value=de
 occ config:app:delete craftsuite_layer photocraft_language   # PhotoCraft decides again
 ```
 
-DesignCraft, WordCraft and DeckCraft have no such key: their tested versions read no language when
-they start and always start in English. With `user`, an app that does not have the user's
+DesignCraft, WordCraft, DeckCraft and SoundCraft have no such key: their tested versions read no
+language when they start and always start in English. With `user`, an app that does not have the user's
 language, or anything close (`de-AT` finds `de`, `pt-PT` finds `pt-BR`), starts as it would
 without the setting. Several apps translate only part of their interface into some of these
 languages, and where an app keeps a language the user picked in it (PdfCraft, PhotoCraft,
@@ -223,8 +239,9 @@ on the file does; as the default app (see [Configuring](#configuring)), for all 
 | LightCraft | `dng`, `cr2`, `cr3`, `nef`, `nrw`, `arw`, `raf`, `orf`, `rw2`, `rwl`, `pef`, `srw`, `jpg`, `jpeg`, `png`, `tif`, `tiff`, `webp` | `dng`, `cr2`, `cr3`, `nef`, `nrw`, `arw`, `raf`, `orf`, `rw2`, `rwl`, `pef`, `srw` |
 | FilmCraft | `fcproj` | `fcproj` |
 | EffectCraft | `ecproj` | `ecproj` |
+| SoundCraft | `scraftz` | `scraftz` |
 
-SoundCraft has no entry: its web build can neither open nor save files.
+FigCraft has no entry yet: its web build can neither open nor save a file.
 
 - **By extension, in any letter case.** Nextcloud stores `application/octet-stream` for
   extensions it does not know, such as `.designcraft`, `.vectorcraft` and `.idml`. The app adds
@@ -247,7 +264,8 @@ SoundCraft has no entry: its web build can neither open nor save files.
   [VectorCraft](apps/vectorcraft.md#file-types), [DesignCraft](apps/designcraft.md#file-types),
   [WordCraft](apps/wordcraft.md), [GridCraft](apps/gridcraft.md), [DeckCraft](apps/deckcraft.md),
   [CADCraft](apps/cadcraft.md), [LightCraft](apps/lightcraft.md), [FilmCraft](apps/filmcraft.md),
-  [EffectCraft](apps/effectcraft.md). The lists live in `lib/Service/CraftApps.php`.
+  [EffectCraft](apps/effectcraft.md), [SoundCraft](apps/soundcraft.md#file-types). The lists live
+  in `lib/Service/CraftApps.php`.
 - **Not offered** for several selected files, for folders, in the trash (a deleted file has no
   folder to save to), and for files shared without permission to download or with downloads
   hidden: handing a file to a Craft app, which can save and export it, is a download. Public
@@ -278,6 +296,7 @@ belongs to:
 | LightCraft | the camera raws (`dng`, `cr2`, `cr3`, `nef`, `nrw`, `arw`, `raf`, `orf`, `rw2`, `rwl`, `pef`, `srw`) |
 | FilmCraft | `fcproj` |
 | EffectCraft | `ecproj` |
+| SoundCraft | `scraftz` |
 
 Office files, PDFs and common images keep Nextcloud's icons, and a file with a preview (a photo,
 or a PSD where the administrator enabled Nextcloud's Photoshop previews) shows the preview.
@@ -361,6 +380,7 @@ format. The entry's name is also the name Files proposes for the file:
 | New CADCraft drawing | `.dxf` | an empty drawing in inches, as CADCraft's File > New Drawing (Ctrl+N) writes it |
 | New FilmCraft project | `.fcproj` | an empty project, without media or sequence, named like the file |
 | New EffectCraft project | `.ecproj` | an empty project (8 bpc, timecode, 48 kHz): EffectCraft's New Project |
+| New SoundCraft session | `.scraftz` | an empty session without audio (48 kHz, 24 bit, 120 bpm, 4/4): SoundCraft's new session |
 | New WordCraft document | `.docx`, only as the default app | one empty page with 1" margins |
 | New GridCraft spreadsheet | `.xlsx`, only as the default app | one empty sheet, `Sheet1` |
 | New PdfCraft document | `.pdf`, only as the default app | one empty page |

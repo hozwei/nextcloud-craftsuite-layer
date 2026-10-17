@@ -8,6 +8,7 @@ blank.xlsx, blank-letter.xlsx: Copyright (c) 2026 ArtCraft Team and the GridCraf
 blank.dxf: Copyright (c) 2026 ArtCraft Team and the CADCraft contributors
 blank.fcproj: Copyright (c) 2026 ArtCraft Team and the FilmCraft contributors
 blank.ecproj: Copyright (c) 2026 ArtCraft Team and the EffectCraft contributors
+blank.scraftz: Copyright (c) 2026 ArtCraft Team and the SoundCraft contributors
 
 MIT License
 

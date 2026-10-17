@@ -4,7 +4,7 @@
 // Downloads the Craft web builds the tests run against, verifies them and unpacks them to
 // <out>/<app>/<version>/<app>-web-<version>/. Records the versions in <out>/selected.json.
 //
-//   node tests/e2e/tools/fetch-craft.mjs                     tested versions (craft-versions.json)
+//   node tests/e2e/tools/fetch-craft.mjs                     tested versions (apps.json)
 //   node tests/e2e/tools/fetch-craft.mjs --latest            newest release of each app
 //   node tests/e2e/tools/fetch-craft.mjs --app pdfcraft --version 0.5.0
 //                                                            one app; the others keep their entry
@@ -21,7 +21,7 @@ import { unzipSync } from 'fflate';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const repo = path.resolve(here, '../../..');
-const manifest = JSON.parse(readFileSync(path.join(here, '..', 'craft-versions.json'), 'utf8'));
+const manifest = JSON.parse(readFileSync(path.join(repo, 'apps.json'), 'utf8'));
 
 const args = process.argv.slice(2);
 const opt = (name) => { const i = args.indexOf(name); return i >= 0 ? args[i + 1] : undefined; };
@@ -89,7 +89,7 @@ async function fetchBuild(app, repoName, version) {
 }
 
 if (onlyApp && !Object.hasOwn(manifest.apps, onlyApp)) {
-  throw new Error(`--app ${onlyApp}: not in craft-versions.json (${Object.keys(manifest.apps).join(', ')})`);
+  throw new Error(`--app ${onlyApp}: not in apps.json (${Object.keys(manifest.apps).join(', ')})`);
 }
 // With --app, the other apps keep their entries: the test server serves what this file lists.
 const selectedFile = path.join(out, 'selected.json');

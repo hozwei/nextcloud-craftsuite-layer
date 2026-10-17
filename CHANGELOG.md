@@ -13,6 +13,62 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-10-17
+
+New Craft apps become routine: one list of the supported apps that hostings and Nextcloud can
+follow without a change of their own, and SoundCraft as the first app added that way. VectorCraft
+0.12.0 is the tested version (the canary passed it on 2026-10-17).
+
+### Added
+
+- SoundCraft (`translators/soundcraft.js`, SoundCraft 0.6.1 and later, tested with 0.7.0) for its
+  `.scraftz` sessions, the bundle of a session with its audio that its web build saves and opens:
+  Save replaces the opened session. A save that may be File > Export > Selected Tracks as New
+  Session under the opened name (the export keeps only the selected tracks) becomes a new file,
+  unless it came right after the Save shortcut, as do sessions named `Untitled` and every save
+  after the user opened another session file in the frame. The adapter sets SoundCraft's `empty`,
+  so a file it cannot open leaves an empty session, not the demo. Known gaps are in
+  docs/apps/soundcraft.md: File > Save Session with the pointer while every track is selected
+  makes a new file (Ctrl+S does not), and each save uploads the whole session with its audio as
+  32-bit float WAV.
+- `apps.json`, the one list of the supported Craft apps, in the order the Nextcloud app gives them
+  a click: name, upstream repository, a short description in English and German, brand colour,
+  recommended startup timeout, the oldest release the adapter handles (`minVersion`) and the
+  tested one. It replaces `tests/e2e/craft-versions.json`, and the hosting bundle carries it, so
+  that an updater can take the apps (and those a new release adds) and their values from there
+  (docs/hosting.md, The app list). `npm run apps:check`, run in CI, compares it with the Nextcloud
+  app, the adapters, specs and pages, the lists of apps in the documentation and `NON_BLOCKING` in
+  both workflows. The Playwright projects, the hosting tests and the Nextcloud specs take their
+  apps from it.
+- Nextcloud app 0.5.0: an address for all apps, under which each app without one of its own is
+  in a folder named after it, and a tick per app that switches it off; see
+  `craftsuite_layer/CHANGELOG.md`.
+- Canary: the issue labelled `canary` gets a label `canary:<app>` for each app whose own tests
+  failed in the latest failing run (all apps when the failure is not one of single apps: a failed
+  fetch, the translator's own tests, a run that broke before its summary), and every report ends
+  with a line `` `canary-result {...}` `` (JSON: the run, the commit and layer version tested, the
+  apps to hold back, the app versions tested), so that an updater can hold back only those apps.
+- Tests: every app's projects also run `tests/e2e/specs/service-workers.spec.ts`, which visits the
+  app directly and fails when it registers a service worker other than `sw.js` at the build's root,
+  the only one `inject-translator.sh` replaces. The canary thus holds back a release that brings a
+  worker under another name.
+
+### Changed
+
+- Canary: the look at the next Nextcloud release (job `nextcloud-next`) no longer fails the run.
+  Its finding still opens the issue labelled `canary-nextcloud`; a failed download only warns. A
+  failed run now always means that the tests of the Craft releases (or the report) failed.
+- docs/hosting.md, Updates: the first canary run created after a release counts (its
+  `created_at`, since GitHub resets `run_started_at` on a re-run), a later green run does not make
+  up for a failed one, and the issues as they are at the run's end are its result; holding back
+  single apps; releases below `minVersion` are skipped, and the app list recommends the startup
+  timeouts.
+- docs: FigCraft is not supported yet, since its web build can neither open nor save a file
+  (0.6.0); docs/development.md, Adding a Craft app, says how to watch for new apps and to start an
+  app's file types from its own packaging; the state of the upstream requests for an embedding API
+  (2026-10-17); the WebKit projects are still `NON_BLOCKING`, so the canary decides with Chromium
+  only.
+
 ## [0.4.2] - 2026-10-16
 
 Translators for the Craft releases of 2026-10-14 (canary issue #3): PdfCraft 0.8.0, PhotoCraft
@@ -317,7 +373,8 @@ DeckCraft 0.6.1, FilmCraft 0.7.2, LightCraft 0.7.1 and EffectCraft 0.9.2 are the
 - Documentation: an index (`docs/README.md`), architecture, protocol, security, hosting,
   development, the Nextcloud app, and one page per Craft app.
 
-[Unreleased]: https://github.com/hozwei/nextcloud-craftsuite-layer/compare/v0.4.2...main
+[Unreleased]: https://github.com/hozwei/nextcloud-craftsuite-layer/compare/v0.5.0...main
+[0.5.0]: https://github.com/hozwei/nextcloud-craftsuite-layer/compare/v0.4.2...v0.5.0
 [0.4.2]: https://github.com/hozwei/nextcloud-craftsuite-layer/compare/v0.4.1...v0.4.2
 [0.4.1]: https://github.com/hozwei/nextcloud-craftsuite-layer/compare/v0.4.0...v0.4.1
 [0.4.0]: https://github.com/hozwei/nextcloud-craftsuite-layer/compare/v0.3.0...v0.4.0

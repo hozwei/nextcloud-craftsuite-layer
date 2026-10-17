@@ -27,15 +27,32 @@ class ConfigLexicon implements ILexicon {
 
 	public function getAppConfigs(): array {
 		$entries = [];
+		$entries[] = new Entry(
+			key: CraftApps::BASE_KEY,
+			type: ValueType::STRING,
+			defaultRaw: '',
+			definition: 'Address for all Craft apps (https, on another host name than Nextcloud), e.g. https://craft.example.com/: each app without an address of its own (<app>_url) is at <address><app>/',
+			// Needed on every Files page, like the addresses of the apps.
+			lazy: false,
+			note: 'occ does not check the address; an unusable one leaves the apps without an entry in Files, and their editor pages say why. The admin settings page checks it.',
+		);
 		foreach (CraftApps::APPS as $app => $info) {
 			$entries[] = new Entry(
 				key: CraftApps::key($app),
 				type: ValueType::STRING,
 				defaultRaw: '',
-				definition: 'Address of ' . $info['name'] . ' (https, on another host name than Nextcloud), e.g. https://craft.example.com/' . $app . '/',
+				definition: 'Address of ' . $info['name'] . ' (https, on another host name than Nextcloud), e.g. https://craft.example.com/' . $app . '/; empty: the address for all apps with ' . $app . '/ added',
 				// Needed on every Files page (which entries to show), so not lazy.
 				lazy: false,
 				note: 'occ does not check the address; an unusable one leaves ' . $info['name'] . ' without an entry in Files, and its editor page says why. The admin settings page checks it.',
+			);
+			$entries[] = new Entry(
+				key: CraftApps::disabledKey($app),
+				type: ValueType::BOOL,
+				defaultRaw: false,
+				definition: 'Whether ' . $info['name'] . ' is switched off: no entries in Files, whatever its address or the address for all apps',
+				// Needed on every Files page, like the address.
+				lazy: false,
 			);
 			// Only for apps the layer can start in a chosen language.
 			if ($info['languages'] !== []) {

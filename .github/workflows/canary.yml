@@ -8,7 +8,11 @@
 # The tests run in two parts (see the header of tests/e2e/specs/pdfcraft.spec.ts):
 #  - Contract tests check what the host and the browser see. They decide the run: a failure
 #    advises holding the release back and opens one issue labelled 'canary' (or comments on the
-#    open one); the next passing run comments and closes it.
+#    open one); the next passing run comments and closes it. The issue also carries a label
+#    'canary:<app>' for each app whose own tests failed in the latest failing run (every app when
+#    the failure cannot be put down to apps: a failed fetch, the translator's own tests), and each
+#    report ends with a line `canary-result {...}` (JSON: run, failed apps, tested versions), so
+#    that an updater can hold back only those apps (docs/hosting.md#updates).
 #  - Tests tagged @ui also click at fixed points in the app, so a moved button fails them without
 #    the translator being at fault, and those tagged @language check the language the host asks
 #    the app to start in, through its labels or a part of the screen. They cannot fail the run: a
@@ -24,9 +28,10 @@
 # development branch: the Files entry depends on the action registry of @nextcloud/files 4.x, and
 # when the branch asks for another major, an issue labelled 'canary-nextcloud' says so before that
 # release ships. It also warns once the branch's version is above info.xml's max-version. Nothing
-# else of the server is checked.
+# else of the server is checked. It never fails the run: its result goes to its own issue, so a
+# failed run always means the Craft releases' tests (or the report) failed.
 #
-# When the newest release passes, raise its 'tested' version in tests/e2e/craft-versions.json.
+# When the newest release passes, raise its 'tested' version in apps.json.
 
 name: Canary
 
@@ -56,6 +61,7 @@ jobs:
     timeout-minutes: 110
     outputs:
       summary: ${{ steps.summary.outputs.summary }}
+      failed: ${{ steps.summary.outputs.failed }}
       ui: ${{ steps.ui.outcome }}
     steps:
       - name: Check out
@@ -80,7 +86,7 @@ jobs:
         timeout-minutes: 10
         run: npm run craft:fetch-latest
 
-      # Every Playwright project of an app in craft-versions.json (named <app>-<browser>) plus the
+      # Every Playwright project of an app in apps.json (named <app>-<browser>) plus the
       # translator tests on Chromium, so a new app or browser is covered without editing this file.
       # Projects in NON_BLOCKING have not passed on a GitHub runner yet: as in ci.yml (keep both
       # lists the same), they run but cannot decide the run or its advice.
@@ -88,13 +94,13 @@ jobs:
       - name: Select test projects
         id: projects
         env:
-          NON_BLOCKING: pdfcraft-webkit photocraft-webkit vectorcraft-webkit designcraft-webkit wordcraft-webkit gridcraft-webkit deckcraft-webkit cadcraft-webkit lightcraft-webkit filmcraft-webkit effectcraft-webkit
+          NON_BLOCKING: pdfcraft-webkit photocraft-webkit vectorcraft-webkit designcraft-webkit wordcraft-webkit gridcraft-webkit deckcraft-webkit cadcraft-webkit lightcraft-webkit filmcraft-webkit effectcraft-webkit soundcraft-webkit
         run: |
           npx playwright test -c tests/e2e/playwright.config.ts --list --reporter=json > "$RUNNER_TEMP/projects.json"
           node - "$RUNNER_TEMP/projects.json" <<'JS'
           const fs = require('node:fs');
           const names = JSON.parse(fs.readFileSync(process.argv[2], 'utf8')).config.projects.map((p) => p.name);
-          const apps = Object.keys(JSON.parse(fs.readFileSync('tests/e2e/craft-versions.json', 'utf8')).apps);
+          const apps = Object.keys(JSON.parse(fs.readFileSync('apps.json', 'utf8')).apps);
           const ofApp = (app) => names.filter((n) => n.startsWith(`${app}-`));
           const all = ['translator-chromium', ...apps.flatMap(ofApp)];
           const nonBlocking = (process.env.NON_BLOCKING || '').split(' ').filter(Boolean);
@@ -180,7 +186,7 @@ jobs:
           const path = require('node:path');
           const crypto = require('node:crypto');
           const read = (file) => { try { return JSON.parse(fs.readFileSync(file, 'utf8')); } catch { return null; } };
-          const manifest = read('tests/e2e/craft-versions.json');
+          const manifest = read('apps.json');
           const selected = read('.craft-builds/selected.json') || {};
           const { FETCH, TEST, UI, PROJECTS, UNTESTED, RUNNER_TEMP } = process.env;
           const outcome = (o) => ({ success: 'passed', failure: 'failed', cancelled: 'cancelled', skipped: 'skipped' })[o] || 'did not run';
@@ -214,7 +220,7 @@ jobs:
           const lines = [
             `### Canary: ${headline}`,
             '',
-            '| App | Tested (craft-versions.json) | Newest release (this run) |',
+            '| App | Tested (apps.json) | Newest release (this run) |',
             '| --- | --- | --- |',
           ];
           const fresh = [];
@@ -234,6 +240,29 @@ jobs:
           list('Contract tests that passed only on a retry (counted as failed)', contract.flaky);
           list('UI tests that failed', ui.unexpected);
           list('UI tests that passed only on a retry (counted as failed)', ui.flaky);
+          // The apps whose own contract tests failed (their projects are named <app>-<browser>), or
+          // every app when the failure cannot be put down to apps: a failed fetch, a failed test of
+          // another project (the translator's own), or no report. Updaters may hold back only these.
+          const ids = Object.keys(manifest?.apps || {});
+          const appOf = (t) => {
+            const m = /^\[([a-z][a-z0-9]*)-(chromium|firefox|webkit)\]/.exec(t.name);
+            return m && ids.includes(m[1]) ? m[1] : null;
+          };
+          const contractFailed = [...contract.unexpected, ...contract.flaky];
+          const failedApps = passed ? []
+            : FETCH === 'success' && TEST === 'failure' && contractFailed.length && contractFailed.every(appOf)
+              ? ids.filter((app) => contractFailed.some((t) => appOf(t) === app))
+              : ids;
+          // The translators this run tested: main's commit and the version in its core.js.
+          const layer = /const LAYER_VERSION = '([^']+)'/.exec(fs.readFileSync('translators/core.js', 'utf8'))?.[1] ?? null;
+          const result = {
+            run: Number(process.env.GITHUB_RUN_ID),
+            attempt: Number(process.env.GITHUB_RUN_ATTEMPT),
+            commit: process.env.GITHUB_SHA,
+            layer,
+            failed: failedApps,
+            tested: Object.fromEntries(ids.filter((app) => selected[app]).map((app) => [app, selected[app]])),
+          };
           const raise = fresh.filter((f) => !untested.includes(f.app)).map((f) => f.label);
           // The language tests are titled 'language: ...'; every other test of that step is an @ui test.
           const isLanguage = (t) => /\u203a language: /.test(t.name);
@@ -245,24 +274,31 @@ jobs:
             languageSpecs.length ? `the language tests of ${languageSpecs.join(', ')} need the app's new labels or screen areas, or the adapter a new way to set the start language (files still open and save; see the app's page in docs/apps/)` : '',
           ].filter(Boolean).join(', and ');
           if (passed && UI === 'success') {
-            if (raise.length) lines.push('', `Raise \`tested\` in tests/e2e/craft-versions.json: ${raise.join(', ')}.`);
+            if (raise.length) lines.push('', `Raise \`tested\` in apps.json: ${raise.join(', ')}.`);
           } else if (passed && raise.length) {
-            lines.push('', `The contract tests pass, so deployments can take ${raise.join(', ')}. The @ui and @language tests ${outcome(UI)}: they depend on the app's interface, so ${positions} for the new release. Raise \`tested\` in tests/e2e/craft-versions.json only after that, because CI runs them against it; the Playwright report of this run has the details.`);
+            lines.push('', `The contract tests pass, so deployments can take ${raise.join(', ')}. The @ui and @language tests ${outcome(UI)}: they depend on the app's interface, so ${positions} for the new release. Raise \`tested\` in apps.json only after that, because CI runs them against it; the Playwright report of this run has the details.`);
           } else if (passed) {
             lines.push('', `The contract tests pass, but the @ui and @language tests ${outcome(UI)} without a new release of a tested app, so the cause is here or in the test environment (browsers, runner image); the Playwright report of this run has the details.`);
           } else if (FETCH === 'failure') {
             lines.push('', 'A release without its web build or SHA256SUMS.txt fails here, and so does a failed download; the log of the fetch step says which.');
           } else if (TEST === 'failure') {
             const onlyFlaky = !contract.unexpected.length && contract.flaky.length > 0;
-            lines.push('', (fresh.length
-              ? `Hold back ${fresh.map((f) => f.label).join(', ')} in deployments until the translators handle it; the Playwright report of this run has the details.`
-              : 'No new release, so the cause is here or in the test environment (browsers, runner image); the Playwright report of this run has the details.')
+            const held = fresh.filter((f) => failedApps.includes(f.app));
+            const passedFresh = fresh.filter((f) => !failedApps.includes(f.app));
+            lines.push('', (held.length
+              ? `Hold back ${held.map((f) => f.label).join(', ')} in deployments until the translators handle it${passedFresh.length ? ` (${passedFresh.map((f) => f.label).join(', ')} passed)` : ''}; the Playwright report of this run has the details.`
+              : 'No new release among the apps that failed, so the cause is here or in the test environment (browsers, runner image); the Playwright report of this run has the details.')
               + (onlyFlaky ? ' Each failure passed on its retry: the release may only have changed the timing, which still counts until a rerun of this workflow passes.' : ''));
           }
+          if (!passed) lines.push('', `Apps to hold back: ${failedApps.join(', ')}${failedApps.length === ids.length && ids.length > 1 ? ' (all: the failure is not one of single apps)' : ''}.`);
+          // The link to the run, then the machine-readable line for updaters, the last line of every
+          // report (docs/hosting.md#updates).
+          lines.push('', `Run: ${process.env.GITHUB_SERVER_URL}/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID}`);
+          lines.push('', `\`canary-result ${JSON.stringify(result)}\``);
           const md = lines.join('\n') + '\n';
           fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, md);
           const eof = `EOF_${crypto.randomUUID()}`;
-          fs.appendFileSync(process.env.GITHUB_OUTPUT, `summary<<${eof}\n${md}${eof}\n`);
+          fs.appendFileSync(process.env.GITHUB_OUTPUT, `summary<<${eof}\n${md}${eof}\nfailed=${failedApps.join(' ')}\n`);
           JS
 
       - name: Note the tests that do not decide yet
@@ -305,6 +341,7 @@ jobs:
     outputs:
       message: ${{ steps.check.outputs.message }}
       changed: ${{ steps.check.outputs.changed }}
+      checked: ${{ steps.check.outputs.checked }}
     steps:
       - name: Check out
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -313,12 +350,20 @@ jobs:
           sparse-checkout: craftsuite_layer/appinfo/info.xml
           sparse-checkout-cone-mode: false
 
+      # Never fails (see the top of this file): changed=true opens the issue, checked=false (a
+      # failed download, a dependency that is gone) leaves it alone and warns in report.
       - name: Check the server's development branch
         id: check
         run: |
           base=https://raw.githubusercontent.com/nextcloud/server/master
-          curl -fsSL --retry 3 -o "$RUNNER_TEMP/package.json" "$base/package.json"
-          curl -fsSL --retry 3 -o "$RUNNER_TEMP/version.php" "$base/version.php"
+          if ! curl -fsSL --retry 3 -o "$RUNNER_TEMP/package.json" "$base/package.json" \
+            || ! curl -fsSL --retry 3 -o "$RUNNER_TEMP/version.php" "$base/version.php"; then
+            message="Could not download package.json or version.php of Nextcloud's development branch; nothing was checked."
+            echo "::warning::$message"
+            echo "$message" >> "$GITHUB_STEP_SUMMARY"
+            printf 'message=%s\nchanged=false\nchecked=false\n' "$message" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
           node - "$RUNNER_TEMP/package.json" "$RUNNER_TEMP/version.php" craftsuite_layer/appinfo/info.xml <<'JS'
           const fs = require('node:fs');
           const crypto = require('node:crypto');
@@ -351,8 +396,8 @@ jobs:
           const message = lines.join('\n\n');
           fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, message + '\n');
           const eof = `EOF_${crypto.randomUUID()}`;
-          fs.appendFileSync(process.env.GITHUB_OUTPUT, `message<<${eof}\n${message}\n${eof}\nchanged=${changed}\n`);
-          if (!ok) process.exit(1);
+          // Without the dependency (range ''), nothing about the next release was found out.
+          fs.appendFileSync(process.env.GITHUB_OUTPUT, `message<<${eof}\n${message}\n${eof}\nchanged=${changed}\nchecked=${ok || changed}\n`);
           JS
 
   # Separate job so that only code from this repository runs with write access to issues; the
@@ -367,8 +412,17 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     permissions:
+      contents: read
       issues: write
     steps:
+      # Only the list of apps, for a failed run that left no result (see below); no code runs.
+      - name: Check out the app list
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          sparse-checkout: apps.json
+          sparse-checkout-cone-mode: false
+
       - name: Open, update or close the canary issues
         env:
           GH_TOKEN: ${{ github.token }}
@@ -376,15 +430,31 @@ jobs:
           RESULT: ${{ needs.canary.result }}
           UI: ${{ needs.canary.outputs.ui }}
           SUMMARY: ${{ needs.canary.outputs.summary }}
+          FAILED: ${{ needs.canary.outputs.failed }}
           NEXT: ${{ needs.nextcloud-next.result }}
           NEXT_CHANGED: ${{ needs.nextcloud-next.outputs.changed }}
+          NEXT_CHECKED: ${{ needs.nextcloud-next.outputs.checked }}
           NEXT_MESSAGE: ${{ needs.nextcloud-next.outputs.message }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
           body="$RUNNER_TEMP/body.md"
-          printf '%s\n\nRun: %s\n' "${SUMMARY:-No summary, the run failed before the tests.}" "$RUN_URL" > "$body"
+          # A failed canary job without a result of its own (the runner was lost, a step before the
+          # summary broke) holds back every app, with a result line that says so.
+          if [ "$RESULT" = failure ] && [ -z "$FAILED" ]; then
+            FAILED=$(jq -r '.apps | keys_unsorted | join(" ")' apps.json)
+          fi
+          if [ -n "$SUMMARY" ]; then
+            printf '%s\n' "$SUMMARY" > "$body"
+          else
+            # shellcheck disable=SC2016 # $run and the others are jq's variables
+            result=$(jq -cn --argjson run "$GITHUB_RUN_ID" --argjson attempt "$GITHUB_RUN_ATTEMPT" --arg commit "$GITHUB_SHA" \
+              --arg failed "$FAILED" '{run: $run, attempt: $attempt, commit: $commit, layer: null, failed: ($failed | split(" ") | map(select(. != ""))), tested: {}}')
+            # shellcheck disable=SC2016 # the backquotes are Markdown
+            printf 'No summary, the run failed before the tests.\n\nApps to hold back: %s.\n\nRun: %s\n\n`canary-result %s`\n' \
+              "${FAILED:-none}" "$RUN_URL" "$result" > "$body"
+          fi
           # Comments on the open issue with label $1, or opens one titled $2 (label description $3,
-          # label colour $4).
+          # label colour $4). Leaves its number in $issue.
           report() {
             issue=$(gh issue list --label "$1" --state open --limit 1 --json number --jq '.[0].number // empty')
             if [ -n "$issue" ]; then
@@ -394,7 +464,20 @@ jobs:
             if ! gh label list --search "$1" --json name --jq '.[].name' | grep -qx -- "$1"; then
               gh label create "$1" --color "$4" --description "$3"
             fi
-            gh issue create --title "$2" --label "$1" --body-file "$body"
+            url=$(gh issue create --title "$2" --label "$1" --body-file "$body")
+            issue=${url##*/}
+          }
+          # Gives issue $issue the labels canary:<app> of the apps in $FAILED, and takes away those
+          # of an earlier run's apps that passed this time.
+          hold() {
+            for name in $(gh issue view "$issue" --json labels --jq '.labels[].name | select(startswith("canary:"))'); do
+              case " $FAILED " in *" ${name#canary:} "*) ;; *) gh issue edit "$issue" --remove-label "$name" ;; esac
+            done
+            for app in $FAILED; do
+              gh label create "canary:$app" --force --color d93f0b \
+                --description "Daily run: hold back the newest release of $app (its tests fail)"
+              gh issue edit "$issue" --add-label "canary:$app"
+            done
           }
           # Comments on and closes the open issue with label $1, if there is one.
           resolve() {
@@ -409,6 +492,7 @@ jobs:
             if [ "$RESULT" = failure ]; then
               report canary 'Canary: the newest Craft releases fail the tests' \
                 'Daily test run against the newest Craft releases failed' d93f0b
+              hold
             else
               resolve canary
             fi
@@ -431,7 +515,7 @@ jobs:
           if [ "$NEXT_CHANGED" = true ]; then
             report canary-nextcloud 'Canary: the next Nextcloud release changes what the Files entry depends on' \
               "Daily check: Nextcloud's development branch asks for another @nextcloud/files major" 0082c9
-          elif [ "$NEXT" = success ]; then
+          elif [ "$NEXT" = success ] && [ "$NEXT_CHECKED" = true ]; then
             resolve canary-nextcloud
           else
             echo "::warning::The check of the next Nextcloud release ended with '$NEXT' and no result; see the job 'next Nextcloud release'."

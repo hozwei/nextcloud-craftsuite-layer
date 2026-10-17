@@ -9,7 +9,8 @@ translator added, on an origin of its own. This page lists the requirements any 
 meet. [`hosting/`](../hosting/README.md) has building blocks for them: `inject-translator.sh`,
 which adds the translator to a web build (tested in CI), and an nginx configuration template
 with a Compose example (examples, not tested in CI). Each release of this repository ships them
-with the translators as one archive ([The layer's files](#the-layers-files)). There is no release
+with the translators and the list of supported apps as one archive
+([The layer's files](#the-layers-files), [The app list](#the-app-list)). There is no release
 updater yet; [Updates](#updates) says what one must do.
 
 ## Layout
@@ -34,7 +35,9 @@ https://craft.example.com/photocraft/
   `cloud.example.com`); the Nextcloud app refuses an address on one of Nextcloud's host names,
   whatever the port.
 - Several Craft apps may share the origin under different paths. Each path is the address an
-  administrator enters in Nextcloud ([nextcloud-app.md](nextcloud-app.md#configuring)).
+  administrator enters in Nextcloud ([nextcloud-app.md](nextcloud-app.md#configuring)). With
+  every app at `<address><app>/` as above, one address for all apps is enough there, and an app
+  that a new release of the layer adds needs no setting in Nextcloud.
 - The address has no query (`?...`); the Nextcloud app refuses one. Several apps read their
   query as switches: PdfCraft 0.6.0's `?host=parent` would make it drop every save under a
   Nextcloud on another origin. The adapters set the switches their app needs themselves, such as
@@ -107,7 +110,8 @@ The translator reports `the app did not start in time` when the app has not star
 builds preload their `.wasm` with a `<link>` tag, which holds back `load` until it has arrived,
 so the default fits them. FilmCraft, LightCraft and EffectCraft have loaders of their own: a
 module script fetches the `.wasm` (LightCraft's also a 16.4 MB font), which does not hold back
-`load`, so the timer runs during the download. On a slow first load the host gets the error for
+`load`, so the timer runs during the download. So does SoundCraft's Trunk page (0.6.1, 0.7.0),
+whose `load` comes before its `.wasm` has arrived. On a slow first load the host gets the error for
 an app that is still loading, and `ready` once it has started (the error is provisional, see
 [protocol.md](protocol.md#errors)).
 
@@ -121,6 +125,9 @@ tag:
   compressed, it fits into 60 seconds down to about 2 Mbit/s. Give it 180000 too if it is
   served uncompressed (then it needs about 6 Mbit/s) or the hosting's users have slow
   connections.
+- **SoundCraft: no option.** Its loader does not hold back `load` either, but its `.wasm` is
+  smaller (15.5 MB, 5.9 MB with gzip, in 0.7.0): served compressed, it fits into 60 seconds down
+  to about 0.8 Mbit/s.
 - **The other apps:** no option.
 
 A longer timeout also delays the report of a start that really hangs, such as an inline module
@@ -144,7 +151,11 @@ see [A sign-in in front of the apps](#a-sign-in-in-front-of-the-apps)) a worker 
 visit registered controls the frames as well.
 
 So the hosting replaces such a worker. `inject-translator.sh` does it for a `sw.js` at the build's
-root (a worker with another name or in another folder is not detected):
+root. A worker with another name or in another folder it does not detect, but the tests of each
+app do: they visit the app directly, as a user would, and fail when it registers any other worker
+(`tests/e2e/specs/service-workers.spec.ts`), in CI and in the daily canary, so a release that
+brings one is held back before deployments take it ([Updates](#updates), step 4). What the
+injector does:
 
 - It keeps the original as `craftsuite-layer/sw.js.orig`; `--remove` puts it back, and `--check`
   reports a `sw.js` that is still the app's own.
@@ -235,37 +246,75 @@ updater should:
 
 1. Find the newest release through `https://github.com/storytold/<app>/releases/latest`, which
    redirects to the release's tag. It does not use `api.github.com`, whose limit for
-   unauthenticated requests (60 per hour) is easily shared and used up.
+   unauthenticated requests (60 per hour) is easily shared and used up. Skip a release below the
+   app's `minVersion` in [the app list](#the-app-list): its adapter does not handle it (SoundCraft
+   before 0.6.1 cannot save in the browser at all).
 2. Download `<app>-web-<version>.zip` and `SHA256SUMS.txt` from
    `https://github.com/storytold/<app>/releases/download/v<version>/`, check the checksum, and
    check that the archive contains only `<app>-web-<version>/`.
 3. Unpack into a new directory per version and remove what must not be served (LightCraft's
    Cargo leftovers, see [Files to serve](#files-to-serve)). Add the translator with
    `inject-translator.sh`, with the app's startup timeout from the updater's configuration (see
-   [Startup timeout](#startup-timeout)); its exit code says whether the release can be switched
+   [Startup timeout](#startup-timeout); the app list recommends one where the default is too
+   short); its exit code says whether the release can be switched
    to: on 0 it can, on 6 (no adapter for the app in this version of the layer) only without the
    Nextcloud integration, on any other code it cannot (see
    [hosting/README.md](../hosting/README.md#in-a-release-updater)). Then compress the files for
    the web server (see [Headers](#headers)) and switch to the new directory in one step, keeping
    the previous version for a rollback.
 4. Take a new release only after a delay (for example a day), so that this repository's daily
-   canary run has tested it (see [development.md](development.md#continuous-integration)). If the
-   canary's contract tests fail for the release (an open issue labelled `canary` in this
-   repository says so), stay on the last good version until a fixed
-   adapter is released. Failing `@ui` tests alone mean that the tests' click positions need
-   updating, not the translator. Failing `@language` tests alone mean that the release may start
-   in its own language instead of the one the Nextcloud app asks for, until the adapter is fixed;
-   files still open and save. Both are tracked by an issue labelled `canary-ui`.
+   canary run has tested it (see [development.md](development.md#continuous-integration)):
+
+   - **The run that counts** for a release is the first run of `canary.yml` on `main` that was
+     created after the release was published and ended with `success` or `failure` (a
+     `cancelled` run, a timeout for example, tested nothing), and only if no newer release of the
+     app came out before that run ended. Take the run's `created_at`, not `run_started_at`:
+     GitHub resets `run_started_at` when a run is re-run, while "Re-run failed jobs" keeps the
+     result of a test job that passed in the first attempt.
+   - **A failed run** advises holding releases back. It opens an issue labelled `canary` in this
+     repository (or comments on the open one), and the next passing run closes it. The issue
+     carries a label `canary:<app>` for each app whose own tests failed in its latest failing run,
+     and every report on it (the issue's text and each comment) ends with one line such as
+
+     ```text
+     `canary-result {"run":123456,"attempt":1,"commit":"<sha>","layer":"0.5.0","failed":["wordcraft"],"tested":{"pdfcraft":"0.8.0","wordcraft":"0.7.0"}}`
+     ```
+
+     (`run` and `attempt` identify the run, `commit` and `layer` the translators it tested: the
+     commit of `main` and the version in its `core.js`, `failed` names the apps to hold back,
+     `tested` the versions that run fetched). `failed` names every app when the failure is not one
+     of single apps: a failed download, a failure of the translator's own tests, a run that broke
+     before its summary (then `layer` is `null` and `tested` empty). So an updater can hold back
+     the releases of the apps named and take the others. Treat a failed run without a report of
+     its own (no `canary-result` with its `run`) as failed for every app. The report job changes the issues a few
+     seconds before the run ends: the issues as they are at the run's end (its `updated_at`) are
+     its result. A run fails only for the Craft releases' tests or a failed report; the look at the
+     next Nextcloud release has an issue of its own (`canary-nextcloud`) and never fails a run.
+   - **Which translators a run tested.** The canary tests the translators on `main` (the run's
+     `head_sha`). Changes to them reach `main` only together with a layer release, so a run
+     created while a layer release was the newest tested that release. An updater pinned to an
+     older layer release counts only runs created before the next layer release came out; for a
+     Craft release after that, it moves to the newer layer release.
+   - **After a failed run**, a later green run does not make up for it: the canary tests `main`,
+     not the layer release an updater is pinned to. The failed release becomes usable with a
+     layer release whose changelog says it handles it (its first counted canary run on that
+     release's commit passed); until then, take the app's next release that passes its own first
+     run.
+   - Failing `@ui` tests alone mean that the tests' click positions need updating, not the
+     translator. Failing `@language` tests alone mean that the release may start in its own
+     language instead of the one the Nextcloud app asks for, until the adapter is fixed; files
+     still open and save. Both are tracked by an issue labelled `canary-ui`, and neither fails a
+     run.
 
    No open issue is not enough on its own: GitHub starts scheduled runs late when it is busy
    (the first scheduled run of this repository, due at 04:23 UTC on 12 October 2026, started at
    12:12 UTC), sometimes skips one, and turns the schedule off after 60 days without activity in
-   the repository. Treat a release as tested only when a canary run started after it was published
-   and ended with `success` or `failure` (a `cancelled` run, a timeout for example, tested
-   nothing): the newest completed run of `canary.yml` on `main`, with `run_started_at` and
-   `conclusion`, comes from
-   `https://api.github.com/repos/hozwei/nextcloud-craftsuite-layer/actions/workflows/canary.yml/runs?branch=main&status=completed&per_page=1`
-   (one request; the Canary badge in the [README](../README.md) shows only the latest result).
+   the repository. The runs come from
+   `https://api.github.com/repos/hozwei/nextcloud-craftsuite-layer/actions/workflows/canary.yml/runs?branch=main&status=completed`
+   (one request for the last 30, with `created_at`, `updated_at`, `run_attempt` and
+   `conclusion`; the Canary badge in the [README](../README.md) shows only the latest result),
+   the issues from `.../issues?labels=canary&state=all` (with their labels; the comments of an
+   issue from `.../issues/<number>/comments`).
    Unlike steps 1 and 2 this needs GitHub's API: send a token (`Authorization: Bearer`, 5,000
    requests per hour) where the unauthenticated limit of 60 per hour is shared, retry later when it
    fails, and alert when it fails for a day, instead of taking releases untested.
@@ -284,7 +333,7 @@ its assets in `SHA256SUMS`, as plain downloads (no API) from
 
 | Asset | Content |
 |---|---|
-| `craftsuite-layer-hosting-<version>.tar.gz` | One folder `craftsuite-layer-hosting-<version>/` with `hosting/inject-translator.sh`, `hosting/README.md`, `hosting/nginx/craft-apps.conf.template`, `hosting/compose.example.yaml`, `translators/*.js`, `translators/README.md` and `LICENSE` |
+| `craftsuite-layer-hosting-<version>.tar.gz` | One folder `craftsuite-layer-hosting-<version>/` with `hosting/inject-translator.sh`, `hosting/README.md`, `hosting/nginx/craft-apps.conf.template`, `hosting/compose.example.yaml`, `translators/*.js`, `translators/README.md`, `apps.json` and `LICENSE` |
 | `SHA256SUMS` | The SHA-256 checksums of the release's archives, for `sha256sum -c` |
 
 The bundle keeps the repository's layout, so `inject-translator.sh` finds the translators in
@@ -292,6 +341,47 @@ The bundle keeps the repository's layout, so `inject-translator.sh` finds the tr
 [hosting/README.md](../hosting/README.md#in-a-release-updater). Running the injector of a newer
 release on the Craft app version being served updates the translator without a new Craft app
 release.
+
+### The app list
+
+`apps.json` at the root of the hosting bundle (and of this repository) lists the Craft apps the
+release supports, in the order the Nextcloud app gives them a click. An updater can take its
+list of apps and the values below from there instead of keeping its own, so that an app a new
+release adds is served without a change to the updater (and Nextcloud then needs no setting
+either, with the address for all apps; [nextcloud-app.md](nextcloud-app.md#configuring)).
+
+```json
+{
+  "format": 1,
+  "apps": {
+    "lightcraft": {
+      "name": "LightCraft",
+      "repo": "storytold/lightcraft",
+      "description": { "en": "Develop and export photos and camera raws", "de": "Fotos und Kamera-RAWs entwickeln und exportieren" },
+      "color": "#f2a516",
+      "startupTimeout": 180000,
+      "minVersion": "0.6.0",
+      "tested": "0.8.0"
+    }
+  }
+}
+```
+
+| Field | Meaning |
+|---|---|
+| `format` | `1`. A later format that an updater cannot read changes this number. |
+| key | The app id: `^[a-z][a-z0-9]*$`, the folder name in `<app>-web-<version>`, the adapter `translators/<app>.js` and the path `/<app>/` of [Layout](#layout). |
+| `name` | Display name. |
+| `repo` | Upstream repository on GitHub, `owner/name`: the releases of step 1. |
+| `description` | A short line about the app in English (`en`) and German (`de`), for a start page. Plain text; escape it like any text from outside. |
+| `color` | The app's brand colour, `#rrggbb` (as storytold's launcher has it). |
+| `startupTimeout` | Recommended `--startup-timeout` in milliseconds, for apps whose download does not hold back the page's `load` event (see [Startup timeout](#startup-timeout)). Missing: the default of 60000 fits. |
+| `minVersion` | The oldest release the adapter handles: older ones were never tested, or cannot do what the layer needs. Skip releases below it (step 1). |
+| `tested` | The newest release this layer release was tested with. Newer ones are what the canary tests (step 4). |
+
+Check the values before using them (the id and colour against the patterns above, the texts as
+untrusted text) and ignore fields an updater does not know. Repository changes keep the list,
+the Nextcloud app and the tests in line (`npm run apps:check` in CI).
 
 ## A sign-in in front of the apps
 

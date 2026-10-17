@@ -23,6 +23,7 @@ and turns the app's downloads into save messages. The messages are described in
 | `lightcraft.js` | The adapter for LightCraft. See [docs/apps/lightcraft.md](../docs/apps/lightcraft.md). |
 | `filmcraft.js` | The adapter for FilmCraft. See [docs/apps/filmcraft.md](../docs/apps/filmcraft.md). |
 | `effectcraft.js` | The adapter for EffectCraft. See [docs/apps/effectcraft.md](../docs/apps/effectcraft.md). |
+| `soundcraft.js` | The adapter for SoundCraft. See [docs/apps/soundcraft.md](../docs/apps/soundcraft.md). |
 
 ## Loading
 
@@ -142,14 +143,14 @@ Rules for adapters:
   `languages`) and on the app's page, and leave a language the user picked inside the app alone
   where the app keeps it.
 - Document the app's browser-facing behaviour in `docs/apps/<app>.md`, including known gaps.
-- Add the app to `tests/e2e/craft-versions.json`, a spec under `tests/e2e/specs/` with a few
-  scenario tests (see [docs/development.md](../docs/development.md#writing-tests)), and a
-  Playwright project named `<app>-<browser>` (for example `pdfcraft-chromium`) in
-  `tests/e2e/playwright.config.ts`. The daily canary selects projects by that name; without one
-  it does not test the app and only warns. See
+- Add the app to `apps.json` (with `minVersion`, the oldest release the adapter handles) and a
+  spec under `tests/e2e/specs/` with a few scenario tests (see
+  [docs/development.md](../docs/development.md#writing-tests)); `tests/e2e/playwright.config.ts`
+  then has the projects `<app>-chromium` and `<app>-webkit`, which the daily canary selects by
+  that name. `npm run apps:check` says what else the app needs. See
   [docs/development.md](../docs/development.md#adding-a-craft-app).
 
 ## Version
 
-`core.js` reports its version (`layerVersion`, currently `0.4.2`) in `hello` and `ready`, and
+`core.js` reports its version (`layerVersion`, currently `0.5.0`) in `hello` and `ready`, and
 speaks protocol version 1.

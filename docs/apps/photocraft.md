@@ -8,7 +8,7 @@
 |---|---|
 | Upstream | [github.com/storytold/photocraft](https://github.com/storytold/photocraft) |
 | Adapter | [`translators/photocraft.js`](../../translators/photocraft.js) |
-| Tested version | `tested` in [`tests/e2e/craft-versions.json`](../../tests/e2e/craft-versions.json) (0.8.2 when this page was last checked) |
+| Tested version | `tested` in [`apps.json`](../../apps.json) (0.8.2 when this page was last checked) |
 | Tests | [`tests/e2e/specs/photocraft.spec.ts`](../../tests/e2e/specs/photocraft.spec.ts) (Chromium and WebKit, see [Tests](#tests)) |
 
 This page records what the PhotoCraft web build does in the browser, as far as the translator

@@ -74,7 +74,11 @@ class EditorController extends Controller {
 		if (!CraftApps::opens($app, $node->getName())) {
 			return $this->error($this->l->t('No Craft app opens this type of file.'), Http::STATUS_BAD_REQUEST);
 		}
-		$stored = $this->craftApps->storedUrl($app);
+		if ($this->craftApps->isDisabled($app)) {
+			return $this->error($this->l->t('%s is switched off. An administrator has to switch it on first.', [CraftApps::APPS[$app]['name']]), Http::STATUS_SERVICE_UNAVAILABLE);
+		}
+		// Its own address, else the one it takes from the address for all apps.
+		$stored = $this->craftApps->address($app);
 		if ($stored === '') {
 			return $this->error($this->l->t('%s is not configured. An administrator has to set its address first.', [CraftApps::APPS[$app]['name']]), Http::STATUS_SERVICE_UNAVAILABLE);
 		}
