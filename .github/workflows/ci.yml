@@ -88,11 +88,11 @@ jobs:
           done
 
       # Every Playwright project except those in NON_BLOCKING blocks the check, so a new project is
-      # covered without editing this file. The <app>-webkit projects are in NON_BLOCKING because
-      # they have passed only locally so far, through a WebKit wrapper with its own GL libraries, never on a GitHub
-      # runner, where the apps' WebGL2 depends on the image's libraries. Once one has passed in the
-      # step "End-to-end tests that do not block yet", remove it from NON_BLOCKING to make it
-      # blocking; that step then skips itself once the list is empty. canary.yml has the same list: change both.
+      # covered without editing this file. The <app>-webkit projects are in NON_BLOCKING: they were
+      # added while they had passed only locally, through a WebKit wrapper with its own GL libraries,
+      # and stay there until removed (docs/development.md, Continuous integration). Removing one
+      # makes it blocking; the step "End-to-end tests that do not block yet" skips itself once the
+      # list is empty. canary.yml has the same list: change both (npm run apps:check compares them).
       - name: Select test projects
         id: projects
         env:

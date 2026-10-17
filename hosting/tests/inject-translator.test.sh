@@ -54,8 +54,10 @@ O=https://cloud.example.com
 builds=$repo/.craft-builds
 if [ -f "$builds/selected.json" ]; then
   skipped=
-  # Every fetched build (npm run craft:fetch writes one "<app>": "<version>" line per app).
-  for app in $(sed -n 's/^ *"\([a-z][a-z0-9]*\)": *"[^"]*",\{0,1\}$/\1/p' "$builds/selected.json"); do
+  # Every fetched build (npm run craft:fetch writes one "<app>": "<version>" line per app; app ids
+  # have no spaces).
+  fetched=$(sed -n 's/^ *"\([a-z][a-z0-9]*\)": *"[^"]*",\{0,1\}$/\1/p' "$builds/selected.json")
+  for app in $fetched; do
     ver=$(sed -n "s/.*\"$app\": *\"\([^\"]*\)\".*/\1/p" "$builds/selected.json")
     src=$builds/$app/$ver/$app-web-$ver
     if [ -z "$ver" ] || [ ! -f "$src/index.html" ] || [ ! -f "$repo/translators/$app.js" ]; then
