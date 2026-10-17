@@ -26,13 +26,13 @@ The app is not in the Nextcloud App Store. Each
 `craftsuite_layer-<version>.tar.gz`, with the checksums in `SHA256SUMS`. Both are plain
 downloads from
 `https://github.com/hozwei/nextcloud-craftsuite-layer/releases/download/v<version>/<asset>`.
-For version 0.5.0:
+For version 0.5.1:
 
 ```sh
-v=0.5.0
+v=0.5.1
 base=https://github.com/hozwei/nextcloud-craftsuite-layer/releases/download/v$v
 curl -fL --remote-name-all "$base/craftsuite_layer-$v.tar.gz" "$base/SHA256SUMS"
-sha256sum -c --ignore-missing SHA256SUMS      # craftsuite_layer-0.5.0.tar.gz: OK
+sha256sum -c --ignore-missing SHA256SUMS      # craftsuite_layer-0.5.1.tar.gz: OK
 ```
 
 `--ignore-missing` skips the line of the hosting bundle, which `SHA256SUMS` lists too. The
@@ -49,6 +49,18 @@ occ app:enable craftsuite_layer
 
 To update the app, remove the folder `custom_apps/craftsuite_layer/`, unpack the new archive in
 its place and run `occ upgrade`. The addresses stay.
+
+**Going back to an older version** works the same way: put the older release's folder in place
+and run `occ upgrade`. Nextcloud takes it as an update and runs the app's repair steps (tested
+from 0.5.0 to 0.4.2 and back, on Nextcloud 34). The app has no tables of its own. What changes:
+
+- File types the newer version added go (0.5.0's `.scraftz`); those the older one knows stay.
+- Settings the older version does not know stay stored but have no effect. Back on 0.4.x there
+  is no address for all apps and no switching off: an app that took its address from
+  `apps_base_url` has no entries, and a switched-off app with an address of its own has them
+  again. Moving up again brings both back as they were.
+- Nextcloud's own data is untouched; a snapshot is only needed for going back on everything else
+  that the same `occ upgrade` updates (other apps with pending updates).
 
 **Building it yourself.** From a checkout of the repository, as the release workflow does:
 
@@ -540,14 +552,16 @@ file, the page asks before the user leaves:
   app in a new tab. Typically the frame then shows a sign-in page of the Craft hosting: the user
   signs in there and reloads the editor page, which asks "Open <file> in <app>?" once more
   ([hosting.md](hosting.md#a-sign-in-in-front-of-the-apps)).
-- If the app is not ready after 90 seconds, the page asks whether it is reachable at its origin.
+- If the app is not ready after 90 seconds, the page asks whether it is reachable at its origin,
+  and keeps the link to the app in a new tab (from 0.5.1 on; before, that message replaced it).
 - Errors the translator reports, such as "the app failed to load" or "the app registered no drop
   target" (no WebGL2, for example), are shown in the status line
   ([protocol.md](protocol.md#errors)).
 
 The page refuses to open a file, with a message, when the file does not exist or cannot be read,
 it is shared without permission to download, no Craft app opens its type, or the app's address
-is missing or cannot be used. A user who is not logged in gets Nextcloud's sign-in page first.
+is missing or cannot be used, or the app is switched off. A user who is not logged in gets
+Nextcloud's sign-in page first.
 
 ## How it works
 

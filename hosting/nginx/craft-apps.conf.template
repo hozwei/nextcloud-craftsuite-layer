@@ -30,6 +30,7 @@ server {
     font/ttf ttf;
     font/otf otf;            # LightCraft's 16 MB lightcraft_zh_hans.otf
     text/javascript mjs;
+    application/manifest+json webmanifest;   # EffectCraft's manifest.webmanifest
   }
 
   # Compression: .gz files written once per release (gzip -9 -k), else on the fly.

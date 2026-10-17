@@ -13,6 +13,30 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.5.1] - 2026-10-17
+
+The points left open from the operators' notes, and the FigCraft request upstream.
+
+### Fixed
+
+- Nextcloud app 0.5.1: the editor page keeps the link that opens the app in a new tab when it gives
+  up after 90 seconds; that message used to replace it, so a user who looked only then lost the
+  way to the sign-in page of the Craft site.
+
+### Changed
+
+- `hosting/nginx/craft-apps.conf.template` serves `.webmanifest` (EffectCraft's
+  `manifest.webmanifest`) as `application/manifest+json`.
+- docs/nextcloud-app.md: going back to an older version of the app (put its folder in place, run
+  `occ upgrade`; tested from 0.5.0 to 0.4.2 and back) and what then changes.
+- docs/hosting.md and hosting/README.md: a sign-in with Nextcloud itself as the identity provider
+  (its `oidc` app) passes inside the frame; `--remove` on a folder not named
+  `<app>-web-<version>` needs `--app`; an updater that keeps a minimum age or checks GitHub's
+  asset digests needs the API's release list; a canary issue reopened by hand keeps only its last
+  close time.
+- README.md and docs/architecture.md: FigCraft's request for opening files in its web build,
+  [storytold/figcraft#759](https://github.com/storytold/figcraft/issues/759).
+
 ## [0.5.0] - 2026-10-17
 
 New Craft apps become routine: one list of the supported apps that hostings and Nextcloud can
@@ -373,7 +397,8 @@ DeckCraft 0.6.1, FilmCraft 0.7.2, LightCraft 0.7.1 and EffectCraft 0.9.2 are the
 - Documentation: an index (`docs/README.md`), architecture, protocol, security, hosting,
   development, the Nextcloud app, and one page per Craft app.
 
-[Unreleased]: https://github.com/hozwei/nextcloud-craftsuite-layer/compare/v0.5.0...main
+[Unreleased]: https://github.com/hozwei/nextcloud-craftsuite-layer/compare/v0.5.1...main
+[0.5.1]: https://github.com/hozwei/nextcloud-craftsuite-layer/compare/v0.5.0...v0.5.1
 [0.5.0]: https://github.com/hozwei/nextcloud-craftsuite-layer/compare/v0.4.2...v0.5.0
 [0.4.2]: https://github.com/hozwei/nextcloud-craftsuite-layer/compare/v0.4.1...v0.4.2
 [0.4.1]: https://github.com/hozwei/nextcloud-craftsuite-layer/compare/v0.4.0...v0.4.1

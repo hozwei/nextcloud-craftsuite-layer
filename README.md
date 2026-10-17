@@ -102,7 +102,7 @@ The app is not in the Nextcloud App Store. Each
 | `SHA256SUMS` | The checksums of both |
 
 ```sh
-v=0.5.0
+v=0.5.1
 base=https://github.com/hozwei/nextcloud-craftsuite-layer/releases/download/v$v
 curl -fL --remote-name-all "$base/craftsuite_layer-$v.tar.gz" \
   "$base/craftsuite-layer-hosting-$v.tar.gz" "$base/SHA256SUMS"
@@ -302,8 +302,9 @@ of 2026-10-17:
 - PhotoCraft: [storytold/photocraft#1614](https://github.com/storytold/photocraft/issues/1614)
   and [pull request #2263](https://github.com/storytold/photocraft/pull/2263), open, not merged;
   two hosts have built a bridge of their own on a fork.
-- FigCraft: its web build can neither open nor save a file yet (0.6.0; `main` hands saves to the
-  browser as downloads since), so it is not supported. It joins once it can do both
+- FigCraft: [storytold/figcraft#759](https://github.com/storytold/figcraft/issues/759), open
+  since 2026-10-17. Its web build can neither open nor save a file yet (0.6.0; `main` hands saves
+  to the browser as downloads since), so it is not supported. It joins once it can do both
   ([docs/development.md](docs/development.md#adding-a-craft-app)).
 
 When an app gains a native API, the translator is planned to stand down for it (see

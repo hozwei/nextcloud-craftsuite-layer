@@ -248,7 +248,10 @@ updater should:
    redirects to the release's tag. It does not use `api.github.com`, whose limit for
    unauthenticated requests (60 per hour) is easily shared and used up. Skip a release below the
    app's `minVersion` in [the app list](#the-app-list): its adapter does not handle it (SoundCraft
-   before 0.6.1 cannot save in the browser at all).
+   before 0.6.1 cannot save in the browser at all). An updater that keeps a minimum age (from the
+   release's `published_at`) or checks GitHub's own checksum of each asset (`digest`) needs the
+   release list from the API instead (`/repos/storytold/<app>/releases`, one request per app and
+   run); with a token, as step 4 needs anyway, that fits its limit.
 2. Download `<app>-web-<version>.zip` and `SHA256SUMS.txt` from
    `https://github.com/storytold/<app>/releases/download/v<version>/`, check the checksum, and
    check that the archive contains only `<app>-web-<version>/`.
@@ -314,7 +317,11 @@ updater should:
    (one request for the last 30, with `created_at`, `updated_at`, `run_attempt` and
    `conclusion`; the Canary badge in the [README](../README.md) shows only the latest result),
    the issues from `.../issues?labels=canary&state=all` (with their labels; the comments of an
-   issue from `.../issues/<number>/comments`).
+   issue from `.../issues/<number>/comments`). The workflow never reopens an issue: after a closed
+   one it opens a new one. Should someone reopen one by hand, GitHub keeps only its last close time
+   (`closed_at`), so take the issue's state at a run's end from its events
+   (`.../issues/<number>/events`) or from the runs' reports, not from `created_at` and `closed_at`
+   alone.
    Unlike steps 1 and 2 this needs GitHub's API: send a token (`Authorization: Bearer`, 5,000
    requests per hour) where the unauthenticated limit of 60 per hour is shared, retry later when it
    fails, and alert when it fails for a day, instead of taking releases untested.
@@ -398,12 +405,18 @@ page frames the app, so:
     `SameSite=None; Secure`, and browsers that block or partition third-party cookies still do
     not send it: Safari and Firefox by default, others in private windows or when the user turns
     third-party cookies off. Prefer the same-site setup.
-- **Users sign in in a tab of their own.** The editor page allows only the Craft origin in its
-  frame, so a sign-in that redirects to an identity provider on another origin cannot load
-  there, and neither can a sign-in page that refuses to be framed. When the app's page has not
-  answered after 15 seconds, the editor shows a hint with a link that opens the app in a new
-  tab: users sign in there and reload the editor page. A long sign-in session means they rarely
-  have to.
+- **Users sign in in a tab of their own.** The editor page allows the Craft origin in its frame,
+  and Nextcloud's own origin (its default policy does, through the bundled PDF viewer). A sign-in
+  that redirects to an identity provider on another origin cannot load there, and neither can a
+  sign-in page that refuses to be framed. When the app's page has not answered after 15 seconds,
+  the editor shows a hint with a link that opens the app in a new tab, and the link stays when the
+  editor gives up after 90 seconds: users sign in there and reload the editor page. A long
+  sign-in session means they rarely have to.
+- **Nextcloud as the identity provider** is the exception: with Nextcloud's OpenID Connect app
+  (`oidc`) as the sign-in of the Craft site, the redirect to Nextcloud's authorization page loads
+  in the frame, and a user signed in to Nextcloud passes it without a question (reported by an
+  operator with Nextcloud 34 and `oidc` 2.5.2). The frame then needs nothing more; the new tab
+  stays the way out where it asks something.
 - **The sign-in page must not be framed by others.** Send `frame-ancestors` on it too, with the
   Nextcloud origins or `'none'`: a sign-in form that any site can frame invites clickjacking.
 - **Caching.** Use `private` instead of `public` in `Cache-Control`, so that shared caches do not

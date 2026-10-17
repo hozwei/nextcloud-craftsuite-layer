@@ -152,5 +152,5 @@ Rules for adapters:
 
 ## Version
 
-`core.js` reports its version (`layerVersion`, currently `0.5.0`) in `hello` and `ready`, and
+`core.js` reports its version (`layerVersion`, currently `0.5.1`) in `hello` and `ready`, and
 speaks protocol version 1.

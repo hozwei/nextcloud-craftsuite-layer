@@ -252,7 +252,7 @@ Upstream status as of 2026-10-17:
 |---|---|---|
 | PdfCraft | [storytold/pdfcraft#422](https://github.com/storytold/pdfcraft/issues/422) | open. PdfCraft 0.6.0 ships a `postMessage` bridge turned on by `?host=parent`, for a parent on the app's own origin only: under a Nextcloud on another origin it would drop every save, which is one reason the Nextcloud app refuses app addresses with a query ([apps/pdfcraft.md](apps/pdfcraft.md)). |
 | PhotoCraft | [storytold/photocraft#1614](https://github.com/storytold/photocraft/issues/1614), [pull request #2263](https://github.com/storytold/photocraft/pull/2263) | open, not merged. Two hosts built a `postMessage` bridge on a fork (`?host=<origin>`), as the comments there describe. |
-| FigCraft | none | The web build cannot get a file in or out yet: 0.6.0 opens nothing from a drop or File ▸ Open and saves nothing; `main` (after 0.6.0) hands saves to the browser as downloads, while a drop still imports into the open document instead of opening it. Not supported until a release does both. |
+| FigCraft | [storytold/figcraft#759](https://github.com/storytold/figcraft/issues/759) (opening files in the browser) | open. The web build cannot get a file in or out yet: 0.6.0 opens nothing from a drop or File ▸ Open and saves nothing; `main` (after 0.6.0) hands saves to the browser as downloads, while a drop still imports into the open document instead of opening it. Not supported until a release does both. |
 | FilmCraft, EffectCraft, LightCraft | `window.filmcraft`, `window.effectcraft`, `lightcraft.command` | JavaScript APIs on the app's own page, without `postMessage` or an origin check: the host cannot reach them. The LightCraft adapter uses `lightcraft.command('web.stats')` and the EffectCraft adapter `effectcraft.info()` and `effectcraft.execute('project.summary')` ([apps/lightcraft.md](apps/lightcraft.md), [apps/effectcraft.md](apps/effectcraft.md)). |
 
 Pull request #2263 proposes `window.photocraft` and a `postMessage` API enabled with
@@ -270,9 +270,9 @@ Pull request #2263 proposes `window.photocraft` and a `postMessage` API enabled 
 | What | Where | Current |
 |---|---|---|
 | Protocol | `version` in every message | 1 |
-| Translator | `LAYER_VERSION` in `translators/core.js`, reported as `layerVersion` in `hello` and `ready` | 0.5.0 |
-| Nextcloud app | `<version>` in `craftsuite_layer/appinfo/info.xml` | 0.5.0, Nextcloud 34 and 35 |
-| Release | the tag `v<version>` | v0.5.0 |
+| Translator | `LAYER_VERSION` in `translators/core.js`, reported as `layerVersion` in `hello` and `ready` | 0.5.1 |
+| Nextcloud app | `<version>` in `craftsuite_layer/appinfo/info.xml` | 0.5.1, Nextcloud 34 and 35 |
+| Release | the tag `v<version>` | v0.5.1 |
 | Supported apps, their oldest and tested versions | `apps.json` ([hosting.md](hosting.md#the-app-list)) | PdfCraft 0.8.0, PhotoCraft 0.9.0, VectorCraft 0.12.0, DesignCraft 0.8.0, WordCraft 0.7.0, GridCraft 0.7.0, DeckCraft 0.7.0, CADCraft 0.7.0, LightCraft 0.8.0, FilmCraft 0.8.0, EffectCraft 0.10.0, SoundCraft 0.7.0 (tested) |
 
 The translator and the Nextcloud app share one version number, and a release carries both: the

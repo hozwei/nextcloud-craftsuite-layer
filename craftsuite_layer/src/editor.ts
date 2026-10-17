@@ -872,15 +872,19 @@ function start(state: EditorState, iframe: HTMLIFrameElement): void {
   // hosting never sees it, the translator takes it out before the app runs, and an older
   // translator leaves it alone (no app reads it). The configured address has no fragment.
   iframe.src = state.appUrl + (state.language ? '#craftsuite-layer:lang=' + encodeURIComponent(state.language) : '');
+  // The app's site in a tab of its own, where its sign-in page works.
+  const appTab = { href: state.appUrl, label: t('craftsuite_layer', 'Open {app} in a new tab', { app: appName }) };
   window.setTimeout(() => {
     if (!helloSeen && root?.dataset.state === 'loading') {
-      setStatus('loading', t('craftsuite_layer', '{app} has not answered yet. If its site asks you to sign in, sign in there, then reload this page.', { app: appName }),
-        { href: state.appUrl, label: t('craftsuite_layer', 'Open {app} in a new tab', { app: appName }) });
+      setStatus('loading', t('craftsuite_layer', '{app} has not answered yet. If its site asks you to sign in, sign in there, then reload this page.', { app: appName }), appTab);
     }
   }, HELLO_HINT_MS);
   window.setTimeout(() => {
-    // A more specific error (from the translator or a failed read) stays.
-    if (!wasReady && root?.dataset.state !== 'error') setStatus('error', t('craftsuite_layer', '{app} did not start. Is it reachable at {origin}?', { app: appName, origin: appOrigin }));
+    // A more specific error (from the translator or a failed read) stays. The link stays too: a
+    // user who looks only now may still have to sign in there.
+    if (!wasReady && root?.dataset.state !== 'error') {
+      setStatus('error', t('craftsuite_layer', '{app} did not start. Is it reachable at {origin}?', { app: appName, origin: appOrigin }), appTab);
+    }
   }, START_TIMEOUT_MS);
 }
 

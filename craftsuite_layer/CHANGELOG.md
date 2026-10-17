@@ -14,6 +14,19 @@ Each GitHub release takes its text from the section whose heading matches the ve
 
 ## [Unreleased]
 
+## [0.5.1] - 2026-10-17
+
+### Fixed
+
+- The editor page keeps the link that opens the Craft app in a new tab when it gives up after 90
+  seconds ("… did not start. Is it reachable at …?"): a user who looks only then can still sign
+  in to the Craft site there.
+
+### Changed
+
+- docs/nextcloud-app.md describes going back to an older version of the app. Released together
+  with translators 0.5.1, which are unchanged but for the version.
+
 ## [0.5.0] - 2026-10-17
 
 ### Added

@@ -67,7 +67,7 @@ What it does with the folder (the one that holds the app's `index.html`):
 | `--startup-timeout` | Milliseconds (1 to 2147483647) after the page's `load` event for the app to start, written as `data-startup-timeout`; without it the translator's default of 60000 applies. 180000 for LightCraft and EffectCraft, see below. |
 | `-t`, `--translators` | Folder with `core.js` and the adapters. Default: `$CRAFTSUITE_TRANSLATORS`, else `../translators` next to the script. |
 | `-c`, `--check` | Change nothing; exit 0 if the folder is up to date, 1 if not. For monitoring. |
-| `-r`, `--remove` | Remove the tags again and put back the app's own `sw.js` from `craftsuite-layer/sw.js.orig`; the app then works as without the layer. `craftsuite-layer/` stays in place. |
+| `-r`, `--remove` | Remove the tags again and put back the app's own `sw.js` from `craftsuite-layer/sw.js.orig`; the app then works as without the layer. `craftsuite-layer/` stays in place. On a folder not named `<app>-web-<version>` (a served `www/<app>`, for example), give `--app` too; the version is not needed. |
 | `-q`, `--quiet` | No message on success. |
 | `-h`, `--help` | The options and exit codes. |
 
@@ -135,7 +135,7 @@ GitHub API:
 # Once per layer version: the bundle unpacks to craftsuite-layer-hosting-<version>/, with
 # hosting/ and translators/ side by side, so the script finds the translators by itself, and
 # apps.json, the apps this release supports (docs/hosting.md#the-app-list).
-layer_version=0.5.0
+layer_version=0.5.1
 base=https://github.com/hozwei/nextcloud-craftsuite-layer/releases/download/v$layer_version
 cd /opt
 curl -fL --remote-name-all "$base/craftsuite-layer-hosting-$layer_version.tar.gz" "$base/SHA256SUMS"
@@ -184,6 +184,14 @@ find "$dir" -type f \( -name '*.wasm' -o -name '*.js' -o -name '*.html' -o -name
 layer version on the Craft app version being served updates the translator without a new Craft
 app release; browsers get it on their next load.
 
+To take the layer out of a served app again, run `--remove` on its folder, with `--app` where the
+folder is not named `<app>-web-<version>` (it writes the `.gz` copies of the files it changes
+again, as on an injection):
+
+```sh
+sh "$layer/hosting/inject-translator.sh" --remove --app pdfcraft /srv/craft/www/pdfcraft
+```
+
 ## nginx
 
 [`nginx/craft-apps.conf.template`](nginx/craft-apps.conf.template) serves `/srv/craft/<app>/`
@@ -218,7 +226,7 @@ template serves every file in an app's folder: remove LightCraft's Cargo leftove
 with `pdfcraft-web-0.6.0/` injected next to the bundle as in the repository's README:
 
 ```sh
-cd craftsuite-layer-hosting-0.5.0/hosting
+cd craftsuite-layer-hosting-0.5.1/hosting
 cp compose.example.yaml compose.yaml
 mkdir -p www/releases
 mv ../../pdfcraft-web-0.6.0 www/releases/
@@ -243,9 +251,10 @@ app, so the sign-in's session cookie must reach the app inside the frame. In sho
   frame. On another site (`craft.example.org`) the cookie needs `SameSite=None; Secure`, and
   browsers that block or partition third-party cookies (Safari and Firefox by default) still do
   not send it.
-- **Sign in in a tab of its own.** The editor page allows only the Craft origin in its frame, so
-  a sign-in that redirects to an identity provider is blocked inside the frame. When the editor
-  shows its hint, users open the app in a new tab with its link, sign in there and reload the
-  editor page; a long sign-in session helps.
+- **Sign in in a tab of its own.** The editor page allows the Craft origin and Nextcloud's own in
+  its frame, so a sign-in that redirects to an identity provider on another origin is blocked
+  inside the frame. When the editor shows its hint, users open the app in a new tab with its
+  link, sign in there and reload the editor page; a long sign-in session helps. With Nextcloud
+  itself as the identity provider (its `oidc` app), the sign-in passes inside the frame.
 - **`frame-ancestors` on the sign-in page too**, with the Nextcloud origins or `'none'`, so that
   no other site can frame it.
