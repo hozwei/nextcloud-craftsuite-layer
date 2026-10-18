@@ -109,6 +109,11 @@ curl -fL --remote-name-all "$base/craftsuite_layer-$v.tar.gz" \
 sha256sum -c SHA256SUMS
 ```
 
+Both parts come from one release here, but they need not stay on one: within one protocol
+version, the translators on the Craft hosting and the Nextcloud app of different releases work
+together, so each side can be updated on its own
+([docs/nextcloud-app.md](docs/nextcloud-app.md#installing)).
+
 ### 1. Host the Craft apps with the translator
 
 For each Craft app, here PdfCraft 0.6.0: download and check its web build, then add the
@@ -130,7 +135,9 @@ Nextcloud origin and without `X-Frame-Options`. The bundle's Compose example doe
 nginx, one folder per app; a reverse proxy in front adds HTTPS (commands in
 [hosting/README.md](hosting/README.md#compose)). The requirements and
 a checklist are in [docs/hosting.md](docs/hosting.md). This repository has no updater for new
-Craft releases yet; [docs/hosting.md](docs/hosting.md#updates) says what one must do.
+Craft releases of its own; [docs/hosting.md](docs/hosting.md#updates) says what one must do, and
+[craftsuite-webapp](https://github.com/hozwei/craftsuite-webapp) is one that also follows this
+repository's releases.
 
 ### 2. Install the Nextcloud app
 

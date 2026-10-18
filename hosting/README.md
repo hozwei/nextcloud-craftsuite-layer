@@ -21,9 +21,10 @@ translators in `craftsuite-layer-hosting-<version>.tar.gz` (see
 file links to are not in that archive; they are in the repository, at
 `https://github.com/hozwei/nextcloud-craftsuite-layer/tree/v<version>`.
 
-There is no release updater here yet: one that takes new upstream releases after a delay,
-verifies them, injects the translator, compresses and switches versions in one step
-([docs/hosting.md](../docs/hosting.md#updates)) is up to the hosting for now.
+There is no release updater here: one that takes new upstream releases after a delay, verifies
+them, injects the translator, compresses and switches versions in one step
+([docs/hosting.md](../docs/hosting.md#updates)) is up to the hosting.
+[craftsuite-webapp](https://github.com/hozwei/craftsuite-webapp), a separate project, is one.
 
 ## inject-translator.sh
 
@@ -127,9 +128,10 @@ with its service worker).
 ### In a release updater
 
 The updater takes this script and the translators from the hosting bundle of one release of this
-repository, pinned in its configuration, and moves to a newer one deliberately, after reading the
-[changelog](../CHANGELOG.md). The bundle and the release's `SHA256SUMS` are plain downloads, no
-GitHub API:
+repository: one pinned in its configuration, moving to a newer one deliberately after reading the
+[changelog](../CHANGELOG.md), or the highest one, once it passes the checks in
+[docs/hosting.md](../docs/hosting.md#following-the-layers-releases). The bundle and the release's
+`SHA256SUMS` are plain downloads, no GitHub API:
 
 ```sh
 # Once per layer version: the bundle unpacks to craftsuite-layer-hosting-<version>/, with

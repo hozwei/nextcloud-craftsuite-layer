@@ -48,7 +48,25 @@ occ app:enable craftsuite_layer
 ```
 
 To update the app, remove the folder `custom_apps/craftsuite_layer/`, unpack the new archive in
-its place and run `occ upgrade`. The addresses stay.
+its place and run `occ upgrade`. The addresses stay. An update needs nothing more, unless the
+app's [changelog](../craftsuite_layer/CHANGELOG.md) says so for that version (a setting to set, an
+`occ` command, a database migration, another range of Nextcloud versions).
+
+**The app and the translators need not be of the same release.** Within one protocol version
+(`version` in every message, 1 since 0.1.0), the Nextcloud app and the translators on the Craft
+hosting work together whatever releases of this repository they come from: each side ignores the
+fields and messages it does not know ([protocol.md](protocol.md#compatibility)). So the hosting can
+follow this repository's releases by itself
+([hosting.md](hosting.md#following-the-layers-releases)), and the app needs an update only when
+its own part changes. What needs both sides comes when both have it: a start language
+([Configuring](#configuring)) needs translators from 0.3.0 on, and a Craft app that a newer
+version of this app brings needs the hosting to serve it with translators that have its adapter
+(until then, switch it off). The other way round, a Craft app that a newer layer release drops
+from its app list, or whose served version falls below a raised `minVersion`, loses its
+translator on a hosting that follows the releases (the changelog says so): switch it off here
+until the hosting serves it with the translator again. A release with another protocol version
+says so in its changelog; the hosting and the app then move to it together, since a pair with
+different protocol versions never completes the handshake.
 
 **Going back to an older version** works the same way: put the older release's folder in place
 and run `occ upgrade`. Nextcloud takes it as an update and runs the app's repair steps (tested

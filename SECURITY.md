@@ -45,6 +45,8 @@ How the layer is meant to be secure is described in [docs/security.md](docs/secu
 
 Only the latest [release](https://github.com/hozwei/nextcloud-craftsuite-layer/releases) and the
 `main` branch are supported. Fixes land on `main` and come out in the next release; older
-releases get no backports. A release carries both the Nextcloud app and the translators, so
-update both: the app in Nextcloud, and the translators in the hosting
-([docs/hosting.md](docs/hosting.md#the-layers-files)).
+releases get no backports. A release carries both the Nextcloud app and the translators. Within
+one protocol version each can be updated on its own
+([docs/nextcloud-app.md](docs/nextcloud-app.md#installing)), but a fix is only in the latest
+release: take it in the part the changelogs name, the app in Nextcloud or the translators in the
+hosting ([docs/hosting.md](docs/hosting.md#the-layers-files)).

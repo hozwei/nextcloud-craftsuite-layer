@@ -12,9 +12,12 @@
 #                                              release updater
 #   SHA256SUMS                                 checksums of both
 #
-# A release updater takes a pinned version from
+# A release updater takes a pinned version, or the highest release once it passes its checks
+# (docs/hosting.md, Following the layer's releases; choosing it and checking the canary need the
+# GitHub API), from
 # https://github.com/<owner>/<repo>/releases/download/v<version>/<asset>: plain downloads, no
-# GitHub API (and so none of its rate limit). The steps for a release are in docs/development.md.
+# GitHub API (and so none of its rate limit). The steps for a release, and what updaters rely on,
+# are in docs/development.md.
 
 name: Release
 

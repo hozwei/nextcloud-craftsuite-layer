@@ -392,10 +392,19 @@ If the host sandboxes the iframe, PdfCraft needs at least
 
 ## Compatibility
 
-The translator ignores messages with another `version`. A change that existing hosts or
-translators would misread gets a new protocol version. New optional fields and new message types
-keep version 1, so both sides ignore what they do not know. `hello` and `ready` report the
-translator's `layerVersion` for diagnostics.
+The translator ignores messages with another `version` (`PROTOCOL_VERSION` in
+`translators/core.js`), and so does the Nextcloud app's editor page (`VERSION` in
+`craftsuite_layer/src/editor.ts`). A change that existing hosts or translators would misread gets
+a new protocol version. New optional fields and new message types keep version 1, so both sides
+ignore what they do not know. `hello` and `ready` report the translator's `layerVersion` for
+diagnostics.
+
+So a host and a translator from different releases of this repository work together as long as
+they speak the same protocol version: the Craft hosting may run a newer or an older layer release
+than the Nextcloud app. Each side has the features of its own release, and what needs both (such
+as the [host settings](#host-settings), see the next paragraph) comes when both have it. A pair
+with different protocol versions never completes the handshake. A new protocol version is named in
+the changelog, and the hosting and the Nextcloud app move to it together.
 
 [Host settings](#host-settings) came with translator 0.3.0 and keep version 1 too: a translator
 before 0.3.0 leaves the fragment in the address, where no Craft app reads it, and the app starts

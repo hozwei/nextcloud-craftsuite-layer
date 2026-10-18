@@ -10,8 +10,8 @@ meet. [`hosting/`](../hosting/README.md) has building blocks for them: `inject-t
 which adds the translator to a web build (tested in CI), and an nginx configuration template
 with a Compose example (examples, not tested in CI). Each release of this repository ships them
 with the translators and the list of supported apps as one archive
-([The layer's files](#the-layers-files), [The app list](#the-app-list)). There is no release
-updater yet; [Updates](#updates) says what one must do.
+([The layer's files](#the-layers-files), [The app list](#the-app-list)). This repository has no
+release updater of its own; [Updates](#updates) says what one must do, and names one that does.
 
 ## Layout
 
@@ -241,8 +241,13 @@ revalidated too, which is cheap.
 
 ## Updates
 
-The apps release often, and the hosting should follow. This repository has no updater yet. An
-updater should:
+The apps release often, and the hosting should follow. This repository has no updater of its own.
+[craftsuite-webapp](https://github.com/hozwei/craftsuite-webapp), a separate project, is one:
+it takes the steps below, and from its v0.5.0 on, with `CRAFTSUITE_LAYER_VERSION=auto`, it also
+follows this repository's releases as
+[Following the layer's releases](#following-the-layers-releases) describes (its
+[how-it-works.md](https://github.com/hozwei/craftsuite-webapp/blob/v0.5.0/docs/how-it-works.md#the-layer-bundle)).
+An updater should:
 
 1. Find the newest release through `https://github.com/storytold/<app>/releases/latest`, which
    redirects to the release's tag. It does not use `api.github.com`, whose limit for
@@ -268,10 +273,11 @@ updater should:
 4. Take a new release only after a delay (for example a day), so that this repository's daily
    canary run has tested it (see [development.md](development.md#continuous-integration)):
 
-   - **The run that counts** for a release is the first run of `canary.yml` on `main` that was
-     created after the release was published and ended with `success` or `failure` (a
-     `cancelled` run, a timeout for example, tested nothing), and only if no newer release of the
-     app came out before that run ended. Take the run's `created_at`, not `run_started_at`:
+   - **The run that counts** for a release is the first run of `canary.yml` on `main` of the
+     layer version in use (see *Which translators a run tested* below) that was created after the
+     release was published and ended with `success` or `failure` (a `cancelled` run, a timeout
+     for example, tested nothing), and only if no newer release of the app came out before that
+     run ended. Take the run's `created_at`, not `run_started_at`:
      GitHub resets `run_started_at` when a run is re-run, while "Re-run failed jobs" keeps the
      result of a test job that passed in the first attempt.
    - **A failed run** advises holding releases back. It opens an issue labelled `canary` in this
@@ -294,15 +300,17 @@ updater should:
      its result. A run fails only for the Craft releases' tests or a failed report; the look at the
      next Nextcloud release has an issue of its own (`canary-nextcloud`) and never fails a run.
    - **Which translators a run tested.** The canary tests the translators on `main` (the run's
-     `head_sha`). Changes to them reach `main` only together with a layer release, so a run
-     created while a layer release was the newest tested that release. An updater pinned to an
-     older layer release counts only runs created before the next layer release came out; for a
-     Craft release after that, it moves to the newer layer release.
-   - **After a failed run**, a later green run does not make up for it: the canary tests `main`,
-     not the layer release an updater is pinned to. The failed release becomes usable with a
-     layer release whose changelog says it handles it (its first counted canary run on that
-     release's commit passed); until then, take the app's next release that passes its own first
-     run.
+     `head_sha`). Changes to them reach `main` only in a layer release's commit, together with
+     `LAYER_VERSION` in `translators/core.js`, so a run tested the layer version that `core.js`
+     has at its `head_sha`: a plain download from
+     `https://raw.githubusercontent.com/hozwei/nextcloud-craftsuite-layer/<sha>/translators/core.js`,
+     no API (a report's `canary-result` names it as `layer` too). An updater counts only the runs
+     of the layer version it uses; for a Craft release that only a newer layer version's runs
+     tested, it moves to that layer release.
+   - **After a failed run**, a later green run of the same layer version does not make up for
+     it: it tested the same translators, so nothing was fixed. The failed release becomes usable
+     with a newer layer release whose changelog says it handles it (its first counted canary run
+     passed); until then, take the app's next release that passes its own first run.
    - Failing `@ui` tests alone mean that the tests' click positions need updating, not the
      translator. Failing `@language` tests alone mean that the release may start in its own
      language instead of the one the Nextcloud app asks for, until the adapter is fixed; files
@@ -332,11 +340,12 @@ updater should:
 
 ### The layer's files
 
-Take the injector, `core.js` and the adapters together from one release of this repository,
-pinned in the updater's configuration, and move to a newer one deliberately, after reading its
-[changelog](../CHANGELOG.md). Each release has them in its hosting bundle, with the checksums of
-its assets in `SHA256SUMS`, as plain downloads (no API) from
-`https://github.com/hozwei/nextcloud-craftsuite-layer/releases/download/v<version>/<asset>`:
+Take the injector, `core.js` and the adapters together from one release of this repository:
+one pinned in the updater's configuration, moving to a newer one deliberately after reading its
+[changelog](../CHANGELOG.md), or the highest one, once it passes the checks in
+[Following the layer's releases](#following-the-layers-releases). Each release has them in its
+hosting bundle, with the checksums of its assets in `SHA256SUMS`, as plain downloads (no API)
+from `https://github.com/hozwei/nextcloud-craftsuite-layer/releases/download/v<version>/<asset>`:
 
 | Asset | Content |
 |---|---|
@@ -348,6 +357,41 @@ The bundle keeps the repository's layout, so `inject-translator.sh` finds the tr
 [hosting/README.md](../hosting/README.md#in-a-release-updater). Running the injector of a newer
 release on the Craft app version being served updates the translator without a new Craft app
 release.
+
+### Following the layer's releases
+
+An updater may move to a new release of this repository by itself, as craftsuite-webapp does
+with `CRAFTSUITE_LAYER_VERSION=auto`. It looks at the highest release with a tag
+`v<major>.<minor>.<patch>` that is neither a draft nor a pre-release and has
+`craftsuite-layer-hosting-<version>.tar.gz` and `SHA256SUMS`, and moves to it only when it passes
+all of these checks; otherwise it stays with the release in use, without falling back to a lower
+new release:
+
+- Its version is higher than the one in use. It never moves to a lower release by itself.
+- GitHub has a SHA-256 of the bundle (the asset's `digest`), and the download matches both that
+  and its line in `SHA256SUMS`.
+- A canary run of the release's layer version has finished, and the newest one did not fail for
+  every app (a run's layer version as in step 4 of [Updates](#updates)). A run that failed only
+  for single apps tested the translators and found those apps' new releases at fault: step 4
+  judges them, app by app. Until such a run has ended, the release waits.
+- Its `translators/core.js` has the `PROTOCOL_VERSION` of the release in use. The Nextcloud app
+  speaks that version too, and within one protocol version translators and a Nextcloud app of
+  different releases work together ([protocol.md](protocol.md#compatibility)). A release with
+  another protocol version needs the Nextcloud app moved with it: move to both by hand.
+
+The release list with `draft`, `prerelease` and each asset's `digest` comes from the API
+(`/repos/hozwei/nextcloud-craftsuite-layer/releases`, one request per run), with a token as in
+step 4. After a move, run the new release's injector on the versions being served (as above), and
+count the canary runs of the new layer version from then on (step 4).
+
+Each release of this repository keeps to what such an updater relies on
+([development.md](development.md#what-updaters-rely-on)): only a release that may be rolled out
+is a full release; the form of its tag, its assets and `translators/core.js`; translator changes
+only in release commits; a finished canary run on its commit before the tag; `PROTOCOL_VERSION`
+raised only for a change one side would misread; the canary's form; and a note in the changelog
+for what an updater cannot take on its own (a change of the requirements on this page, of
+`inject-translator.sh`'s interface, of the bundle's layout or of the app list, an app's
+`minVersion` raised above a release that may be served, an app that leaves the app list).
 
 ### The app list
 
@@ -426,7 +470,8 @@ page frames the app, so:
 
 - [ ] Own origin, HTTPS, another host name than Nextcloud
 - [ ] App addresses without a query
-- [ ] Injector and translators from one pinned release of this repository, checked against its
+- [ ] Injector and translators from one release of this repository, pinned or followed as in
+  [Following the layer's releases](#following-the-layers-releases), checked against its
   `SHA256SUMS`
 - [ ] Only the files the apps need: no Cargo leftovers from LightCraft's release (`build/`,
   `deps/`, ...)

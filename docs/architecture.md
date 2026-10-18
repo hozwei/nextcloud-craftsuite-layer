@@ -26,7 +26,7 @@ out until its web build can open and save files.
 | Nextcloud app `craftsuite_layer` | `craftsuite_layer/` | Nextcloud, and in the browser in Files and the editor page | Files entries (also as the default app for all of an app's types), "+ New" entries with a blank document per app (`assets/`, made by `blanks.mjs`), file type icons, editor page, settings page, German; Nextcloud 34 and 35 ([nextcloud-app.md](nextcloud-app.md)) |
 | Translator core | `translators/core.js` | the Craft app's page | done, protocol version 1 |
 | Adapters, one per app | `translators/<app>.js` | the Craft app's page | one for each app in `apps.json` ([translators/README.md](../translators/README.md)) |
-| Craft hosting | `hosting/` (template) | a static web server on its own origin, plus an updater | translator injector, nginx template, Compose example; no updater yet ([hosting.md](hosting.md)) |
+| Craft hosting | `hosting/` (template) | a static web server on its own origin, plus an updater | translator injector, nginx template, Compose example; no updater of its own ([hosting.md](hosting.md#updates) says what one must do) |
 | End-to-end tests | `tests/e2e/` | Playwright | the translator in Chromium, Firefox and WebKit; the apps in Chromium and WebKit; the Nextcloud app in Nextcloud 34 and 35 ([development.md](development.md)) |
 
 ## How it fits together
@@ -277,4 +277,9 @@ Pull request #2263 proposes `window.photocraft` and a `postMessage` API enabled 
 
 The translator and the Nextcloud app share one version number, and a release carries both: the
 app, and the translators with the injector for the hosting
-([development.md](development.md#releasing)).
+([development.md](development.md#releasing)). They need not run in the same version: within one
+protocol version a translator and a Nextcloud app of different releases work together
+([protocol.md](protocol.md#compatibility)), so the hosting and Nextcloud can be updated
+separately: the hosting by hand or by an updater that follows the releases
+([hosting.md](hosting.md#following-the-layers-releases)), Nextcloud by replacing the app's folder
+([nextcloud-app.md](nextcloud-app.md#installing)).

@@ -14,6 +14,12 @@ Each GitHub release takes its text from the section whose heading matches the ve
 
 ## [Unreleased]
 
+### Changed
+
+- docs/nextcloud-app.md, Installing: the app and the translators on the Craft hosting need not be
+  of the same release; within one protocol version they work together. An update needs only the
+  new folder and `occ upgrade`, unless this changelog says more for that version.
+
 ## [0.5.2] - 2026-10-18
 
 ### Changed

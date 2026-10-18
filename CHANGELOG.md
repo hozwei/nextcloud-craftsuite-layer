@@ -13,6 +13,21 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Changed
+
+- Documentation for updaters that follow this repository's releases, such as
+  [craftsuite-webapp](https://github.com/hozwei/craftsuite-webapp) from its v0.5.0 on
+  (`CRAFTSUITE_LAYER_VERSION=auto`): docs/hosting.md, Following the layer's releases, lists the
+  checks before an updater moves to a new layer release, and Updates reads a canary run's layer
+  version from `translators/core.js` at the run's commit; docs/development.md, What updaters rely
+  on, lists what every release keeps to, and Releasing starts the canary on the release commit
+  before the tag (a translator fix after a run that failed for every app comes as the next
+  version).
+- docs/nextcloud-app.md, docs/protocol.md, docs/architecture.md, SECURITY.md and the README:
+  within one protocol version the translators and the Nextcloud app of different releases work
+  together, so the Craft hosting and Nextcloud can be updated separately. An update of the app
+  needs only its folder and `occ upgrade`, unless the app's changelog says more for that version.
+
 ## [0.5.2] - 2026-10-18
 
 The Craft releases of 2026-10-18 (canary issue #4): PdfCraft 0.9.0, PhotoCraft 0.10.0,

@@ -369,9 +369,10 @@ moved by hand as well. `SCHEMA_COMMIT` is not covered and is moved by hand.
 ## Releasing
 
 Changes to `translators/` reach `main` only together with a release (the release commit, then its
-tag): the canary tests `main`, and updaters count its runs for the newest layer release
-([hosting.md](hosting.md#updates), step 4). Changes that leave the translators as they are
-(documentation, tests, workflows, Dependabot) may come in between.
+tag): the canary tests `main`, and updaters count its runs by the `LAYER_VERSION` that
+`translators/core.js` has at a run's commit ([hosting.md](hosting.md#updates), step 4). Changes
+that leave the translators as they are (documentation, tests, workflows, Dependabot) may come in
+between.
 
 The Nextcloud app and the translator share one version number, following
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html). A release is a tag `v<version>` on
@@ -388,7 +389,16 @@ The Nextcloud app and the translator share one version number, following
    checks that the app's changelog has a section for the version in `info.xml`.
 3. Check whether `SCHEMA_COMMIT` in `ci.yml` needs moving (its comment says how).
 4. Merge into `main` and wait until CI has passed there.
-5. Push the tag `v<version>` on that commit, with `git tag` and `git push` or the maintainers'
+5. Start the canary on `main` by hand (Actions > Canary > Run workflow, branch `main`) and wait
+   for it to end. Updaters that follow the releases take a release only once a canary run of its
+   `LAYER_VERSION` has finished and the newest finished one did not fail for every app
+   ([hosting.md](hosting.md#following-the-layers-releases)). A run that fails only for single
+   apps (an upstream release the translators cannot handle yet) does not hold the release back.
+   One that fails for every app does: if the cause lies outside the translators (a failed
+   download, the runner), start the canary again once it is gone; if the translators need a fix,
+   do not tag this version, and make the fix a release of the next one (steps 1 to 5), so that
+   all runs of one `LAYER_VERSION` tested the same translators.
+6. Push the tag `v<version>` on that commit, with `git tag` and `git push` or the maintainers'
    own publishing tools.
 
 `release.yml` then checks that the tag is `v` plus the version in `info.xml`, that `LAYER_VERSION`
@@ -406,7 +416,53 @@ changelog's section for the version, then a list of the assets) and creates the 
 Each asset is a plain download from
 `https://github.com/hozwei/nextcloud-craftsuite-layer/releases/download/v<version>/<asset>`, so
 that installations and release updaters need no GitHub API (and none of its rate limit) to
-download them; only the check that the canary has run uses it ([hosting.md](hosting.md#updates)).
+download them; only the check that the canary has run and, for an updater that follows the
+releases, the release list use it ([hosting.md](hosting.md#updates),
+[Following the layer's releases](hosting.md#following-the-layers-releases)).
+
+### What updaters rely on
+
+Hostings may take new releases of this repository by themselves
+([hosting.md](hosting.md#following-the-layers-releases)), and a Nextcloud server may be updated by
+a script that replaces the app's folder and runs `occ upgrade`
+([nextcloud-app.md](nextcloud-app.md#installing)). So every release keeps to this:
+
+- **Only what may be rolled out is a full release.** `release.yml` publishes every tag as one,
+  and GitHub's `releases/latest` then points at it; updaters that follow the releases take it
+  once its checks pass (with step 5 done, on their next run). A release that must not be rolled
+  out has to be turned into a draft or a pre-release on GitHub at once; `release.yml` has no
+  switch for that. Sites that took it in the meantime stay on it (updaters never move to a lower
+  release), so the fix comes as a newer release.
+- **The form stays:** the tag `v<major>.<minor>.<patch>` on the release commit, the two archives
+  with exactly the names above, `SHA256SUMS` with both of their lines, and `translators/core.js`
+  at that path with the lines `const LAYER_VERSION = '<version>';` and
+  `const PROTOCOL_VERSION = <n>;` (updaters read both, from the bundle and from the file at a
+  canary run's commit; `release.yml` checks the first).
+- **`translators/` changes on `main` only in a release commit**, the one that raises
+  `LAYER_VERSION`, so that all canary runs of one `LAYER_VERSION` tested the same translators.
+- **The canary has run on the release commit before the tag** (step 5): until a run of its
+  `LAYER_VERSION` has ended, and while the newest one failed for every app, updaters that follow
+  the releases leave the release alone.
+- **`PROTOCOL_VERSION`** in `translators/core.js` (with `VERSION` in
+  `craftsuite_layer/src/editor.ts`) changes only with a change that one side would misread
+  ([protocol.md](protocol.md#compatibility)). Updaters stop at such a release, and the hosting
+  and the Nextcloud app move to it together by hand; both changelogs say so.
+- **The canary keeps its form:** `canary.yml` on `main` with its `schedule` and
+  `workflow_dispatch`; one issue labelled `canary` that a failing run opens or comments on and the
+  next passing run closes (the workflow never reopens one); the labels `canary:<app>` of the apps
+  of its latest failing run; and at the end of each report the line `canary-result {...}` with
+  `run`, `attempt`, `commit`, `layer`, `failed` and `tested`, written with the workflow's own
+  token (`github-actions[bot]`: updaters read only its reports, since anybody may comment on a
+  public issue) ([hosting.md](hosting.md#updates), step 4).
+- **The changelog names what needs more than the usual update.** For the Nextcloud app, more than
+  replacing its folder and `occ upgrade`: a database migration, a setting someone has to set, an
+  `occ` command, an order of steps, another range in `<nextcloud>` in `appinfo/info.xml`. For the
+  hosting: a change of the requirements in [hosting.md](hosting.md) (files to serve, headers,
+  caching, service workers), of `inject-translator.sh`'s options, of `CRAFTSUITE_ALLOWED_ORIGINS`
+  or of its exit codes 0 and 6, of the bundle's layout, or of `apps.json` (another `format`, new
+  fields that carry a meaning, or an app's `repo`, from which updaters download); an app's
+  `minVersion` raised above a release that may be served (that release loses the translator until
+  a newer one is taken); an app that leaves `apps.json`.
 
 ## Adding a Craft app
 
