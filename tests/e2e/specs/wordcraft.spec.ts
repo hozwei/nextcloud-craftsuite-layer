@@ -154,28 +154,29 @@ async function scenario(context: BrowserContext, title: string, body: (page: Pag
 
 type Box = { x: number; y: number; width: number; height: number };
 
-// Pointer targets (measured on WordCraft 0.5.0, checked again on 0.6.1 and 0.7.0), relative to the
-// app frame at the pinned viewport. This is the only layout knowledge in this file; when a release
-// moves something, fix it here.
+// Pointer targets (measured on WordCraft 0.5.0, checked again on 0.6.1, 0.7.0 and 0.8.0), relative
+// to the app frame at the pinned viewport. This is the only layout knowledge in this file; when a
+// release moves something, fix it here.
 const AT = {
   // Ribbon tabs: File (opens the backstage) and Mailings.
   fileTab: (b: Box) => ({ x: b.x + 27, y: b.y + 53 }),
   mailingsTab: (b: Box) => ({ x: b.x + 452, y: b.y + 53 }),
-  // Backstage: Export in the list on the left, then the first, second and fifth button of the
-  // Export page: PDF document, Word document, OpenDocument Text (0.6.1 added Word XML Document as
-  // the third, 0.7.0 Word 2003 XML Document as the fourth).
-  backstageExport: (b: Box) => ({ x: b.x + 44, y: b.y + 375 }),
+  // Backstage: Export in the list on the left (0.8.0 added Recover above it), then the first,
+  // second and fifth button of the Export page: PDF document, Word document, OpenDocument Text
+  // (0.6.1 added Word XML Document as the third, 0.7.0 Word 2003 XML Document as the fourth).
+  backstageExport: (b: Box) => ({ x: b.x + 44, y: b.y + 417 }),
   exportPdf: (b: Box) => ({ x: b.x + 400, y: b.y + 128 }),
   exportWord: (b: Box) => ({ x: b.x + 400, y: b.y + 170 }),
   exportOdt: (b: Box) => ({ x: b.x + 400, y: b.y + 296 }),
   // Mailings: Select Recipients and, in its menu, Type a New List… and Use an Existing List…; in
-  // the list Type a New List… shows, the first field (First Name) of the first recipient; Finish
+  // the list Type a New List… shows, the first field (First Name) of the first recipient (0.8.0
+  // added Use an Existing List… above the fields, and the dialog moved: it was at y 350); Finish
   // & Merge, the last button of the ribbon; then Don't Save in the question about the open
   // document's unsaved changes (loading recipients marks it changed).
   selectRecipients: (b: Box) => ({ x: b.x + 252, y: b.y + 103 }),
   typeNewList: (b: Box) => ({ x: b.x + 285, y: b.y + 161 }),
   useExistingList: (b: Box) => ({ x: b.x + 285, y: b.y + 183 }),
-  firstRecipient: (b: Box) => ({ x: b.x + 400, y: b.y + 350 }),
+  firstRecipient: (b: Box) => ({ x: b.x + 440, y: b.y + 336 }),
   finishMerge: (b: Box) => ({ x: b.x + 1000, y: b.y + 108 }),
   dontSave: (b: Box) => ({ x: b.x + 766, y: b.y + 372 }),
 };

@@ -187,8 +187,9 @@ const AT = {
   // The File menu: Save, by its rows.
   fileSave: (b: Box) => ({ x: b.x + 73, y: b.y + menuRowY(FILE_MENU, 'Save') }),
   // Export As, a modal centred in the frame: Export, the default button, first of the two in the
-  // Windows and Linux order, last in the macOS order (Cancel Export; see platformIsMac()).
-  exportButton: (b: Box, mac: boolean) => ({ x: b.x + b.width / 2 + (mac ? 258 : 164), y: b.y + b.height / 2 + 188 }),
+  // Windows and Linux order, last in the macOS order (Cancel Export; see platformIsMac()). 0.10.0
+  // added the Color Profile rows, which moved the buttons down from +188.
+  exportButton: (b: Box, mac: boolean) => ({ x: b.x + b.width / 2 + (mac ? 258 : 164), y: b.y + b.height / 2 + 229 }),
   // About PhotoCraft, a modal centred in the frame and sized to its tab. On the About tab: the
   // Contributors tab, second in its tab row.
   aboutContributorsTab: (b: Box) => ({ x: b.x + b.width / 2 - 239, y: b.y + b.height / 2 - 77 }),
@@ -286,12 +287,14 @@ async function filePickerFrom(page: Page, app: Frame, label: string) {
   return chooser;
 }
 
-// A user's drag and drop of a file from the desktop onto the middle of the app. Only Chromium
+// A user's drag and drop of a file from the desktop onto the middle of the app's top edge, the
+// title in the menu bar, where it opens as a new document tab: since 0.10.0 a drop on the open
+// document's canvas places the file as a layer instead (file_open.rs drop_target). Only Chromium
 // can send such a trusted drop (DevTools protocol), see chromiumOnly().
 async function dropFromDesktop(page: Page, app: Frame, file: string) {
   const box = await page.locator('#app').boundingBox();
   if (!box) throw new Error('the app frame is not visible');
-  const at = { x: box.x + box.width / 2, y: box.y + box.height / 2 };
+  const at = { x: box.x + box.width / 2, y: box.y + 15 };
 
   await test.step(`ui: drop ${path.basename(file)} from the desktop`, async () => {
     const cdp = await page.context().newCDPSession(page);

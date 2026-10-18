@@ -26,7 +26,8 @@
 //              runs) stays: the next start with de leaves it, and ready names no language
 //   ui (@ui)   the paths that need pointer clicks: the toolbar Save button saves the document; an
 //              Action Wizard result under the document's own name arrives as an export; an
-//              attachment named '../../Team/Budget 2026.pdf' arrives as 'Budget 2026.pdf';
+//              attachment named '../../Team/Budget 2026.pdf' arrives as 'Budget 2026.pdf' (since
+//              PdfCraft 0.9.0 as '_.._Team_Budget 2026.pdf');
 //              PdfCraft's own link with target _self (About > Contributors) opens a new window
 //
 // A daily canary runs this file against every new PdfCraft release, so the steps that drive the
@@ -569,7 +570,10 @@ test('ui: toolbar Save, Action Wizard, attachments and About > Contributors with
     await settle(page.locator('#app'), app);
     await press(page, app, 'Control+s');
     const { save, bytes } = await hostSave(page, 1);
-    expectExport(save, 'Budget 2026.pdf');
+    // Up to 0.8.0 PdfCraft downloads the stored name and the translator keeps its base name; since
+    // 0.9.0 PdfCraft replaces the separators itself.
+    expectExport(save, save.name);
+    expect(save.name, 'a plain base name').toMatch(/^(_\.\._Team_)?Budget 2026\.pdf$/);
     expect(bytes.includes('ATTACHED CONTENT'), 'the attachment, not the document around it').toBe(true);
     expectNoDownloads(downloads);
   });

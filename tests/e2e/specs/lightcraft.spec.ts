@@ -177,10 +177,10 @@ async function scenario(context: BrowserContext, title: string, body: (page: Pag
 
 type Box = { x: number; y: number; width: number; height: number };
 
-// Pointer targets (measured on LightCraft 0.6.0, the File menu rows and OK again on 0.7.1),
-// relative to the app frame at a 1400x1400 viewport: the Export dialog is taller than the frame of
-// a 900 px viewport, and egui centres it. This is the only layout knowledge in this file; when a
-// release moves something, fix it here.
+// Pointer targets (measured on LightCraft 0.6.0, the File menu rows and OK again on 0.7.1 and
+// 0.9.1), relative to the app frame at a 1400x1400 viewport: the Export dialog is taller than the
+// frame of a 900 px viewport, and egui centres it. This is the only layout knowledge in this file;
+// when a release moves something, fix it here.
 const AT = {
   // Menu bar, after the sidebar and history buttons: File.
   fileMenu: (b: Box) => ({ x: b.x + 140, y: b.y + 20 }),
@@ -192,8 +192,9 @@ const AT = {
   fileExportPrevious: (b: Box) => ({ x: b.x + 224, y: b.y + 531 }),
   // Export dialog: the Folder field, below File name.
   exportFolder: (b: Box) => ({ x: b.x + 742, y: b.y + 875 }),
-  // Export dialog: OK, right of Cancel at the bottom left (0.6.0: x 549).
-  exportOk: (b: Box) => ({ x: b.x + 491, y: b.y + 1010 }),
+  // Export dialog: OK, right of Cancel, at the bottom left up to 0.8.0 (0.6.0: x 549, 0.7.1: x
+  // 491) and at the bottom right in 0.9.1.
+  exportOk: (b: Box) => ({ x: b.x + 954, y: b.y + 1009 }),
 };
 
 function appFrame(page: Page): Frame {

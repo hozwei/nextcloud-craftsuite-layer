@@ -14,6 +14,14 @@ Each GitHub release takes its text from the section whose heading matches the ve
 
 ## [Unreleased]
 
+## [0.5.2] - 2026-10-18
+
+### Changed
+
+- No changes to the app. Released together with translators 0.5.2, which handle the Craft
+  releases of 2026-10-18 (PhotoCraft 0.10.0 and the others; not DeckCraft 0.8.0, whose web build
+  does not start at all).
+
 ## [0.5.1] - 2026-10-17
 
 ### Fixed

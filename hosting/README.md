@@ -135,7 +135,7 @@ GitHub API:
 # Once per layer version: the bundle unpacks to craftsuite-layer-hosting-<version>/, with
 # hosting/ and translators/ side by side, so the script finds the translators by itself, and
 # apps.json, the apps this release supports (docs/hosting.md#the-app-list).
-layer_version=0.5.1
+layer_version=0.5.2
 base=https://github.com/hozwei/nextcloud-craftsuite-layer/releases/download/v$layer_version
 cd /opt
 curl -fL --remote-name-all "$base/craftsuite-layer-hosting-$layer_version.tar.gz" "$base/SHA256SUMS"
@@ -226,7 +226,7 @@ template serves every file in an app's folder: remove LightCraft's Cargo leftove
 with `pdfcraft-web-0.6.0/` injected next to the bundle as in the repository's README:
 
 ```sh
-cd craftsuite-layer-hosting-0.5.1/hosting
+cd craftsuite-layer-hosting-0.5.2/hosting
 cp compose.example.yaml compose.yaml
 mkdir -p www/releases
 mv ../../pdfcraft-web-0.6.0 www/releases/

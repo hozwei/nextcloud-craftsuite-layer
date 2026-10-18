@@ -37,10 +37,16 @@ there to notice.
 - It takes dropped files on its canvas through eframe. The drop handler does not check
   `isTrusted`, so the translator's simulated drop works like a user's drop; the core's default
   drop target fits.
-- On the web, every dropped file opens as a new document tab, also while a document is open: the
-  web shell takes the dropped files, reads them asynchronously and opens each one
-  (`web.rs:287-300`, `crates/ui-egui/src/lib.rs:1592-1598`). It never places a dropped file into
-  the open document.
+- On the web, up to 0.9.0 every dropped file opens as a new document tab, also while a document
+  is open: the web shell takes the dropped files, reads them asynchronously and opens each one
+  (`web.rs:287-300`, `crates/ui-egui/src/lib.rs:1592-1598`). Since 0.10.0 it decides by where the
+  drop lands, as on the desktop: on the active document's canvas the files are placed into that
+  document as smart object layers, on the tab strip, the menu bar or the panels they open as tabs
+  (v0.10.0 `web.rs` `listen_drag`, `crates/ui-egui/src/file_open.rs` `drop_target`). For that the
+  web shell adds its own `dragover` and `drop` listeners on the same canvas, just before eframe's
+  and in the same task, so the core's drop target stays the canvas. The core drops the host's
+  file on the middle of the canvas while no document is open, so it always opens as a document; a
+  host that sent a second file into the same frame would get it placed into the first.
 - The document's name is the file name, unchanged. The file has no path on the web
   (`lib.rs:1136`: "a bare name isn't a location to save back to").
 - The decoder is chosen by content, with routes by name only for `.pcraft`, Affinity, OpenRaster
@@ -175,7 +181,9 @@ Why:
   the adapter does not tell the kinds of zip apart, which errs on the side of new files. Preset
   files (`.abr`, `.grd`, `.aco`, `.ase`, `.kys`, `.psp`, `.pcpresets`), which the same file
   picker loads and which open no document, do not count, and neither does the translator's own
-  drop, which is synthetic (`isTrusted` false).
+  drop, which is synthetic (`isTrusted` false). A file dropped on the open document's canvas,
+  which since 0.10.0 becomes a layer of that document, counts as well: the adapter cannot tell
+  where a drop landed, so after a same-stemmed one the document's own saves become new files.
 - **A later drop target.** The adapter sets `dropTargetTimeout` to 15 s: PhotoCraft registers its
   drop target only after its preset storage answered or 10 s passed. With the core's default of
   3 s, a slow storage would first report `the app registered no drop target` to the host, and
@@ -380,7 +388,7 @@ contract tests; the canary runs them apart from the `language` test (tagged `@la
 | Test | What it checks |
 |---|---|
 | `contract` | An allowed host, `probe.psd` opened: the handshake with the served app version, then the open. An edit (Invert) saved with Ctrl+S arrives as the document `probe.psd`, a PSD with the edit; a second edit (Desaturate) saved with Save As is the document again. Quick Export as PNG arrives as an export `probe.png`. Nothing becomes a browser download, also not after the deadlines for the host's confirmation and result. |
-| `another type` | `probe.png` opened: Ctrl+S arrives as the document `probe.psd` with the open's `openId`, and so does the second Ctrl+S; Quick Export as PNG, under the opened file's own name, is an export. A different `probe.psd` opened with File > Open, and in Chromium one dropped from the desktop, saves as an export. `Untitled-1.png` opened (the PNG fixture under that name): its own save and that of a new document (File > New, Enter), both `Untitled-1.psd`, arrive as exports. The blank of the "+ New" entry in Files (`craftsuite_layer/assets/blank.psd`) opens, and its first Ctrl+S, without an edit, arrives as the document `blank.psd` (no `follows`) and not as a browser download. |
+| `another type` | `probe.png` opened: Ctrl+S arrives as the document `probe.psd` with the open's `openId`, and so does the second Ctrl+S; Quick Export as PNG, under the opened file's own name, is an export. A different `probe.psd` opened with File > Open, and in Chromium one dropped from the desktop on the menu bar (where it opens as a tab; on the canvas 0.10.0 places it as a layer), saves as an export. `Untitled-1.png` opened (the PNG fixture under that name): its own save and that of a new document (File > New, Enter), both `Untitled-1.psd`, arrive as exports. The blank of the "+ New" entry in Files (`craftsuite_layer/assets/blank.psd`) opens, and its first Ctrl+S, without an edit, arrives as the document `blank.psd` (no `follows`) and not as a browser download. |
 | `startup` | An IndexedDB that never answers: PhotoCraft takes drops only after 10 s, and the host gets no error, then `ready` and `delivered`. |
 | `language` | The host's `de` (`lang=de`): `ready` reports `de`, the stored `interface.language` and the adapter's mark are `de`, and the palette runs `Öffnen` (File > Open in German), which opens the file picker. Then, with no PhotoCraft running, `fr` is stored as the user's own choice, and PhotoCraft starts again with the host's `de`: `ready` reports `null`, `fr` stays, and the palette runs `Ouvrir` (File > Open in French). |
 | `ui` (`@ui`) | The paths that need pointer clicks: File > Save in the menu bar saves the document; the Export button of the Export As dialog exports `probe.png`; the first name on About > Contributors (a link, with target `_blank` since 0.7.0) opens a new window and the editor stays. |

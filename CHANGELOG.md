@@ -13,6 +13,32 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.5.2] - 2026-10-18
+
+The Craft releases of 2026-10-18 (canary issue #4): PdfCraft 0.9.0, PhotoCraft 0.10.0,
+VectorCraft 0.13.1, DesignCraft 0.9.0, WordCraft 0.8.0, GridCraft 0.8.0, CADCraft 0.8.0, LightCraft
+0.9.1, FilmCraft 0.9.0, EffectCraft 0.11.1 and SoundCraft 0.8.0 are the tested versions
+(`apps.json`). The translators handle them unchanged, PhotoCraft 0.10.0 included, whose contract
+test the canary failed. DeckCraft stays at 0.7.0: the web build of DeckCraft 0.8.0 stops with an
+error as it starts (`no pids on this platform`) and never loads, with or without the layer
+([storytold/deckcraft#959](https://github.com/storytold/deckcraft/issues/959)). Hold it back
+until a DeckCraft release fixes that.
+
+### Changed
+
+- Tests: PhotoCraft 0.10.0 places a file dropped on the open document's canvas into it as a layer,
+  as on the desktop, instead of opening it as a tab. The scenario with a same-named PSD from the
+  desktop drops it on the menu bar, where it still opens as a tab, so it still checks that such a
+  file's save never replaces the opened one. The core's own drop is not affected: the host's file
+  arrives while no document is open. docs/apps/photocraft.md and the adapter's notes describe the
+  new behaviour; a same-named file placed as a layer turns the document's later saves into new
+  files, as any file the adapter sees coming in does.
+- Tests: PdfCraft 0.9.0 turns an attachment's stored name `../../Team/Budget 2026.pdf` into
+  `_.._Team_Budget 2026.pdf` itself; the test accepts either plain base name.
+- Tests: the pointer tests follow the new releases: PhotoCraft (Export As has Color Profile rows),
+  DesignCraft (Open Recent in the File menu), WordCraft (Recover in the backstage, the Recipient
+  List dialog) and LightCraft (OK at the bottom right of the Export dialog).
+
 ## [0.5.1] - 2026-10-17
 
 The points left open from the operators' notes, and the FigCraft request upstream.
@@ -397,7 +423,8 @@ DeckCraft 0.6.1, FilmCraft 0.7.2, LightCraft 0.7.1 and EffectCraft 0.9.2 are the
 - Documentation: an index (`docs/README.md`), architecture, protocol, security, hosting,
   development, the Nextcloud app, and one page per Craft app.
 
-[Unreleased]: https://github.com/hozwei/nextcloud-craftsuite-layer/compare/v0.5.1...main
+[Unreleased]: https://github.com/hozwei/nextcloud-craftsuite-layer/compare/v0.5.2...main
+[0.5.2]: https://github.com/hozwei/nextcloud-craftsuite-layer/compare/v0.5.1...v0.5.2
 [0.5.1]: https://github.com/hozwei/nextcloud-craftsuite-layer/compare/v0.5.0...v0.5.1
 [0.5.0]: https://github.com/hozwei/nextcloud-craftsuite-layer/compare/v0.4.2...v0.5.0
 [0.4.2]: https://github.com/hozwei/nextcloud-craftsuite-layer/compare/v0.4.1...v0.4.2

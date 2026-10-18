@@ -144,16 +144,17 @@ async function scenario(context: BrowserContext, title: string, body: (page: Pag
 
 type Box = { x: number; y: number; width: number; height: number };
 
-// Pointer targets (measured on DesignCraft 0.5.0, still right in 0.6.0), relative to the app frame
-// at the pinned viewport. This is the only layout knowledge in this file; when a release moves
-// something, fix it here.
+// Pointer targets (measured on DesignCraft 0.5.0, checked again on 0.6.0 and 0.9.0), relative to
+// the app frame at the pinned viewport. This is the only layout knowledge in this file; when a
+// release moves something, fix it here.
 const AT = {
   // Menu bar, after the home button: File.
   fileMenu: (b: Box) => ({ x: b.x + 59, y: b.y + 17 }),
-  // File menu: Save, the fifth row (after New Document…, Open…, a separator and Close).
-  fileSave: (b: Box) => ({ x: b.x + 84, y: b.y + 128 }),
+  // File menu: Save, the sixth row (after New Document…, Open…, Open Recent, which 0.9.0 added, a
+  // separator and Close).
+  fileSave: (b: Box) => ({ x: b.x + 84, y: b.y + 154 }),
   // File menu: Export IDML…, the row below Export Page as PNG….
-  fileExportIdml: (b: Box) => ({ x: b.x + 84, y: b.y + 398 }),
+  fileExportIdml: (b: Box) => ({ x: b.x + 84, y: b.y + 424 }),
 };
 
 function appFrame(page: Page): Frame {

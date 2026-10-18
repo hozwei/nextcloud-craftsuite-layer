@@ -6,8 +6,9 @@
  * Load right after core.js. What PhotoCraft (web build, checked with 0.8.2) does and why the rules
  * below follow from it is described in docs/apps/photocraft.md:
  *  - It takes dropped files on its canvas (canvas#photocraft_canvas, through eframe); the core's
- *    default drop target fits. On the web every drop opens a new document tab, also while a
- *    document is open: the web shell reads dropped files itself and never places them.
+ *    default drop target fits. On the web up to 0.9.0 every drop opens a new document tab, also
+ *    while a document is open; since 0.10.0 a drop on the active document's canvas places the
+ *    files into it as layers. The host's file arrives while no document is open, so it opens.
  *  - Every download (Save, Save As, Export As, Quick Export as PNG, Save for Web, a smart object's
  *    Export Contents, swatch, preset, contour and measurement exports) is a Blob behind a hidden
  *    <a download> that is clicked and removed; the object URL is revoked after 10 s. The Blob type
