@@ -15,6 +15,9 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Changed
 
+- CI and the canary upload only the results of failed tests (screenshots, error context, the
+  trace of the first attempt; no HTML report) and keep them 3 days instead of 14; a failed upload
+  no longer fails the run.
 - Documentation for updaters that follow this repository's releases, such as
   [craftsuite-webapp](https://github.com/hozwei/craftsuite-webapp) from its v0.5.0 on
   (`CRAFTSUITE_LAYER_VERSION=auto`): docs/hosting.md, Following the layer's releases, lists the

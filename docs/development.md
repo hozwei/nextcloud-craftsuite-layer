@@ -78,7 +78,7 @@ in that browser locale. The contract tests alone: `npm run test:e2e -- --grep-in
 | `CRAFTSUITE_PORT_BASE` | First of the three test server ports (default 8701) |
 | `CRAFT_BUILDS_DIR` | Where the Craft builds are (default `.craft-builds`) |
 | `CRAFTSUITE_WEBKIT_EXECUTABLE` | A WebKit binary or wrapper script, for machines without WebKit's usual system libraries |
-| `CI` | Set by CI: one retry, list and HTML report, never reuse a running test server |
+| `CI` | Set by CI: one retry, never reuse a running test server |
 | `NEXTCLOUD_URL`, `NEXTCLOUD_USER`, `NEXTCLOUD_PASSWORD` | A test Nextcloud for the project `nextcloud-chromium`; `NEXTCLOUD_URL` also adds its origin to the translator's allowed origins on the test server (`CRAFTSUITE_EXTRA_ALLOWED`) |
 | `NEXTCLOUD_USER2`, `NEXTCLOUD_PASSWORD2` | A second user of that Nextcloud, not an administrator, for the tests with files shared between users and without admin rights (see [Testing in Nextcloud](#testing-in-nextcloud)) |
 
@@ -310,6 +310,13 @@ that can neither fail the run nor change the canary's advice or issues. A new ap
 `<app>-webkit` starts in the list; remove a project from both files to make it decide. The App
 Store schema (`info.xsd`) comes from the `nextcloud/appstore` commit in `SCHEMA_COMMIT`, so a
 change there cannot break CI without a change here; `ci.yml` describes how to move it.
+
+When end-to-end tests fail, the workflows upload `test-results/` as an artifact
+(`playwright-report`, in `nextcloud-e2e` `playwright-report-nextcloud-<version>`), kept for 3
+days: for each failed test its screenshots, `error-context.md` and the trace of its first attempt
+(open it with `npx playwright show-trace <trace.zip>`). A trace holds the app's web build, so the
+retry keeps none and there is no HTML report. A failed upload, such as with the account's artifact
+storage full, does not fail the run.
 
 The canary's contract tests decide its result. A test that passes only on its retry counts as
 failed and is listed in the summary, so that a release that changes the timing gets looked at.

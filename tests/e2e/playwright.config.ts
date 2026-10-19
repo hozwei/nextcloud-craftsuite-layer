@@ -32,11 +32,13 @@ export default defineConfig({
   fullyParallel: false,
   workers: 2,
   retries: process.env.CI ? 1 : 0,
-  reporter: process.env.CI ? [['list'], ['html', { open: 'never' }]] : 'list',
+  reporter: 'list',
   use: {
     viewport: { width: 1400, height: 900 },
     acceptDownloads: true,
-    trace: 'retain-on-failure',
+    // A trace holds the app's whole web build (up to 65 MB), and the workflows upload the traces of
+    // failed tests: only a test's first attempt keeps one, its retry only the screenshot and error.
+    trace: 'retain-on-first-failure',
     screenshot: 'only-on-failure',
   },
   projects: [
