@@ -80,6 +80,17 @@ export class Folder {
     return /<d:getcontenttype>([^<]*)</.exec(xml)?.[1] ?? '';
   }
 
+  // Nextcloud keeps modification times in whole seconds, and a write in the same second as the
+  // file's last change updates that change's version instead of keeping it. Waits until the next
+  // second, so that the next write keeps a version (the test server shares this machine's clock).
+  async untilNextSecond(name: string): Promise<void> {
+    const xml = await this.propfind(`${this.url}/${encodeURIComponent(name)}`, '0', '<d:getlastmodified/>');
+    const modified = Date.parse(/<d:getlastmodified>([^<]+)</.exec(xml)?.[1] ?? '');
+    expect(modified, `the last change of ${name}`).toBeGreaterThan(0);
+    const wait = modified + 1000 - Date.now();
+    if (wait > 0) await new Promise((resolve) => setTimeout(resolve, wait));
+  }
+
   async fileId(name: string): Promise<number> {
     const xml = await this.propfind(`${this.url}/${encodeURIComponent(name)}`, '0', '<oc:fileid/>');
     return Number(/<oc:fileid>(\d+)</.exec(xml)?.[1]);
@@ -93,7 +104,8 @@ export class Folder {
   }
 
   // The older versions Nextcloud keeps of a file (the versions app). Its collection lists the
-  // current version too, which does not count. Writes within the same second may share a version.
+  // current version too, which does not count. Writes within the same second share a version
+  // (see untilNextSecond).
   async versions(fileId: number): Promise<number> {
     const xml = await this.propfind(`${NC}/remote.php/dav/versions/${encodeURIComponent(this.account.user)}/versions/${fileId}`, '1', '<d:getcontentlength/>');
     return Math.max(0, (xml.match(/<d:response>/g) ?? []).length - 2);

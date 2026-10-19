@@ -52,7 +52,7 @@
 // which the other specs need.
 
 import { readFileSync } from 'node:fs';
-import { test, expect, type Page } from '@playwright/test';
+import { test, expect, type Locator, type Page } from '@playwright/test';
 import { strFromU8, unzipSync } from 'fflate';
 import { press, runCommand } from '../lib/craft-ui.ts';
 import {
@@ -95,20 +95,24 @@ const CRAFT_ICON = (app: string) => new RegExp(`/craftsuite_layer/img/types/${ap
 // The entries of a file's action menu. Read in the page: Playwright's own queries over the whole
 // Files page ran into "Maximum call stack size exceeded" in Nextcloud 34.
 async function menu(page: Page, name: string): Promise<string[]> {
-  await row(page, name).locator('[data-cy-files-list-row-actions] button.action-item__menutoggle').click();
-  await expect.poll(() => page.evaluate(() => document.querySelectorAll('[role="menuitem"]').length)).toBeGreaterThan(0);
-  const items = await page.evaluate(() => [...document.querySelectorAll<HTMLElement>('[role="menuitem"]')]
-    .filter((e) => e.offsetParent !== null).map((e) => e.innerText.trim()).filter(Boolean));
-  return items;
+  return openMenu(page, row(page, name).locator('[data-cy-files-list-row-actions] button.action-item__menutoggle'));
 }
 
 // The entries of the "+ New" menu of Files, read in the page like menu().
 async function newMenu(page: Page): Promise<string[]> {
   // The folder's header has it, and an empty folder a second one: the first is the header's.
-  await page.locator('[data-cy-upload-picker] button.action-item__menutoggle').first().click();
-  await expect.poll(() => page.evaluate(() => document.querySelectorAll('[role="menuitem"]').length)).toBeGreaterThan(0);
-  return page.evaluate(() => [...document.querySelectorAll<HTMLElement>('[role="menuitem"]')]
+  return openMenu(page, page.locator('[data-cy-upload-picker] button.action-item__menutoggle').first());
+}
+
+// Opens a menu with its toggle and returns the visible entries. A menu closed just before can
+// still be fading out, and its entries would count as this one's: first none may be visible.
+async function openMenu(page: Page, toggle: Locator): Promise<string[]> {
+  const entries = () => page.evaluate(() => [...document.querySelectorAll<HTMLElement>('[role="menuitem"]')]
     .filter((e) => e.offsetParent !== null).map((e) => e.innerText.trim()).filter(Boolean));
+  await expect.poll(entries, { message: 'the menu before has closed' }).toEqual([]);
+  await toggle.click();
+  await expect.poll(async () => (await entries()).length).toBeGreaterThan(0);
+  return entries();
 }
 
 // "+ New" > entry, with the name Files proposes (or another one typed instead), and the editor

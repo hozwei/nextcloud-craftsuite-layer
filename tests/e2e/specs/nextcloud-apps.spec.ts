@@ -51,6 +51,7 @@ async function expectCreated(page: Page, folder: Folder, name: string, files: st
   await expect(status(page)).toHaveText(`Saved as ${name} next to the original. Later saves go there.`, { timeout: SAVE_TIMEOUT });
   await expect(nameLabel(page), 'the name label shows the file saves go to').toHaveText(name);
   expect(await folder.names(), 'files in the folder').toEqual([...files, name].sort());
+  await folder.untilNextSecond(name); // so that the next save keeps this one as a version
   return folder.fileId(name);
 }
 
@@ -309,6 +310,7 @@ test('wordcraft: an opened .docx Word wrote is saved as a copy next to it, later
     expectWordCraftSave(first, 'EDIT1');
     id = await folder.fileId(copy);
     await expectUnchanged(folder, originals);
+    await folder.untilNextSecond(copy); // so that the next save keeps this one as a version
   });
 
   await test.step('a second Ctrl+S after another edit replaces that copy', async () => {
