@@ -8,7 +8,7 @@
       "description": { "en": "View, annotate and edit PDFs", "de": "PDFs ansehen, kommentieren und bearbeiten" },
       "color": "#12a58a",
       "minVersion": "0.6.0",
-      "tested": "0.9.0"
+      "tested": "0.11.0"
     },
     "photocraft": {
       "name": "PhotoCraft",
@@ -16,7 +16,7 @@
       "description": { "en": "Edit photos and layers, PSD included", "de": "Fotos und Ebenen bearbeiten, auch PSD" },
       "color": "#2f7bf5",
       "minVersion": "0.7.0",
-      "tested": "0.10.0"
+      "tested": "0.12.0"
     },
     "vectorcraft": {
       "name": "VectorCraft",
@@ -24,7 +24,7 @@
       "description": { "en": "Draw vector graphics and logos, SVG included", "de": "Vektorgrafiken und Logos zeichnen, auch SVG" },
       "color": "#e8573f",
       "minVersion": "0.9.0",
-      "tested": "0.13.1"
+      "tested": "0.14.0"
     },
     "designcraft": {
       "name": "DesignCraft",
@@ -32,7 +32,7 @@
       "description": { "en": "Lay out pages and print matter", "de": "Layouts und Drucksachen setzen" },
       "color": "#7bb51c",
       "minVersion": "0.6.0",
-      "tested": "0.9.0"
+      "tested": "0.11.0"
     },
     "wordcraft": {
       "name": "WordCraft",
@@ -40,7 +40,7 @@
       "description": { "en": "Write and format documents, DOCX included", "de": "Texte schreiben und gestalten, auch DOCX" },
       "color": "#3f5fe0",
       "minVersion": "0.5.0",
-      "tested": "0.8.0"
+      "tested": "0.9.0"
     },
     "gridcraft": {
       "name": "GridCraft",
@@ -48,7 +48,7 @@
       "description": { "en": "Calculate and analyse spreadsheets, XLSX included", "de": "Tabellen berechnen und auswerten, auch XLSX" },
       "color": "#1f9d55",
       "minVersion": "0.5.0",
-      "tested": "0.8.0"
+      "tested": "0.10.0"
     },
     "deckcraft": {
       "name": "DeckCraft",
@@ -64,7 +64,7 @@
       "description": { "en": "Draft 2D drawings in DXF", "de": "2D-Zeichnungen konstruieren, im DXF-Format" },
       "color": "#3ea6e8",
       "minVersion": "0.5.0",
-      "tested": "0.8.0"
+      "tested": "0.10.0"
     },
     "lightcraft": {
       "name": "LightCraft",
@@ -73,7 +73,7 @@
       "color": "#f2a516",
       "startupTimeout": 180000,
       "minVersion": "0.6.0",
-      "tested": "0.9.1"
+      "tested": "0.11.0"
     },
     "filmcraft": {
       "name": "FilmCraft",
@@ -81,7 +81,7 @@
       "description": { "en": "Edit videos and film projects", "de": "Videos und Filmprojekte schneiden" },
       "color": "#8b5cf6",
       "minVersion": "0.6.0",
-      "tested": "0.9.0"
+      "tested": "0.10.0"
     },
     "effectcraft": {
       "name": "EffectCraft",
@@ -90,7 +90,7 @@
       "color": "#e0368f",
       "startupTimeout": 180000,
       "minVersion": "0.8.0",
-      "tested": "0.11.1"
+      "tested": "0.14.0"
     },
     "soundcraft": {
       "name": "SoundCraft",
@@ -98,7 +98,7 @@
       "description": { "en": "Edit and mix audio sessions", "de": "Audio-Sessions schneiden und abmischen" },
       "color": "#1fa5c9",
       "minVersion": "0.6.1",
-      "tested": "0.8.0"
+      "tested": "0.11.0"
     }
   }
 }

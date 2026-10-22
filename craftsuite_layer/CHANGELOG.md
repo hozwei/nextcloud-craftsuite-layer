@@ -14,8 +14,13 @@ Each GitHub release takes its text from the section whose heading matches the ve
 
 ## [Unreleased]
 
+## [0.5.3] - 2026-10-22
+
 ### Changed
 
+- No changes to the app. Released together with translators 0.5.3, which handle the Craft
+  releases of 2026-10-20 and 2026-10-21 (CADCraft 0.10.0 with a fix; not DeckCraft 0.9.0, whose
+  web build still does not start).
 - docs/nextcloud-app.md, Installing: the app and the translators on the Craft hosting need not be
   of the same release; within one protocol version they work together. An update needs only the
   new folder and `occ upgrade`, unless this changelog says more for that version.

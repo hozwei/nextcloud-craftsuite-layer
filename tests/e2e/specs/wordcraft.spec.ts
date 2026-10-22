@@ -170,13 +170,14 @@ const AT = {
   exportOdt: (b: Box) => ({ x: b.x + 400, y: b.y + 296 }),
   // Mailings: Select Recipients and, in its menu, Type a New List… and Use an Existing List…; in
   // the list Type a New List… shows, the first field (First Name) of the first recipient (0.8.0
-  // added Use an Existing List… above the fields, and the dialog moved: it was at y 350); Finish
+  // added Use an Existing List… above the fields, and the dialog moved: it was at y 350; 0.9.0
+  // shows the field names as text boxes in a row above the recipients: it was at y 336); Finish
   // & Merge, the last button of the ribbon; then Don't Save in the question about the open
   // document's unsaved changes (loading recipients marks it changed).
   selectRecipients: (b: Box) => ({ x: b.x + 252, y: b.y + 103 }),
   typeNewList: (b: Box) => ({ x: b.x + 285, y: b.y + 161 }),
   useExistingList: (b: Box) => ({ x: b.x + 285, y: b.y + 183 }),
-  firstRecipient: (b: Box) => ({ x: b.x + 440, y: b.y + 336 }),
+  firstRecipient: (b: Box) => ({ x: b.x + 440, y: b.y + 366 }),
   finishMerge: (b: Box) => ({ x: b.x + 1000, y: b.y + 108 }),
   dontSave: (b: Box) => ({ x: b.x + 766, y: b.y + 372 }),
 };

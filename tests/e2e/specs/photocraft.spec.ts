@@ -188,8 +188,9 @@ const AT = {
   fileSave: (b: Box) => ({ x: b.x + 73, y: b.y + menuRowY(FILE_MENU, 'Save') }),
   // Export As, a modal centred in the frame: Export, the default button, first of the two in the
   // Windows and Linux order, last in the macOS order (Cancel Export; see platformIsMac()). 0.10.0
-  // added the Color Profile rows, which moved the buttons down from +188.
-  exportButton: (b: Box, mac: boolean) => ({ x: b.x + b.width / 2 + (mac ? 258 : 164), y: b.y + b.height / 2 + 229 }),
+  // added the Color Profile rows, which moved the buttons down from +188, and 0.12.0 the Embed
+  // Color Profile row, from +229.
+  exportButton: (b: Box, mac: boolean) => ({ x: b.x + b.width / 2 + (mac ? 258 : 164), y: b.y + b.height / 2 + 245 }),
   // About PhotoCraft, a modal centred in the frame and sized to its tab. On the About tab: the
   // Contributors tab, second in its tab row.
   aboutContributorsTab: (b: Box) => ({ x: b.x + b.width / 2 - 239, y: b.y + b.height / 2 - 77 }),

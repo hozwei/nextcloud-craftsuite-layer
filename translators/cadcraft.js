@@ -3,10 +3,10 @@
  * SPDX-FileCopyrightText: 2026 The nextcloud-craftsuite-layer contributors
  * SPDX-License-Identifier: AGPL-3.0-or-later
  *
- * Load right after core.js. What CADCraft (web build, checked with 0.5.0 and 0.6.2) does and why
- * the rules below follow from it is described in docs/apps/cadcraft.md. Source references are to
- * the v0.6.2 tag; main.rs, upload.rs and download.rs are in apps/cadcraft-web/src/, the other
- * paths under crates/:
+ * Load right after core.js. What CADCraft (web build, checked with 0.5.0 and 0.6.2, its DXF writer
+ * also with 0.10.0) does and why the rules below follow from it is described in
+ * docs/apps/cadcraft.md. Source references are to the v0.6.2 tag; main.rs, upload.rs and
+ * download.rs are in apps/cadcraft-web/src/, the other paths under crates/:
  *  - It takes dropped files on its canvas (canvas#cadcraft_canvas, through eframe), the page's
  *    only drop listener, installed once the app runs (main.rs:95-148); the core's default drop
  *    target fits. Every drop, and every file picked with File > Open (a hidden <input type=file>
@@ -71,6 +71,13 @@
   const APPS = words('ACAD CADCRAFT AcadAnnotative AcCmTransparency AcAecLayerStandard');
   const KEYS_0_5 = `ACAD_GROUP ACAD_IMAGE_DICT ACAD_IMAGE_VARS ACAD_LAYOUT ACAD_MLEADERSTYLE
     ACAD_TABLESTYLE CADCRAFT_CONSTRAINTS CADCRAFT_LAYERSTATES`;
+  const VERSIONS_0_6 = 'AC1015 AC1018 AC1021 AC1024 AC1027 AC1032';
+  const CODE_PAGE_0_6 = (cp) => /^[\x21-\x7e]{1,32}$/.test(cp);
+  const TYPES_0_6 = `${TYPES_0_5} MLINE HELIX MULTILEADER TOLERANCE MLINESTYLE ACDBDICTIONARYWDFLT
+    ACDBPLACEHOLDER SCALE`;
+  const VARS_0_6 = `${VARS_BOTH} $SNAPUNIT $GRIDUNIT $CMLSTYLE $CMLJUST $CMLSCALE`;
+  const KEYS_0_6 = `${KEYS_0_5} ACAD_MLINESTYLE ACAD_PLOTSTYLENAME ACAD_SCALELIST CADCRAFT_HANDSEED
+    CADCRAFT_MLEADERSTYLE CADCRAFT_PLOTSTYLES CADCRAFT_ANNOTATION`;
   const RELEASES = [
     // 0.5.0: R2000 only (v0.5.0 io/src/dxf_write.rs and dxf_image.rs, header 185-222 and
     // 1329-1352, dictionary 1731-1753).
@@ -87,14 +94,31 @@
     // dxf_mline.rs), header variables (dxf_write.rs:219-261, 1648-1666) and dictionary keys
     // (dxf_write.rs:2066-2096, dxf_ext.rs:22-37). It always writes CADCRAFT_HANDSEED.
     {
-      versions: words('AC1015 AC1018 AC1021 AC1024 AC1027 AC1032'),
-      codePage: (cp) => /^[\x21-\x7e]{1,32}$/.test(cp),
-      types: words(`${TYPES_0_5} MLINE HELIX MULTILEADER TOLERANCE MLINESTYLE ACDBDICTIONARYWDFLT
-        ACDBPLACEHOLDER SCALE`),
-      vars: words(`${VARS_BOTH} $SNAPUNIT $GRIDUNIT $CMLSTYLE $CMLJUST $CMLSCALE`),
+      versions: words(VERSIONS_0_6),
+      codePage: CODE_PAGE_0_6,
+      types: words(TYPES_0_6),
+      vars: words(VARS_0_6),
       apps: APPS,
-      keys: words(`${KEYS_0_5} ACAD_MLINESTYLE ACAD_PLOTSTYLENAME ACAD_SCALELIST CADCRAFT_HANDSEED
-        CADCRAFT_MLEADERSTYLE CADCRAFT_PLOTSTYLES CADCRAFT_ANNOTATION`),
+      keys: words(KEYS_0_6),
+    },
+    // 0.10.0 (0.7.0 and 0.8.0 write what 0.6.2 writes): the current dimension style's variables
+    // in the header, after $DIMSTYLE: the style's DIMVARS but $DIMSCALE (a header variable of its
+    // own) and the three linetypes, each that the style has a value for (v0.10.0
+    // io/src/dxf_write.rs:297-339 and 381, doc/src/tables.rs:279-347; upstream #1051). Otherwise
+    // the 0.6.2 lists.
+    {
+      versions: words(VERSIONS_0_6),
+      codePage: CODE_PAGE_0_6,
+      types: words(TYPES_0_6),
+      vars: words(`${VARS_0_6} $DIMASZ $DIMEXO $DIMEXE $DIMTXT $DIMGAP $DIMDEC $DIMADEC $DIMLFAC
+        $DIMTAD $DIMTIH $DIMTOH $DIMBLK $DIMBLK1 $DIMBLK2 $DIMTSZ $DIMCLRD $DIMCLRE $DIMCLRT
+        $DIMTXSTY $DIMPOST $DIMCEN $DIMZIN $DIMLUNIT $DIMTOL $DIMTP $DIMTM $DIMDLI $DIMDLE $DIMJUST
+        $DIMRND $DIMDSEP $DIMFRAC $DIMLIM $DIMTDEC $DIMTFAC $DIMTZIN $DIMALT $DIMALTF $DIMALTD
+        $DIMAPOST $DIMALTRND $DIMALTU $DIMALTZ $DIMAUNIT $DIMSE1 $DIMSE2 $DIMSD1 $DIMSD2 $DIMATFIT
+        $DIMTIX $DIMSOXD $DIMTOFL $DIMTMOVE $DIMTVP $DIMTOLJ $DIMAZIN $DIMARCSYM $DIMLDRBLK $DIMLWD
+        $DIMLWE $DIMFXLON $DIMFXL $DIMJOGANG`),
+      apps: APPS,
+      keys: words(KEYS_0_6),
     },
   ];
   const LISTS = ['types', 'vars', 'apps', 'keys'];
