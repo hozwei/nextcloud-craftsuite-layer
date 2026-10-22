@@ -452,12 +452,29 @@ jobs:
             printf 'No summary, the run failed before the tests.\n\nApps to hold back: %s.\n\nRun: %s\n\n`canary-result %s`\n' \
               "${FAILED:-none}" "$RUN_URL" "$result" > "$body"
           fi
-          # Comments on the open issue with label $1, or opens one titled $2 (label description $3,
-          # label colour $4). Leaves its number in $issue.
+          # The numbers of the open issues with label $1, oldest first, one per line.
+          open_issues() {
+            gh issue list --label "$1" --state open --limit 20 --json number --jq 'sort_by(.number) | .[].number'
+          }
+          # Comments on the oldest open issue with label $1, or opens one titled $2 (label
+          # description $3, label colour $4). Leaves its number in $issue. The listing can come back
+          # empty for a moment (on 2026-10-22 it missed the open issue, and a second one was
+          # opened), so an empty one is asked again once. Any other open issue with the label is
+          # closed: updaters hold back the apps of every open one.
           report() {
-            issue=$(gh issue list --label "$1" --state open --limit 1 --json number --jq '.[0].number // empty')
+            issues=$(open_issues "$1")
+            if [ -z "$issues" ]; then
+              sleep 30
+              issues=$(open_issues "$1")
+            fi
+            issue=$(printf '%s\n' "$issues" | sed -n 1p)
             if [ -n "$issue" ]; then
               gh issue comment "$issue" --body-file "$body"
+              for other in $issues; do
+                if [ "$other" != "$issue" ]; then
+                  gh issue close "$other" --reason 'not planned' --comment "Superseded by #$issue, where the run $RUN_URL reported."
+                fi
+              done
               return
             fi
             if ! gh label list --search "$1" --json name --jq '.[].name' | grep -qx -- "$1"; then
@@ -478,13 +495,12 @@ jobs:
               gh issue edit "$issue" --add-label "canary:$app"
             done
           }
-          # Comments on and closes the open issue with label $1, if there is one.
+          # Comments on and closes every open issue with label $1.
           resolve() {
-            issue=$(gh issue list --label "$1" --state open --limit 1 --json number --jq '.[0].number // empty')
-            if [ -n "$issue" ]; then
+            for issue in $(open_issues "$1"); do
               gh issue comment "$issue" --body-file "$body"
               gh issue close "$issue" --reason completed
-            fi
+            done
           }
           # A canary job that was cancelled or skipped (a timeout, for example) reports nothing.
           if [ "$RESULT" = success ] || [ "$RESULT" = failure ]; then

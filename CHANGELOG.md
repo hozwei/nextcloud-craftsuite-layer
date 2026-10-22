@@ -13,6 +13,14 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Fixed
+
+- Canary: the report comments on the oldest open issue of its label and closes any other, and a
+  passing run closes them all. The run of 0.5.3's release commit found no open `canary` issue
+  (GitHub's list missed #4 for a moment) and opened #6, which left #4 with the label
+  `canary:cadcraft` open; updaters hold back the apps of every open issue. An empty list is now
+  asked again once after 30 seconds before a new issue is opened. #4 was closed by hand.
+
 ## [0.5.3] - 2026-10-22
 
 The Craft releases of 2026-10-20 and 2026-10-21 (canary issue #4): PdfCraft 0.11.0, PhotoCraft

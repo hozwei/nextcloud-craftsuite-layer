@@ -323,8 +323,11 @@ failed and is listed in the summary, so that a release that changes the timing g
 
 - **Contract tests fail.** An upstream release changed something the translator relies on, or
   the test environment changed. The summary advises holding a new release back, and the run opens
-  an issue labelled `canary` (or comments on the open one); the next passing run closes it. This
-  happens before sites that wait a day take the release (see
+  an issue labelled `canary` (or comments on the open one); the next passing run closes it. Should
+  there be more than one open (GitHub's issue list once missed the open issue for a moment), a
+  run comments on the oldest and closes the others, and a passing run closes them all: updaters
+  hold back the apps of every open one. This happens before sites that wait a day take the
+  release (see
   [hosting.md](hosting.md#updates)). The summary names the apps to hold back: those whose own
   projects failed, or all apps when the failure is not one of single apps (a failed fetch, the
   translator's own tests). The issue gets their labels (`canary:<app>`; a later failing run
