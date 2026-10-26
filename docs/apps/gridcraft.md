@@ -279,10 +279,24 @@ most 1 MB, unpacked with `DecompressionStream('deflate-raw')`), once per file an
   `i18n.rs:106-108`). Saved files keep the English syntax.
 - **A language the user picks in the app** (View > Interface language,
   `ui-egui/src/ribbon.rs:2210-2225`, or the File view's Options, `backstage.rs:805-820`; the
-  command `app.language.set`, `ui-egui/src/lib.rs:515-525`) applies at once and lasts until the
-  frame reloads. Nothing is stored, so every start is in the host's language again, or without
-  one in the browser's. The list also offers Chinese, Japanese and Korean, which the web build
-  has no fonts for.
+  command `app.language.set`, `ui-egui/src/lib.rs:515-525`) applies at once. Up to 0.10 it lasts
+  until the frame reloads: nothing is stored, so every start is in the host's language again, or
+  without one in the browser's. The list also offers Chinese, Japanese and Korean, which the web
+  build has no fonts for.
+- **Since 0.11 GridCraft keeps its interface settings** (theme, interface size, language, ribbon
+  state, upstream #1562) in the frame's `localStorage` under `gridcraft.ui`, and a stored
+  language replaces the browser's at the next start (v0.12.1 `apps/gridcraft-web/src/web.rs:61-76`,
+  `prefs.rs:17-28`). It writes them on its first frame, with the language it started in, and does
+  not tell that one from a language the user picked: from the second start on, the host's
+  language would never apply again (a user whose Nextcloud language changes would keep the old
+  one). So while no language is stored, the adapter leaves the language GridCraft started in out
+  of what GridCraft stores under that key (a wrapper of `Storage.prototype.setItem` for that one
+  key of `localStorage`); GridCraft keeps its other settings and starts in the host's language
+  again (its `UiState` takes a missing language as none, `i18n.rs:279-281`). A language the user
+  picks is another one and is stored as GridCraft does; from then on it wins, as a choice should,
+  and `ready` reports the host's language only when it is that one, else `null`. A language
+  stored before this adapter (a GridCraft 0.11 or later behind layer 0.5.3 or older) counts as
+  the user's too: it stays until the user picks another language in GridCraft.
 
 ## Known gaps
 
@@ -320,7 +334,8 @@ most 1 MB, unpacked with `DecompressionStream('deflate-raw')`), once per file an
   when it opens the file.
 - **No unsaved-changes signal.** GridCraft shows unsaved changes only as `•` in the title bar,
   never clears it after a save on the web, asks nothing before the page unloads and keeps no
-  recovery copy (eframe's persistence is not enabled; `localStorage` stays empty, also in 0.6.1).
+  recovery copy (eframe's persistence is not enabled; `localStorage` stays empty up to 0.10, and
+  holds only the interface settings and options since 0.11).
   The host must warn on close.
 - **`delivered` is not "opened".** Any dropped file opens (a PNG as text in a sheet); a file
   GridCraft cannot read (a damaged workbook, a password-protected one with an encryption it does
@@ -365,8 +380,9 @@ most 1 MB, unpacked with `DecompressionStream('deflate-raw')`), once per file an
   delegates.
 - Since 0.6.1 the web build follows the browser's light or dark preference (`web.rs:42`); the
   title bar has a switch for the session.
-- `HOSTING.md` says preferences are kept in the frame's `localStorage`; the 0.5.0 and 0.6.1
-  builds store nothing there.
+- `HOSTING.md` says preferences are kept in the frame's `localStorage`; the builds up to 0.10
+  store nothing there, those since 0.11 the interface settings and options (`gridcraft.ui`,
+  `gridcraft.prefs`; see [Interface language](#interface-language)).
 - The interface follows the host's language where GridCraft has it, else the browser's first
   language (`navigator.language`, by its primary subtag); Chinese, Japanese and Korean, for which
   the build has no fonts, start in English (`web.rs:43-51`). See
@@ -410,7 +426,8 @@ contract tests; the canary runs them apart from the `language` test (tagged `@la
 |---|---|
 | `contract` | An allowed host: the handshake with the served app version, then the open of an `.xlsx` GridCraft wrote. An edit saved with Ctrl+S arrives as the document under the opened name, with the edit; Save As (Ctrl+Shift+S) after another edit is the document again. The save of a new workbook (Ctrl+N, `Book1.xlsx`) arrives as a new file. Nothing becomes a browser download, also not after the deadlines for the host's confirmation and result. |
 | `saved-as` | `from-excel.xlsx` (whose creation time GridCraft drops), and a GridCraft file with a customXml part no relationship reaches (which GridCraft drops) under an upper-case name (`CHANGED-ELSEWHERE.XLSX`, saved as `CHANGED-ELSEWHERE.xlsx`), are never replaced: the first save is a `document` that follows its own id, the next a `document` that follows the first (a copy). The copy, opened again, saves back as the document, with every part it had (with 0.6.1 the custom properties and the customXml item of Excel's file). `macros.xlsm`, `data.ods` and `data.csv` save as `macros.xlsx`, `data (imported).xlsx` and `data.xlsx`, the document, twice. GridCraft's sales sample saves as the document with the same parts, and that save, opened again, saves back unchanged. An opened `Book1.xlsx` is never saved back, and neither is a new workbook's save under that name. The blanks of the "+ New" entry in Files (`blank.xlsx` on A4 and `blank-letter.xlsx`, from `craftsuite_layer/assets/`, served by the test server) open, and their first saves are the document. A different `craftsuite-probe.xlsx` the user opens with File > Open (in Chromium also one dropped from the desktop) is never the document. |
-| `language` | The host's language under the browser locale `en-US`: with `lang=ru`, `ready` reports `ru` and the app frame's `navigator.language` is `ru`. GridCraft draws its labels into the canvas, so the rest is a picture: the ribbon's tab row is, byte for byte, the one a start without `lang` under the browser locale `ru-RU` shows (in a browser context of its own), and not the one of an English start. |
+| `language` | The host's language under the browser locale `en-US`: with `lang=ru`, `ready` reports `ru` and the app frame's `navigator.language` is `ru`. GridCraft draws its labels into the canvas, so the rest is a picture: the ribbon's tab row is, byte for byte, the one a start without `lang` under the browser locale `ru-RU` shows (in a browser context of its own), and not the one of an English start after it. Since 0.11, what GridCraft stored under `gridcraft.ui` has no language. |
+| `language` (stored) | Since 0.11 (with older versions the test notes that it did not run): a language stored under `gridcraft.ui` before the start, as if the user had picked Spanish, stays through a start with `lang=ru`, whose `ready` then reports `null`. |
 | `ui` (`@ui`) | With the pointer, on an opened `data.csv`: File > Save, then Download (.xlsx) on the Save As page, saves the document `data.xlsx`; File > Export > Create PDF downloads `data.pdf`, a new file; File > Export > CSV downloads `data.csv`, under the opened name, a new file. |
 
 A test with several scenarios (`saved-as`) runs each in a page of its own and reports every

@@ -279,10 +279,52 @@
   watchFiles(HTMLInputElement.prototype, (input) => input.type === 'file' && !imagesOnly(input.accept));
 
   // The interface language: GridCraft reads navigator.language (only the first preference, by
-  // its primary subtag) when the app is created, and stores no choice on the web
-  // (crates/ui-egui/src/i18n.rs:76-104). BCP 47 tag -> what navigator.language has to say. Chinese,
-  // Japanese and Korean the web build itself drops (no font, apps/gridcraft-web/src/web.rs:42-50).
+  // its primary subtag) when the app is created (crates/ui-egui/src/i18n.rs:76-104). BCP 47 tag ->
+  // what navigator.language has to say. Chinese, Japanese and Korean the web build itself drops
+  // (no font, apps/gridcraft-web/src/web.rs:42-50).
   const LANGUAGES = { en: 'en', es: 'es', 'pt-BR': 'pt', ru: 'ru' };
+
+  // Since 0.11, GridCraft keeps its interface settings in localStorage under 'gridcraft.ui',
+  // the language among them ("ru", "pt"), and a stored language replaces the browser's at the next
+  // start (upstream #1562; v0.12.1 apps/gridcraft-web/src/web.rs:61-76 and 141-156, prefs.rs:17-28,
+  // crates/ui-egui/src/i18n.rs:32-56 and 279-281). It writes them on its first frame, with the
+  // language it started in, and does not tell that from one the user picked: from the second
+  // start on, the host's language would never apply again. So while no language is stored, what
+  // GridCraft stores under that key goes without the language it started in (it then starts in the
+  // browser's, which is the host's, and keeps its other settings; UiState is serde(default)). A
+  // language the user picks in GridCraft is another one and is stored as GridCraft does; from then
+  // on GridCraft's own rule applies, as for a language stored before this adapter.
+  const UI_KEY = 'gridcraft.ui';
+  const storedLanguage = (storage) => {
+    try {
+      const ui = JSON.parse(storage.getItem(UI_KEY) || 'null');
+      return ui && typeof ui === 'object' && typeof ui.language === 'string' ? ui.language : null;
+    } catch {
+      return null; // unreadable: GridCraft starts without it too (prefs.rs:17-28)
+    }
+  };
+  const leaveOutStartLanguage = () => {
+    let storage = null;
+    try { storage = window.localStorage; } catch { /* no storage: GridCraft keeps nothing */ }
+    if (!storage || storedLanguage(storage) !== null) return;
+    const setItem = Storage.prototype.setItem;
+    let start = null; // the language of GridCraft's first write: the one it started in
+    Storage.prototype.setItem = function (key, value) {
+      if (this === storage && key === UI_KEY) {
+        try {
+          const ui = JSON.parse(value);
+          if (ui && typeof ui === 'object' && typeof ui.language === 'string') {
+            if (start === null) start = ui.language;
+            if (ui.language === start) {
+              delete ui.language;
+              value = JSON.stringify(ui);
+            }
+          }
+        } catch { /* not JSON: stored as GridCraft wrote it */ }
+      }
+      return setItem.call(this, key, value);
+    };
+  };
 
   window.craftsuiteLayer.register({
     app: 'gridcraft',
@@ -291,9 +333,16 @@
     // for slow machines; a browser without WebGL2 is then reported this much later.
     dropTargetTimeout: 10000,
     language(tag, util) {
+      let stored = null;
+      try {
+        stored = storedLanguage(window.localStorage);
+        leaveOutStartLanguage();
+      } catch { /* no storage: GridCraft keeps nothing */ }
       const key = util.matchLanguage(tag, LANGUAGES);
-      if (key) util.preferLanguages(LANGUAGES[key]);
-      return key;
+      if (!key) return null;
+      util.preferLanguages(LANGUAGES[key]);
+      // A stored language wins in GridCraft: report the host's only when it is that one.
+      return stored === null || stored === LANGUAGES[key] ? key : null;
     },
     // The name Save gives the opened file. Also notes what a save under the opened name must keep
     // to replace it. 'X.XLSX' saves as 'X.xlsx': only the letter case differs, and a host may take

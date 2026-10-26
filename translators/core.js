@@ -22,7 +22,7 @@
 (() => {
   'use strict';
 
-  const LAYER_VERSION = '0.5.3';
+  const LAYER_VERSION = '0.5.4';
   const PROTOCOL = 'craftsuite-layer';
   const PROTOCOL_VERSION = 1;
 

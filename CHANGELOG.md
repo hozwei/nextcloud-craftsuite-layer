@@ -13,13 +13,42 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.5.4] - 2026-10-26
+
+The Craft releases of 2026-10-22 to 2026-10-25 (canary issues #7 and #9): PdfCraft 0.14.0,
+PhotoCraft 0.16.0, VectorCraft 0.17.0, DesignCraft 0.13.0, WordCraft 0.11.0, GridCraft 0.12.1,
+DeckCraft 0.11.1, CADCraft 0.13.0, LightCraft 0.14.0, FilmCraft 0.13.0, EffectCraft 0.17.0 and
+SoundCraft 0.13.1 are the tested versions (`apps.json`). DeckCraft is back: its web build starts
+again since 0.10.0 ([storytold/deckcraft#959](https://github.com/storytold/deckcraft/issues/959)
+is still open).
+
 ### Fixed
 
+- CADCraft adapter: CADCraft 0.13.0 also writes the text fill of the dimension style
+  (`$DIMTFILL`, `$DIMTFILLCLR`) into the header. As with 0.10.0, a file it had saved fitted none
+  of the releases the adapter knows, so once it was opened again, its saves went to a new file
+  next to it instead of replacing it. The adapter now knows what 0.13.0 writes.
+  docs/apps/cadcraft.md.
+- GridCraft adapter: since 0.11, GridCraft keeps its interface settings in the browser, the
+  language among them, and a stored language wins over the browser's at the next start. As it
+  stores the language it started in on its first frame, the host's language applied only to the
+  first start in a browser (a user whose Nextcloud language changed kept the old one). While no
+  language is stored, the adapter now leaves the language GridCraft started in out of what it
+  stores; a language the user picks in GridCraft is still stored and wins, and then `ready`
+  reports the host's language only when it is that one. A language stored before this release
+  counts as the user's. docs/apps/gridcraft.md, Interface language.
 - Canary: the report comments on the oldest open issue of its label and closes any other, and a
   passing run closes them all. The run of 0.5.3's release commit found no open `canary` issue
   (GitHub's list missed #4 for a moment) and opened #6, which left #4 with the label
   `canary:cadcraft` open; updaters hold back the apps of every open issue. An empty list is now
   asked again once after 30 seconds before a new issue is opened. #4 was closed by hand.
+
+### Changed
+
+- Tests: the pointer tests follow the new releases: PdfCraft 0.14.0 (Attach a file… above the
+  attachments), WordCraft 0.11.0 (Finish & Merge is a menu, Edit Individual Documents… asks which
+  records), DeckCraft 0.11.1 (Outline/RTF in the Export dialog). GridCraft's `language` test also
+  checks that the language GridCraft started in is not stored, and that a stored one stays.
 
 ## [0.5.3] - 2026-10-22
 
@@ -470,7 +499,8 @@ DeckCraft 0.6.1, FilmCraft 0.7.2, LightCraft 0.7.1 and EffectCraft 0.9.2 are the
 - Documentation: an index (`docs/README.md`), architecture, protocol, security, hosting,
   development, the Nextcloud app, and one page per Craft app.
 
-[Unreleased]: https://github.com/hozwei/nextcloud-craftsuite-layer/compare/v0.5.3...main
+[Unreleased]: https://github.com/hozwei/nextcloud-craftsuite-layer/compare/v0.5.4...main
+[0.5.4]: https://github.com/hozwei/nextcloud-craftsuite-layer/compare/v0.5.3...v0.5.4
 [0.5.3]: https://github.com/hozwei/nextcloud-craftsuite-layer/compare/v0.5.2...v0.5.3
 [0.5.2]: https://github.com/hozwei/nextcloud-craftsuite-layer/compare/v0.5.1...v0.5.2
 [0.5.1]: https://github.com/hozwei/nextcloud-craftsuite-layer/compare/v0.5.0...v0.5.1

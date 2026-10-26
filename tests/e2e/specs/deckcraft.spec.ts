@@ -171,8 +171,9 @@ const AT = {
   newSlideTitleOnly: (b: Box) => ({ x: b.x + 309, y: b.y + 258 }),
   // Export dialog: PowerPoint Presentation (.pptx), the fifth choice.
   exportPowerPoint: (b: Box) => ({ x: b.x + 645, y: b.y + 289 }),
-  // Export dialog: the Export button once PowerPoint is chosen (the PDF options are gone).
-  exportButton: (b: Box) => ({ x: b.x + 833, y: b.y + 432 }),
+  // Export dialog: the Export button once PowerPoint is chosen (the PDF options are gone); by
+  // 0.11.1 the dialog lists Outline/RTF as an eighth choice, which moved it down from y 432.
+  exportButton: (b: Box) => ({ x: b.x + 833, y: b.y + 456 }),
 };
 
 function appFrame(page: Page): Frame {

@@ -172,14 +172,18 @@ const AT = {
   // the list Type a New List… shows, the first field (First Name) of the first recipient (0.8.0
   // added Use an Existing List… above the fields, and the dialog moved: it was at y 350; 0.9.0
   // shows the field names as text boxes in a row above the recipients: it was at y 336); Finish
-  // & Merge, the last button of the ribbon; then Don't Save in the question about the open
-  // document's unsaved changes (loading recipients marks it changed).
+  // & Merge, the last button of the ribbon, which 0.11.0 made a menu: Edit Individual Documents…,
+  // its first item, then OK in the question which records to merge (upstream #3028; All is
+  // chosen); then Don't Save in the question about the open document's unsaved changes (loading
+  // recipients marks it changed; at y 372 up to 0.10.0).
   selectRecipients: (b: Box) => ({ x: b.x + 252, y: b.y + 103 }),
   typeNewList: (b: Box) => ({ x: b.x + 285, y: b.y + 161 }),
   useExistingList: (b: Box) => ({ x: b.x + 285, y: b.y + 183 }),
   firstRecipient: (b: Box) => ({ x: b.x + 440, y: b.y + 366 }),
   finishMerge: (b: Box) => ({ x: b.x + 1000, y: b.y + 108 }),
-  dontSave: (b: Box) => ({ x: b.x + 766, y: b.y + 372 }),
+  editIndividualDocuments: (b: Box) => ({ x: b.x + 1080, y: b.y + 157 }),
+  mergeRecordsOk: (b: Box) => ({ x: b.x + 789, y: b.y + 381 }),
+  dontSave: (b: Box) => ({ x: b.x + 766, y: b.y + 363 }),
 };
 
 // After something that changes the picture, until the app shows the same picture twice (see
@@ -648,6 +652,13 @@ test('saved-as: interchange formats, copies, new documents and files from elsewh
   }));
 });
 
+// For the @ui test: Mailings > Finish & Merge > Edit Individual Documents…, all records.
+async function finishAndMerge(page: Page, app: Frame) {
+  await clickApp(page, app, 'Finish & Merge', AT.finishMerge);
+  await clickApp(page, app, 'Edit Individual Documents… in its menu', AT.editIndividualDocuments);
+  await clickApp(page, app, 'OK in the question which records to merge (All)', AT.mergeRecordsOk);
+}
+
 test('ui: File > Export and Mailings > Finish & Merge with the pointer', { tag: '@ui' }, async ({ context }) => {
   test.slow(); // three scenarios, each loading the 36 MB app, and some twenty steps that wait for the picture
 
@@ -681,7 +692,7 @@ test('ui: File > Export and Mailings > Finish & Merge with the pointer', { tag: 
     const app = await openInHost(page, 'Document1.docx', '', PROBE);
     await cancelExistingList(page, app);
     await dropRecipientList(page, app, 'people.txt');
-    await clickApp(page, app, 'Finish & Merge', AT.finishMerge);
+    await finishAndMerge(page, app);
     await clickApp(page, app, 'Don\'t Save in the question', AT.dontSave);
     await press(page, app, 'Control+s');
     const { save, bytes } = await hostSave(page, 1);
@@ -703,7 +714,7 @@ test('ui: File > Export and Mailings > Finish & Merge with the pointer', { tag: 
     expectDocument(letter.save, 'invitation.docx');
     expect(expectSaved(letter.bytes).text, 'the merge field, kept').toContain('MERGEFIELD');
 
-    await clickApp(page, app, 'Finish & Merge', AT.finishMerge); // saved: no question
+    await finishAndMerge(page, app); // saved: no question
     await press(page, app, 'Control+s');
     const { save, bytes } = await hostSave(page, 2);
     expectExport(save, 'invitation.docx');

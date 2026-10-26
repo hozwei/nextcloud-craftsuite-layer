@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: AGPL-3.0-or-later
  *
  * Load right after core.js. What CADCraft (web build, checked with 0.5.0 and 0.6.2, its DXF writer
- * also with 0.10.0) does and why the rules below follow from it is described in
+ * also with 0.10.0 and 0.13.0) does and why the rules below follow from it is described in
  * docs/apps/cadcraft.md. Source references are to the v0.6.2 tag; main.rs, upload.rs and
  * download.rs are in apps/cadcraft-web/src/, the other paths under crates/:
  *  - It takes dropped files on its canvas (canvas#cadcraft_canvas, through eframe), the page's
@@ -78,6 +78,13 @@
   const VARS_0_6 = `${VARS_BOTH} $SNAPUNIT $GRIDUNIT $CMLSTYLE $CMLJUST $CMLSCALE`;
   const KEYS_0_6 = `${KEYS_0_5} ACAD_MLINESTYLE ACAD_PLOTSTYLENAME ACAD_SCALELIST CADCRAFT_HANDSEED
     CADCRAFT_MLEADERSTYLE CADCRAFT_PLOTSTYLES CADCRAFT_ANNOTATION`;
+  const VARS_0_10 = `${VARS_0_6} $DIMASZ $DIMEXO $DIMEXE $DIMTXT $DIMGAP $DIMDEC $DIMADEC $DIMLFAC
+    $DIMTAD $DIMTIH $DIMTOH $DIMBLK $DIMBLK1 $DIMBLK2 $DIMTSZ $DIMCLRD $DIMCLRE $DIMCLRT $DIMTXSTY
+    $DIMPOST $DIMCEN $DIMZIN $DIMLUNIT $DIMTOL $DIMTP $DIMTM $DIMDLI $DIMDLE $DIMJUST $DIMRND
+    $DIMDSEP $DIMFRAC $DIMLIM $DIMTDEC $DIMTFAC $DIMTZIN $DIMALT $DIMALTF $DIMALTD $DIMAPOST
+    $DIMALTRND $DIMALTU $DIMALTZ $DIMAUNIT $DIMSE1 $DIMSE2 $DIMSD1 $DIMSD2 $DIMATFIT $DIMTIX
+    $DIMSOXD $DIMTOFL $DIMTMOVE $DIMTVP $DIMTOLJ $DIMAZIN $DIMARCSYM $DIMLDRBLK $DIMLWD $DIMLWE
+    $DIMFXLON $DIMFXL $DIMJOGANG`;
   const RELEASES = [
     // 0.5.0: R2000 only (v0.5.0 io/src/dxf_write.rs and dxf_image.rs, header 185-222 and
     // 1329-1352, dictionary 1731-1753).
@@ -110,13 +117,18 @@
       versions: words(VERSIONS_0_6),
       codePage: CODE_PAGE_0_6,
       types: words(TYPES_0_6),
-      vars: words(`${VARS_0_6} $DIMASZ $DIMEXO $DIMEXE $DIMTXT $DIMGAP $DIMDEC $DIMADEC $DIMLFAC
-        $DIMTAD $DIMTIH $DIMTOH $DIMBLK $DIMBLK1 $DIMBLK2 $DIMTSZ $DIMCLRD $DIMCLRE $DIMCLRT
-        $DIMTXSTY $DIMPOST $DIMCEN $DIMZIN $DIMLUNIT $DIMTOL $DIMTP $DIMTM $DIMDLI $DIMDLE $DIMJUST
-        $DIMRND $DIMDSEP $DIMFRAC $DIMLIM $DIMTDEC $DIMTFAC $DIMTZIN $DIMALT $DIMALTF $DIMALTD
-        $DIMAPOST $DIMALTRND $DIMALTU $DIMALTZ $DIMAUNIT $DIMSE1 $DIMSE2 $DIMSD1 $DIMSD2 $DIMATFIT
-        $DIMTIX $DIMSOXD $DIMTOFL $DIMTMOVE $DIMTVP $DIMTOLJ $DIMAZIN $DIMARCSYM $DIMLDRBLK $DIMLWD
-        $DIMLWE $DIMFXLON $DIMFXL $DIMJOGANG`),
+      vars: words(VARS_0_10),
+      apps: APPS,
+      keys: words(KEYS_0_6),
+    },
+    // 0.13.0 (0.12.0 writes what 0.10.0 writes): two more of the style's DIMVARS, the text fill
+    // and its colour (v0.13.0 doc/src/tables.rs:284-354, io/src/dxf_ext.rs:123-124). Otherwise the
+    // 0.10.0 lists.
+    {
+      versions: words(VERSIONS_0_6),
+      codePage: CODE_PAGE_0_6,
+      types: words(TYPES_0_6),
+      vars: words(`${VARS_0_10} $DIMTFILL $DIMTFILLCLR`),
       apps: APPS,
       keys: words(KEYS_0_6),
     },

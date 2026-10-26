@@ -293,6 +293,14 @@ async function dropFromDesktop(page: Page, app: Frame, titles: string[], file: s
   });
 }
 
+// A scenario about the settings GridCraft keeps in the browser runs only with 0.11 and later,
+// which keep them; with an older version the test notes that it did not run.
+async function keepsSettings(version: string, run: () => Promise<void>) {
+  const [major, minor] = version.split('.').map(Number);
+  if (major > 0 || minor >= 11) return run();
+  test.info().annotations.push({ type: 'skipped scenario', description: `GridCraft ${version} keeps no settings in the browser (since 0.11)` });
+}
+
 // Loads the test host with a fixture and waits until GridCraft shows it, with no message box in
 // front. `bytes` serves those bytes under `name` instead of a file in fixtures/gridcraft/. A name
 // under blanks/ is a blank of the "+ New" entries in Files (craftsuite_layer/assets/).
@@ -647,7 +655,7 @@ test('saved-as: interchange files, copies, new workbooks and files the user brin
 // and not like an English one: the second comparison fails when a release stops following
 // navigator.language.
 test('language: the host\'s lang=ru starts GridCraft in Russian, as the browser locale ru-RU does', { tag: '@language' }, async ({ page, context, browser }) => {
-  // Three starts of GridCraft, which on a busy machine can take longer than the default timeout.
+  // Five starts of GridCraft, which on a busy machine can take longer than the default timeout.
   test.slow();
   const { app } = await openInHost(page, 'craftsuite-probe.xlsx', '&lang=ru');
   const shown = await tabRow(page);
@@ -655,6 +663,13 @@ test('language: the host\'s lang=ru starts GridCraft in Russian, as the browser 
   await test.step('ready reports ru, and the app frame sees ru as the browser language', async () => {
     expect.soft((await hostRecord(page)).readies[0]?.language, 'language of the ready message').toBe('ru');
     expect.soft(await app.evaluate(() => navigator.language), 'navigator.language in the app frame').toBe('ru');
+  });
+
+  await test.step('GridCraft keeps its settings without the language it started in', async () => {
+    // Since 0.11 GridCraft stores them on its first frame; the adapter leaves that language out,
+    // so that the next start follows the host again.
+    const stored = await app.evaluate(() => JSON.parse(localStorage.getItem('gridcraft.ui') ?? '{}') as { language?: string });
+    expect.soft(stored.language, 'language in gridcraft.ui').toBeUndefined();
   });
 
   await test.step('the tab row is the one of a start under the browser locale ru-RU', async () => {
@@ -673,6 +688,23 @@ test('language: the host\'s lang=ru starts GridCraft in Russian, as the browser 
     const other = await context.newPage();
     await openInHost(other, 'craftsuite-probe.xlsx');
     await compareTabRows(shown, await tabRow(other), 'a start without lang (locale en-US)', false);
+  });
+});
+
+// Since 0.11 GridCraft keeps a stored language over the browser's. One stored before the start
+// (as if the user had picked Spanish) stays through the host's lang=ru, and ready reports none.
+test('language: a language GridCraft stored, the user\'s pick, stays through the host\'s lang=ru', { tag: '@language' }, async ({ page, context }) => {
+  test.slow(); // two starts
+  const selected = JSON.parse(await readFile(SELECTED, 'utf8')) as Record<string, string>;
+  await keepsSettings(selected.gridcraft, async () => {
+    const { app: first } = await openInHost(page, 'craftsuite-probe.xlsx');
+    await first.evaluate(() => localStorage.setItem('gridcraft.ui', JSON.stringify({ language: 'es' })));
+    await page.close();
+    const again = await context.newPage();
+    const { app } = await openInHost(again, 'craftsuite-probe.xlsx', '&lang=ru');
+    expect.soft((await hostRecord(again)).readies[0]?.language, 'language of the ready message').toBeNull();
+    const stored = await app.evaluate(() => JSON.parse(localStorage.getItem('gridcraft.ui') ?? '{}') as { language?: string });
+    expect.soft(stored.language, 'language in gridcraft.ui').toBe('es');
   });
 });
 

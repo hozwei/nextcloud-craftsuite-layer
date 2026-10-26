@@ -14,6 +14,14 @@ Each GitHub release takes its text from the section whose heading matches the ve
 
 ## [Unreleased]
 
+## [0.5.4] - 2026-10-26
+
+### Changed
+
+- No changes to the app. Released together with translators 0.5.4, which handle the Craft
+  releases of 2026-10-22 to 2026-10-25 (CADCraft 0.13.0 with a fix, DeckCraft again from 0.11.1)
+  and keep GridCraft 0.11 and later starting in the host's language.
+
 ## [0.5.3] - 2026-10-22
 
 ### Changed
