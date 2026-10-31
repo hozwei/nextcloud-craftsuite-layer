@@ -51,6 +51,9 @@ request #10248). The canary keeps holding it back until a release starts again.
   on the version).
 - The README's app table and docs/architecture.md show the tested versions of `apps.json` again
   (they still showed those of 0.4.x).
+- CI: the test job may take 75 minutes instead of 60. On a slow runner the blocking tests of
+  thirteen apps took over 30 minutes, and with the non-blocking WebKit tests after them the job
+  was cancelled.
 
 ## [0.5.4] - 2026-10-26
 

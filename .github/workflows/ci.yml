@@ -31,8 +31,9 @@ jobs:
     # Pinned rather than ubuntu-latest: `playwright install --with-deps` supports a fixed set of
     # Ubuntu releases, so the image moves on purpose, not when GitHub flips the label.
     runs-on: ubuntu-24.04
-    # Eleven Craft apps: the blocking tests take about 15 minutes, the non-blocking ones up to 25.
-    timeout-minutes: 60
+    # Thirteen Craft apps: the blocking tests take about 15 minutes (over 30 on a slow runner, as
+    # for 0.5.5's push), the non-blocking ones up to 25.
+    timeout-minutes: 75
     steps:
       - name: Check out
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1

@@ -45,7 +45,6 @@ const portBase = Number(process.env.CRAFTSUITE_PORT_BASE || 8701);
 const HOST = `http://127.0.0.1:${portBase}/`;
 const APP_ORIGIN = `http://127.0.0.2:${portBase + 1}`;
 const APP = `${APP_ORIGIN}/figcraft/`;
-const PALETTE = 'Control+k';
 // Translator timeouts (host knobs app-ack, app-result) where a test waits for them, in ms.
 const SHORT_ACK = 3000;
 const SHORT_RESULT = 3000;
@@ -172,13 +171,34 @@ async function clickApp(page: Page, app: Frame, what: string, at: (b: Box) => { 
   });
 }
 
+// A FigCraft shortcut such as 'S' or 'Shift+S' with its command key: egui reads the platform from
+// the user agent, and under a Mac one (WebKit's) the command key is Cmd, the Meta key.
+async function shortcut(page: Page, app: Frame, key: string) {
+  const command = (await app.evaluate(() => navigator.userAgent.includes('Mac'))) ? 'Meta' : 'Control';
+  await press(page, app, `${command}+${key}`);
+}
+
+// The actions palette's key (Ctrl+K, Cmd+K), for runCommand().
+async function paletteKey(app: Frame) {
+  return (await app.evaluate(() => navigator.userAgent.includes('Mac'))) ? 'Meta+k' : 'Control+k';
+}
+
+// After a step that opens another tab: wait until the picture is no longer `before`, then until it
+// settles. On a slow machine the app can take the next key before it shows the new tab.
+async function untilChanged(page: Page, app: Frame, before: Buffer, what: string) {
+  const view = page.locator('#app');
+  await expect.poll(async () => !(await view.screenshot({ caret: 'initial', scale: 'css' })).equals(before),
+    { message: what, timeout: 30_000 }).toBe(true);
+  await settle(view, app);
+}
+
 // Select All (Ctrl+A) and Duplicate (Ctrl+D): the edit the tests save, one more copy of the
 // frame each time (the first time the fixture's frame, then that frame and its copies).
 async function duplicateAll(page: Page, app: Frame) {
   await test.step('ui: select all and duplicate (Ctrl+A, Ctrl+D)', async () => {
-    await press(page, app, 'Control+a');
+    await shortcut(page, app, 'a');
     await appFrames(app, 3);
-    await press(page, app, 'Control+d');
+    await shortcut(page, app, 'd');
     await settle(page.locator('#app'), app);
   });
 }
@@ -186,8 +206,9 @@ async function duplicateAll(page: Page, app: Frame) {
 // File > New design file (Ctrl+N): a second document, 'Untitled', in a new tab.
 async function newDocument(page: Page, app: Frame) {
   await test.step('ui: new design file (Ctrl+N)', async () => {
-    await press(page, app, 'Control+n');
-    await settle(page.locator('#app'), app);
+    const before = await page.locator('#app').screenshot({ caret: 'initial', scale: 'css' });
+    await shortcut(page, app, 'n');
+    await untilChanged(page, app, before, 'the new document\'s tab shows');
   });
 }
 
@@ -195,10 +216,11 @@ async function newDocument(page: Page, app: Frame) {
 // opens as a document of its own in a new tab.
 async function openFromDisk(page: Page, app: Frame, file: { name: string; buffer: Buffer }) {
   await test.step(`ui: File > Open… (Ctrl+O) of ${file.name} from the disk`, async () => {
+    const before = await page.locator('#app').screenshot({ caret: 'initial', scale: 'css' });
     const chooser = page.waitForEvent('filechooser', { timeout: 15_000 });
-    await press(page, app, 'Control+o');
+    await shortcut(page, app, 'o');
     await (await chooser).setFiles({ ...file, mimeType: 'application/octet-stream' });
-    await settle(page.locator('#app'), app);
+    await untilChanged(page, app, before, 'the opened file\'s tab shows');
   });
 }
 
@@ -216,8 +238,26 @@ async function openInHost(page: Page, name: string, query = '', bytes?: Buffer) 
     (h) => h.state === 'delivered' || h.errors.length > 0, 90_000);
   expect((await hostRecord(page)).errors, 'translator errors while opening').toEqual([]);
   const app = appFrame(page);
-  await settle(page.locator('#app'), app); // the app opens the file in a new tab a few frames after the drop
+  await untilTabAdded(page);
+  await settle(page.locator('#app'), app);
   return app;
+}
+
+// FigCraft opens a dropped file in a new tab some frames after the drop, behind a card while it
+// reads the file; a key before that reaches the 'Untitled' document it starts with (WebKit takes
+// longest). So wait until the tab strip, the frame's top 40 points, changes. If it does not
+// within 10 s, the tab was there already (or a release moved the strip): carry on.
+async function untilTabAdded(page: Page) {
+  const box = await page.locator('#app').boundingBox();
+  if (!box) throw new Error('the app frame is not visible');
+  const strip = () => page.screenshot({ clip: { x: box.x, y: box.y, width: box.width, height: 40 }, caret: 'initial', scale: 'css' });
+  const first = await strip();
+  const deadline = Date.now() + 10_000;
+  while (Date.now() < deadline) {
+    if (!(await strip()).equals(first)) return;
+    await page.evaluate(() => new Promise((resolve) => setTimeout(resolve, 250)));
+  }
+  test.info().annotations.push({ type: 'warning', description: 'the tab strip did not change after the drop' });
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -320,7 +360,7 @@ test('contract: an allowed host opens the file and stores every save, nothing is
 
   await test.step('Ctrl+S saves the edit as the document, under the opened name', async () => {
     await duplicateAll(page, app);
-    await press(page, app, 'Control+s');
+    await shortcut(page, app, 's');
     const { save, bytes } = await hostSave(page, 1);
     expectDocument(save, 'craftsuite-probe.figcraft');
     expectSavedDocument(bytes, 1);
@@ -328,14 +368,14 @@ test('contract: an allowed host opens the file and stores every save, nothing is
 
   await test.step('Save As (Ctrl+Shift+S) after another edit is the document again', async () => {
     await duplicateAll(page, app);
-    await press(page, app, 'Control+Shift+S');
+    await shortcut(page, app, 'Shift+S');
     const { save, bytes } = await hostSave(page, 2);
     expectDocument(save, 'craftsuite-probe.figcraft');
     expectSavedDocument(bytes, 3);
   });
 
   await test.step('Export frames to PDF arrives as a new file', async () => {
-    await runCommand(page, app, 'Export frames to PDF', PALETTE);
+    await runCommand(page, app, 'Export frames to PDF', await paletteKey(app));
     const { save, bytes } = await hostSave(page, 3);
     expectExport(save, 'craftsuite-probe.pdf');
     expect(bytes.subarray(0, 5).toString('latin1'), 'a PDF').toBe('%PDF-');
@@ -343,7 +383,7 @@ test('contract: an allowed host opens the file and stores every save, nothing is
 
   await test.step('the save of a new document, Untitled.figcraft, arrives as a new file', async () => {
     await newDocument(page, app);
-    await press(page, app, 'Control+s');
+    await shortcut(page, app, 's');
     const { save, bytes } = await hostSave(page, 4);
     expectExport(save, 'Untitled.figcraft');
     expect(figcraftDocument(bytes).markers, 'not the opened document').toBe(0);
@@ -365,13 +405,13 @@ test('saved-as: saves go under the document\'s name; one FigCraft cannot tell ap
   await scenario(context, 'a file whose document has another name saves under that name, the document, and so does the next save', async (page, downloads) => {
     // The host keeps renamed.figcraft and stores the saves next to it.
     const app = await openInHost(page, 'renamed.figcraft', '', probeNamed('Probe board'));
-    await press(page, app, 'Control+s');
+    await shortcut(page, app, 's');
     const first = await hostSave(page, 1);
     expectDocument(first.save, 'Probe board.figcraft');
     expectSavedDocument(first.bytes, 0);
 
     await duplicateAll(page, app);
-    await press(page, app, 'Control+s');
+    await shortcut(page, app, 's');
     const second = await hostSave(page, 2);
     expectDocument(second.save, 'Probe board.figcraft');
     expectSavedDocument(second.bytes, 1);
@@ -380,7 +420,7 @@ test('saved-as: saves go under the document\'s name; one FigCraft cannot tell ap
 
   await scenario(context, 'a document stored as \'Untitled\' takes the file\'s name and saves into the file', async (page, downloads) => {
     const app = await openInHost(page, 'Plan 7.figcraft', '', probeNamed('Untitled'));
-    await press(page, app, 'Control+s');
+    await shortcut(page, app, 's');
     const { save, bytes } = await hostSave(page, 1);
     expectDocument(save, 'Plan 7.figcraft');
     expect(figcraftDocument(bytes).name, 'the name FigCraft gave the document').toBe('Plan 7');
@@ -389,7 +429,7 @@ test('saved-as: saves go under the document\'s name; one FigCraft cannot tell ap
 
   await scenario(context, 'Untitled.figcraft saves as a new file: a new document saves under the same name', async (page, downloads) => {
     const app = await openInHost(page, 'Untitled.figcraft', '', probeNamed('Untitled'));
-    await press(page, app, 'Control+s');
+    await shortcut(page, app, 's');
     const { save, bytes } = await hostSave(page, 1);
     expectExport(save, 'Untitled.figcraft');
     expectSavedDocument(bytes, 0);
@@ -399,7 +439,7 @@ test('saved-as: saves go under the document\'s name; one FigCraft cannot tell ap
   await scenario(context, 'a document from the disk (File > Open) that saves under the opened name is a new file', async (page, downloads) => {
     const app = await openInHost(page, 'craftsuite-probe.figcraft');
     await openFromDisk(page, app, { name: 'from-disk.figcraft', buffer: probeNamed('craftsuite-probe', 'FROM-DISK') });
-    await press(page, app, 'Control+s');
+    await shortcut(page, app, 's');
     const other = await hostSave(page, 1);
     expectExport(other.save, 'craftsuite-probe.figcraft');
     expect(figcraftDocument(other.bytes).markers, 'the document from the disk, not the opened one').toBe(0);
@@ -410,7 +450,7 @@ test('saved-as: saves go under the document\'s name; one FigCraft cannot tell ap
   // document, stored as 'Untitled', after the file.
   await scenario(context, 'the + New blank (blank.figcraft) opens, and its first save is the document', async (page, downloads) => {
     const app = await openInHost(page, 'blanks/blank.figcraft');
-    await press(page, app, 'Control+s');
+    await shortcut(page, app, 's');
     expectDocument((await hostSave(page, 1)).save, 'blank.figcraft');
     expectNoDownloads(downloads);
   });
@@ -423,7 +463,7 @@ test('language: the host\'s de reaches FigCraft as the browser\'s language, and 
   expect.soft(await app.evaluate(() => navigator.language), 'the frame\'s navigator.language').toBe('de');
   // The actions palette matches the labels in the interface language: 'Speichern' is File > Save
   // only in German.
-  await runCommand(page, app, 'Speichern', PALETTE);
+  await runCommand(page, app, 'Speichern', await paletteKey(app));
   expectDocument((await hostSave(page, 1)).save, 'craftsuite-probe.figcraft');
 });
 

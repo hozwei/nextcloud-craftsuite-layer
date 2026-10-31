@@ -167,7 +167,12 @@ and `pdfcraft.spec.ts`; this spec checks what depends on FigCraft. Its header li
 
 The steps use FigCraft's shortcuts (`engine/src/keymap.rs`: Ctrl+A, Ctrl+D, Ctrl+S,
 Ctrl+Shift+S, Ctrl+N, Ctrl+O) and its actions palette (Ctrl+K), which runs the command whose label
-matches in the interface language. Only the `ui` test clicks with the pointer; its positions are
+matches in the interface language. Under a Mac user agent (WebKit's) egui takes Cmd for Ctrl, so
+the spec presses the key the user agent calls for. FigCraft opens a dropped file a few frames
+later, in a tab of its own, and a key before that reaches the `Untitled` document it starts with:
+the spec waits until the tab strip changes after the drop, and after Ctrl+N and Ctrl+O until the
+picture changes. In WebKit (WPE) FigCraft sometimes does not open the dropped file at all, as
+other apps there; `figcraft-webkit` stays non-blocking. Only the `ui` test clicks with the pointer; its positions are
 in the spec's `AT` table, measured on 0.12.1 at a 1400x900 viewport with the locale `en-US`.
 When a new release fails the canary:
 
