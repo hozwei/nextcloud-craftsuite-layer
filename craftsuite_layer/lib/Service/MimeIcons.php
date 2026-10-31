@@ -58,6 +58,7 @@ class MimeIcons implements IMimeIconProvider {
 		'application/x-filmcraft' => ['filmcraft'],
 		'application/x-effectcraft' => ['effectcraft'],
 		'application/x-soundcraft-session' => ['soundcraft'],
+		'application/x-figcraft' => ['figcraft'],
 	];
 
 	/** The icon file of each app in img/types/ (the apps' own icons, see REUSE.toml). */
@@ -71,6 +72,7 @@ class MimeIcons implements IMimeIconProvider {
 		'filmcraft' => 'filmcraft.svg',
 		'effectcraft' => 'effectcraft.svg',
 		'soundcraft' => 'soundcraft.svg',
+		'figcraft' => 'figcraft.svg',
 	];
 
 	/** @var list<string>|null */

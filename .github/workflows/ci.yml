@@ -96,7 +96,7 @@ jobs:
       - name: Select test projects
         id: projects
         env:
-          NON_BLOCKING: pdfcraft-webkit photocraft-webkit vectorcraft-webkit designcraft-webkit wordcraft-webkit gridcraft-webkit deckcraft-webkit cadcraft-webkit lightcraft-webkit filmcraft-webkit effectcraft-webkit soundcraft-webkit
+          NON_BLOCKING: pdfcraft-webkit photocraft-webkit vectorcraft-webkit designcraft-webkit wordcraft-webkit gridcraft-webkit deckcraft-webkit cadcraft-webkit lightcraft-webkit filmcraft-webkit effectcraft-webkit soundcraft-webkit figcraft-webkit
         run: |
           npx playwright test -c tests/e2e/playwright.config.ts --list --reporter=json > "$RUNNER_TEMP/projects.json"
           node - "$RUNNER_TEMP/projects.json" <<'JS'

@@ -36,6 +36,7 @@ OC.L10N.register(
     "New PdfCraft document" : "Neues PdfCraft-Dokument",
     "New PhotoCraft image" : "Neues PhotoCraft-Bild",
     "New SoundCraft session" : "Neue SoundCraft-Session",
+    "New FigCraft design" : "Neues FigCraft-Design",
     "New VectorCraft drawing" : "Neue VectorCraft-Zeichnung",
     "New WordCraft document" : "Neues WordCraft-Dokument",
     "Nextcloud cannot tell whether you opened this file yourself: links from other sites can open this page too. Continue only if you meant to open this file." : "Nextcloud kann nicht erkennen, ob du diese Datei selbst geöffnet hast: Auch Links anderer Websites können diese Seite öffnen. Fahre nur fort, wenn du diese Datei öffnen wolltest.",

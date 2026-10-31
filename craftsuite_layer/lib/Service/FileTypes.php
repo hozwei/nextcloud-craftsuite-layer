@@ -64,6 +64,8 @@ class FileTypes {
 		// SoundCraft's packaging names this type for its session file (.scraft); the browser's
 		// bundle of a session with its audio (.scraftz) has none of its own.
 		'scraftz' => ['application/x-soundcraft-session', null],
+		// FigCraft's packaging names this type (packaging/linux/ai.storyteller.figcraft.mime.xml).
+		'figcraft' => ['application/x-figcraft', null],
 		'dotm' => ['application/vnd.ms-word.template.macroEnabled.12', null],
 	];
 
@@ -81,6 +83,7 @@ class FileTypes {
 		'application/x-filmcraft' => 'file',
 		'application/x-effectcraft' => 'file',
 		'application/x-soundcraft-session' => 'file',
+		'application/x-figcraft' => 'file',
 	];
 
 	/** Where this app notes the entries it added (JSON: {"mappings": {...}, "aliases": {...}}). */

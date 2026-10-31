@@ -6,12 +6,13 @@
 // SPDX-FileCopyrightText: 2026 ArtCraft Team and the FilmCraft contributors
 // SPDX-FileCopyrightText: 2026 ArtCraft Team and the EffectCraft contributors
 // SPDX-FileCopyrightText: 2026 ArtCraft Team and the SoundCraft contributors
+// SPDX-FileCopyrightText: 2026 ArtCraft Team and the FigCraft contributors
 // SPDX-License-Identifier: AGPL-3.0-or-later AND (MIT OR Apache-2.0)
 //
 // What the apps write for a new document, taken from their own saves, is theirs (MIT OR
 // Apache-2.0): VC_DOCUMENT and DC_DOCUMENT (VectorCraft, DesignCraft), GridCraft's styles part,
-// CADCraft's DXF, FilmCraft's and EffectCraft's new project, SoundCraft's new session. The rest is
-// ours (AGPL-3.0-or-later).
+// CADCraft's DXF, FilmCraft's and EffectCraft's new project, SoundCraft's new session, FigCraft's new
+// document. The rest is ours (AGPL-3.0-or-later).
 // assets/LICENSE-MIT.txt carries the MIT notices in the app package.
 //
 // The blank documents of the Craft apps' "+ New" entries in Files (lib/Service/NewFiles.php), in
@@ -492,6 +493,17 @@ function soundcraftBlank() {
   return zipStored([['New session.scraft', Buffer.from(JSON.stringify(SC_SESSION), 'utf8')]]);
 }
 
+// --- FigCraft (.figcraft) ------------------------------------------------------------------------
+// The document FigCraft 0.12.1 makes for New design file, as its web build saves it: a zip with
+// document.json (deflated), the document named 'Untitled' with one empty page. FigCraft names a
+// document it opens 'Untitled' after the file's stem, so the first save goes to the file the user
+// created (docs/apps/figcraft.md).
+const FC_DOCUMENT = '{"format":"figcraft","version":1,"imageIndex":[],"name":"Untitled","pages":[1],"nodes":{"1":{"id":1,"name":"Page 1","type":"page","background":{"r":0.9607843,"g":0.9607843,"b":0.9607843,"a":1.0},"flows":[],"prototype":{"device":"None","background":{"r":0.11764706,"g":0.11764706,"b":0.11764706,"a":1.0},"rotation":"portrait"},"guides":[],"width":0.0,"height":0.0}},"next_id":2,"styles":[],"variables":{"collections":[],"variables":[]},"current_page":1,"document_colors":[],"comments":[]}';
+
+function figcraftBlank() {
+  return Buffer.from(zipSync({ 'document.json': [strToU8(FC_DOCUMENT), { level: 9, mtime: MTIME }] }));
+}
+
 // FilmCraft keeps the project's name in the file, and Save As and the adapter name a save after it:
 // the server writes the new file's name instead of this one (NewFiles::stamped()).
 export const FILMCRAFT_NAME = 'New FilmCraft project';
@@ -511,6 +523,7 @@ blank.dxf: Copyright (c) 2026 ArtCraft Team and the CADCraft contributors
 blank.fcproj: Copyright (c) 2026 ArtCraft Team and the FilmCraft contributors
 blank.ecproj: Copyright (c) 2026 ArtCraft Team and the EffectCraft contributors
 blank.scraftz: Copyright (c) 2026 ArtCraft Team and the SoundCraft contributors
+blank.figcraft: Copyright (c) 2026 ArtCraft Team and the FigCraft contributors
 
 ${mit}`, 'utf8');
 }
@@ -533,6 +546,7 @@ export function blanks() {
     'blank.fcproj': filmcraftBlank(FILMCRAFT_NAME),
     'blank.ecproj': effectcraftBlank(),
     'blank.scraftz': soundcraftBlank(),
+    'blank.figcraft': figcraftBlank(),
   };
 }
 

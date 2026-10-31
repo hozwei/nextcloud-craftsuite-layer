@@ -66,7 +66,7 @@ host (Nextcloud page)                    translator (inside the Craft app frame)
 | `save` | `id`, `kind`, `openId`, `follows`, `name`, `size`, `data` | The app started a download. See [Saves](#saves). |
 | `error` | `of`, `id`, `message` | See [Errors](#errors). |
 
-`layerVersion` is the translator's version (currently `0.5.4`).
+`layerVersion` is the translator's version (currently `0.5.5`).
 
 ## Host to translator
 

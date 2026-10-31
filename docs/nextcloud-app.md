@@ -26,13 +26,13 @@ The app is not in the Nextcloud App Store. Each
 `craftsuite_layer-<version>.tar.gz`, with the checksums in `SHA256SUMS`. Both are plain
 downloads from
 `https://github.com/hozwei/nextcloud-craftsuite-layer/releases/download/v<version>/<asset>`.
-For version 0.5.4:
+For version 0.5.5:
 
 ```sh
-v=0.5.4
+v=0.5.5
 base=https://github.com/hozwei/nextcloud-craftsuite-layer/releases/download/v$v
 curl -fL --remote-name-all "$base/craftsuite_layer-$v.tar.gz" "$base/SHA256SUMS"
-sha256sum -c --ignore-missing SHA256SUMS      # craftsuite_layer-0.5.4.tar.gz: OK
+sha256sum -c --ignore-missing SHA256SUMS      # craftsuite_layer-0.5.5.tar.gz: OK
 ```
 
 `--ignore-missing` skips the line of the hosting bundle, which `SHA256SUMS` lists too. The
@@ -155,6 +155,7 @@ app's languages as a BCP 47 tag:
 | LightCraft | `en` `de` `es` `fr` `ja` `pt-BR` `ru` `uk` `zh-Hans` `zh-Hant` |
 | FilmCraft | `en` `de` `es` `fr` `ja` `pt-BR` `ru` `uk` |
 | EffectCraft | `en` `es` `pt-BR` `uk` |
+| FigCraft | `en` `cs` `de` `es` `es-419` `fi` `fr` `id` `it` `ka` `nl` `pl` `pt-BR` `ru` `sv` `tr` `vi` |
 
 ```sh
 occ config:app:set craftsuite_layer pdfcraft_language --value=user
@@ -270,8 +271,7 @@ on the file does; as the default app (see [Configuring](#configuring)), for all 
 | FilmCraft | `fcproj` | `fcproj` |
 | EffectCraft | `ecproj` | `ecproj` |
 | SoundCraft | `scraftz` | `scraftz` |
-
-FigCraft has no entry yet: its web build can neither open nor save a file.
+| FigCraft | `figcraft` | `figcraft` |
 
 - **By extension, in any letter case.** Nextcloud stores `application/octet-stream` for
   extensions it does not know, such as `.designcraft`, `.vectorcraft` and `.idml`. The app adds
@@ -294,7 +294,8 @@ FigCraft has no entry yet: its web build can neither open nor save a file.
   [VectorCraft](apps/vectorcraft.md#file-types), [DesignCraft](apps/designcraft.md#file-types),
   [WordCraft](apps/wordcraft.md), [GridCraft](apps/gridcraft.md), [DeckCraft](apps/deckcraft.md),
   [CADCraft](apps/cadcraft.md), [LightCraft](apps/lightcraft.md), [FilmCraft](apps/filmcraft.md),
-  [EffectCraft](apps/effectcraft.md), [SoundCraft](apps/soundcraft.md#file-types). The lists live
+  [EffectCraft](apps/effectcraft.md), [SoundCraft](apps/soundcraft.md#file-types),
+  [FigCraft](apps/figcraft.md#file-types). The lists live
   in `lib/Service/CraftApps.php`.
 - **Not offered** for several selected files, for folders, in the trash (a deleted file has no
   folder to save to), and for files shared without permission to download or with downloads
@@ -327,6 +328,7 @@ belongs to:
 | FilmCraft | `fcproj` |
 | EffectCraft | `ecproj` |
 | SoundCraft | `scraftz` |
+| FigCraft | `figcraft` |
 
 Office files, PDFs and common images keep Nextcloud's icons, and a file with a preview (a photo,
 or a PSD where the administrator enabled Nextcloud's Photoshop previews) shows the preview.
@@ -411,6 +413,7 @@ format. The entry's name is also the name Files proposes for the file:
 | New FilmCraft project | `.fcproj` | an empty project, without media or sequence, named like the file |
 | New EffectCraft project | `.ecproj` | an empty project (8 bpc, timecode, 48 kHz): EffectCraft's New Project |
 | New SoundCraft session | `.scraftz` | an empty session without audio (48 kHz, 24 bit, 120 bpm, 4/4): SoundCraft's new session |
+| New FigCraft design | `.figcraft` | one empty page: FigCraft's New design file; FigCraft names the design like the file |
 | New WordCraft document | `.docx`, only as the default app | one empty page with 1" margins |
 | New GridCraft spreadsheet | `.xlsx`, only as the default app | one empty sheet, `Sheet1` |
 | New PdfCraft document | `.pdf`, only as the default app | one empty page |

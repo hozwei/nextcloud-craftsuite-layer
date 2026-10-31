@@ -24,6 +24,7 @@ and turns the app's downloads into save messages. The messages are described in
 | `filmcraft.js` | The adapter for FilmCraft. See [docs/apps/filmcraft.md](../docs/apps/filmcraft.md). |
 | `effectcraft.js` | The adapter for EffectCraft. See [docs/apps/effectcraft.md](../docs/apps/effectcraft.md). |
 | `soundcraft.js` | The adapter for SoundCraft. See [docs/apps/soundcraft.md](../docs/apps/soundcraft.md). |
+| `figcraft.js` | The adapter for FigCraft. See [docs/apps/figcraft.md](../docs/apps/figcraft.md). |
 
 ## Loading
 
@@ -152,5 +153,5 @@ Rules for adapters:
 
 ## Version
 
-`core.js` reports its version (`layerVersion`, currently `0.5.4`) in `hello` and `ready`, and
+`core.js` reports its version (`layerVersion`, currently `0.5.5`) in `hello` and `ready`, and
 speaks protocol version 1.

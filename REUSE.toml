@@ -48,6 +48,7 @@ path = [
   "tests/e2e/fixtures/effectcraft/*.ecproj",
   "tests/e2e/fixtures/effectcraft/*.ecprojx",
   "tests/e2e/fixtures/soundcraft/*.scraftz",
+  "tests/e2e/fixtures/figcraft/*.figcraft",
 ]
 precedence = "override"
 SPDX-FileCopyrightText = "2026 The nextcloud-craftsuite-layer contributors"
@@ -79,8 +80,8 @@ SPDX-License-Identifier = "MIT OR Apache-2.0"
 # The blank documents of the "+ New" entries, written by craftsuite_layer/blanks.mjs: the PSD, PDF,
 # Word and DeckCraft ones from our own code; the others carry what the Craft app writes for a new
 # document (VectorCraft's swatches and graphic styles, DesignCraft's document, GridCraft's styles,
-# CADCraft's DXF, FilmCraft's and EffectCraft's new project, SoundCraft's new session), taken from
-# the apps' own saves.
+# CADCraft's DXF, FilmCraft's and EffectCraft's new project, SoundCraft's new session, FigCraft's
+# new document), taken from the apps' own saves.
 [[annotations]]
 path = [
   "craftsuite_layer/assets/blank.psd",
@@ -105,6 +106,7 @@ SPDX-FileCopyrightText = [
   "2026 ArtCraft Team and the FilmCraft contributors",
   "2026 ArtCraft Team and the EffectCraft contributors",
   "2026 ArtCraft Team and the SoundCraft contributors",
+  "2026 ArtCraft Team and the FigCraft contributors",
 ]
 SPDX-License-Identifier = "MIT"
 
@@ -158,6 +160,15 @@ path = "craftsuite_layer/assets/blank.scraftz"
 precedence = "override"
 SPDX-FileCopyrightText = [
   "2026 ArtCraft Team and the SoundCraft contributors",
+  "2026 The nextcloud-craftsuite-layer contributors",
+]
+SPDX-License-Identifier = "MIT OR Apache-2.0"
+
+[[annotations]]
+path = "craftsuite_layer/assets/blank.figcraft"
+precedence = "override"
+SPDX-FileCopyrightText = [
+  "2026 ArtCraft Team and the FigCraft contributors",
   "2026 The nextcloud-craftsuite-layer contributors",
 ]
 SPDX-License-Identifier = "MIT OR Apache-2.0"
@@ -241,6 +252,12 @@ precedence = "override"
 SPDX-FileCopyrightText = "2026 ArtCraft Team and the SoundCraft contributors"
 SPDX-License-Identifier = "MIT OR Apache-2.0"
 
+[[annotations]]
+path = "craftsuite_layer/img/types/figcraft.svg"
+precedence = "override"
+SPDX-FileCopyrightText = "2026 ArtCraft Team and the FigCraft contributors"
+SPDX-License-Identifier = "MIT OR Apache-2.0"
+
 # The MIT notices of the icons above, shipped with them in the app package.
 [[annotations]]
 path = "craftsuite_layer/img/types/LICENSE-MIT.txt"
@@ -255,6 +272,7 @@ SPDX-FileCopyrightText = [
   "2026 ArtCraft Team and the FilmCraft contributors",
   "2026 ArtCraft Team and the EffectCraft contributors",
   "2026 ArtCraft Team and the SoundCraft contributors",
+  "2026 ArtCraft Team and the FigCraft contributors",
 ]
 SPDX-License-Identifier = "MIT"
 
@@ -326,6 +344,12 @@ precedence = "override"
 SPDX-FileCopyrightText = "2026 ArtCraft Team and the SoundCraft contributors"
 SPDX-License-Identifier = "MIT OR Apache-2.0"
 
+[[annotations]]
+path = "craftsuite_layer/img/new/figcraft.png"
+precedence = "override"
+SPDX-FileCopyrightText = "2026 ArtCraft Team and the FigCraft contributors"
+SPDX-License-Identifier = "MIT OR Apache-2.0"
+
 # The MIT notices of the icons above, shipped with them in the app package.
 [[annotations]]
 path = "craftsuite_layer/img/new/LICENSE-MIT.txt"
@@ -342,5 +366,6 @@ SPDX-FileCopyrightText = [
   "2026 ArtCraft Team and the FilmCraft contributors",
   "2026 ArtCraft Team and the EffectCraft contributors",
   "2026 ArtCraft Team and the SoundCraft contributors",
+  "2026 ArtCraft Team and the FigCraft contributors",
 ]
 SPDX-License-Identifier = "MIT"

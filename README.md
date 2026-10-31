@@ -5,8 +5,8 @@
 # nextcloud-craftsuite-layer
 
 Open files from Nextcloud in storytold's Craft web apps (PdfCraft, PhotoCraft, VectorCraft,
-DesignCraft, WordCraft, GridCraft, DeckCraft, CADCraft, LightCraft, FilmCraft, EffectCraft and
-SoundCraft) and save the results back to Nextcloud, without modifying the apps.
+DesignCraft, WordCraft, GridCraft, DeckCraft, CADCraft, LightCraft, FilmCraft, EffectCraft,
+SoundCraft and FigCraft) and save the results back to Nextcloud, without modifying the apps.
 
 [![CI](https://github.com/hozwei/nextcloud-craftsuite-layer/actions/workflows/ci.yml/badge.svg)](https://github.com/hozwei/nextcloud-craftsuite-layer/actions/workflows/ci.yml)
 [![Canary](https://github.com/hozwei/nextcloud-craftsuite-layer/actions/workflows/canary.yml/badge.svg)](https://github.com/hozwei/nextcloud-craftsuite-layer/actions/workflows/canary.yml)
@@ -44,24 +44,25 @@ opens them in the app ([docs/nextcloud-app.md](docs/nextcloud-app.md#new-files))
 
 | App | Tested version | In the action menu for | Also on a click on the file |
 |---|---|---|---|
-| PdfCraft | 0.8.0 | `pdf` | none |
-| PhotoCraft | 0.9.0 | `psd` `psb` `pcraft` `tga` `png` `jpg` `jpeg` `webp` `gif` `bmp` `tif` `tiff` `ico` `heic` `heif` | `psd` `psb` `pcraft` `tga` |
-| VectorCraft | 0.12.0 | `vectorcraft` `drawcraft` `ai` `eps` `svgz` `dxf` `svg` `emf` `wmf` `pdf` | `vectorcraft` `drawcraft` `eps` `svgz` `dxf` |
-| DesignCraft | 0.8.0 | `designcraft` `idml` | `designcraft` `idml` |
-| WordCraft | 0.7.0 | `docx` `docm` `dotx` `dotm` `doc` `dot` `odt` `rtf` | none |
-| GridCraft | 0.7.0 | `xlsx` `xlsm` `ods` `csv` | none |
-| DeckCraft | 0.7.0 | `deckcraft` `pptx` `potx` `ppsx` | `deckcraft` |
-| CADCraft | 0.7.0 | `dxf` | `dxf` (instead of VectorCraft when both are set up) |
-| LightCraft | 0.8.0 | `dng` `cr2` `cr3` `nef` `nrw` `arw` `raf` `orf` `rw2` `rwl` `pef` `srw` `jpg` `jpeg` `png` `tif` `tiff` `webp` | the camera raw types |
-| FilmCraft | 0.8.0 | `fcproj` | `fcproj` |
-| EffectCraft | 0.10.0 | `ecproj` | `ecproj` |
-| SoundCraft | 0.7.0 | `scraftz` | `scraftz` |
+| PdfCraft | 0.15.0 | `pdf` | none |
+| PhotoCraft | 0.16.0 | `psd` `psb` `pcraft` `tga` `png` `jpg` `jpeg` `webp` `gif` `bmp` `tif` `tiff` `ico` `heic` `heif` | `psd` `psb` `pcraft` `tga` |
+| VectorCraft | 0.18.0 | `vectorcraft` `drawcraft` `ai` `eps` `svgz` `dxf` `svg` `emf` `wmf` `pdf` | `vectorcraft` `drawcraft` `eps` `svgz` `dxf` |
+| DesignCraft | 0.14.0 | `designcraft` `idml` | `designcraft` `idml` |
+| WordCraft | 0.12.0 | `docx` `docm` `dotx` `dotm` `doc` `dot` `odt` `rtf` | none |
+| GridCraft | 0.13.0 | `xlsx` `xlsm` `ods` `csv` | none |
+| DeckCraft | 0.12.0 | `deckcraft` `pptx` `potx` `ppsx` | `deckcraft` |
+| CADCraft | 0.14.0 | `dxf` | `dxf` (instead of VectorCraft when both are set up) |
+| LightCraft | 0.15.0 | `dng` `cr2` `cr3` `nef` `nrw` `arw` `raf` `orf` `rw2` `rwl` `pef` `srw` `jpg` `jpeg` `png` `tif` `tiff` `webp` | the camera raw types |
+| FilmCraft | 0.14.0 | `fcproj` | `fcproj` |
+| EffectCraft | 0.18.0 | `ecproj` | `ecproj` |
+| SoundCraft | 0.14.0 | `scraftz` | `scraftz` |
+| FigCraft | 0.12.1 | `figcraft` | `figcraft` |
 
 LightCraft develops photos and exports them as new files; it never saves a photo back, and its
 edits are gone when the editor closes. FilmCraft and EffectCraft open their project files; a
 project refers to its media, which are not in the file. SoundCraft opens the sessions it saves in
-the browser, a `.scraftz` bundle with the audio inside (from SoundCraft 0.6.1 on). FigCraft is not
-supported yet: its web build can neither open nor save a file. Each app's page in
+the browser, a `.scraftz` bundle with the audio inside (from SoundCraft 0.6.1 on). FigCraft opens and
+saves its own `.figcraft` files (from FigCraft 0.12.1 on). Each app's page in
 [docs/apps/](docs/apps/) says what saves where.
 
 Files are matched by extension, in any letter case. The tested version is the Craft release the
@@ -102,7 +103,7 @@ The app is not in the Nextcloud App Store. Each
 | `SHA256SUMS` | The checksums of both |
 
 ```sh
-v=0.5.4
+v=0.5.5
 base=https://github.com/hozwei/nextcloud-craftsuite-layer/releases/download/v$v
 curl -fL --remote-name-all "$base/craftsuite_layer-$v.tar.gz" \
   "$base/craftsuite-layer-hosting-$v.tar.gz" "$base/SHA256SUMS"
@@ -309,10 +310,10 @@ of 2026-10-17:
 - PhotoCraft: [storytold/photocraft#1614](https://github.com/storytold/photocraft/issues/1614)
   and [pull request #2263](https://github.com/storytold/photocraft/pull/2263), open, not merged;
   two hosts have built a bridge of their own on a fork.
-- FigCraft: [storytold/figcraft#759](https://github.com/storytold/figcraft/issues/759), open
-  since 2026-10-17. Its web build can neither open nor save a file yet (0.6.0; `main` hands saves
-  to the browser as downloads since), so it is not supported. It joins once it can do both
-  ([docs/development.md](docs/development.md#adding-a-craft-app)).
+- FigCraft: opening ([storytold/figcraft#759](https://github.com/storytold/figcraft/issues/759))
+  and saving ([#969](https://github.com/storytold/figcraft/issues/969)) in the browser came with
+  0.8.0 and 0.12.1; it joined the layer in 0.5.5. Its control channel `window.figcraft` serves
+  the app's own origin only ([docs/apps/figcraft.md](docs/apps/figcraft.md#upstream)).
 
 When an app gains a native API, the translator is planned to stand down for it (see
 [docs/architecture.md](docs/architecture.md#native-embedding-apis)).
@@ -333,7 +334,7 @@ sales sample and FilmCraft's demo project with the files derived from it (see `R
 
 This project is not affiliated with, endorsed by or sponsored by storytold or Nextcloud GmbH.
 PdfCraft, PhotoCraft, VectorCraft, DesignCraft, WordCraft, GridCraft, DeckCraft, CADCraft,
-LightCraft, FilmCraft, EffectCraft, SoundCraft, ArtCraft and Nextcloud are names or trademarks of
+LightCraft, FilmCraft, EffectCraft, SoundCraft, FigCraft, ArtCraft and Nextcloud are names or trademarks of
 their respective owners and are used here only to say what this project works with.
 
 The Craft apps are not part of this repository. They are developed by storytold in their own

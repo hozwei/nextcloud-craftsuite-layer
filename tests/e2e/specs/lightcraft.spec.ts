@@ -223,10 +223,10 @@ async function appTicks(app: Frame, n = 2) {
   for (let i = 0; i < n; i++) await lightcraft(app, 'web.stats');
 }
 
-// For the @ui test: waits until LightCraft has rendered what it queued (the demo thumbnails). egui
-// takes a press and a release more than 0.8 s apart on its frame clock for a long press, not a
-// click, so a click whose press and release land in two frames of seconds each is lost; keys have
-// no such limit.
+// For the @ui test and the file picker: waits until LightCraft has rendered what it queued (the
+// demo thumbnails). egui takes a press and a release more than 0.8 s apart on its frame clock for
+// a long press, not a click, so a click whose press and release land in two frames of seconds each
+// is lost; keys have no such limit, except one that opens the file picker (see importFromDisk()).
 async function untilRendered(app: Frame) {
   await test.step('ui: wait until LightCraft has rendered what it queued (web.stats)', async () => {
     await expect.poll(async () => {
@@ -285,8 +285,13 @@ async function previousPhoto(page: Page, app: Frame) {
 }
 
 // File > Import Photos... (Cmd+Shift+I), with a file from the user's disk through the browser's
-// file picker. LightCraft imports it and makes it the active photo.
+// file picker. LightCraft imports it and makes it the active photo. The browser shows the picker
+// only within about 5 s of the key press (user activation), and LightCraft handles the key on its
+// next frame: wait until it has rendered what it queued first, or that frame can come too late
+// (canary 2026-10-30: 17 s, "File chooser dialog can only be shown with a user activation").
 async function importFromDisk(page: Page, app: Frame, file: string) {
+  await untilRendered(app);
+
   await test.step(`ui: File > Import Photos... (Ctrl+Shift+I) of ${path.basename(file)} from the disk`, async () => {
     const before = (await activePhoto(app)).id;
     const chooser = page.waitForEvent('filechooser', { timeout: 30_000 });

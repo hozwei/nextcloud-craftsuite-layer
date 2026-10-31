@@ -157,8 +157,9 @@ const AT = {
   attachmentsRail: (b: Box) => ({ x: b.x + b.width - 23, y: b.y + 302 }),
   // Attachments panel, first row: "Open in a new tab", left of "Save attachment". In 0.7.1 the
   // panel sits below an "Inspector" tab, 26 px lower than in 0.6.0 (y 161); 0.14.0 puts an
-  // "Attach a file…" row above the attachments (y 187 before).
-  openAttachment: (b: Box) => ({ x: b.x + b.width - 114, y: b.y + 231 }),
+  // "Attach a file…" row above the attachments (y 187 before); 0.15.0 drops the Inspector tab
+  // (y 231 before) and puts a Delete button left of the two.
+  openAttachment: (b: Box) => ({ x: b.x + b.width - 114, y: b.y + 205 }),
   // Action Wizard, a modal centred in the frame: Start, its bottom-right button.
   wizardStart: (b: Box) => ({ x: b.x + b.width / 2 + 282, y: b.y + b.height / 2 + 162 }),
   // About PdfCraft, a modal centred in the frame and sized to its tab. On the About tab: the

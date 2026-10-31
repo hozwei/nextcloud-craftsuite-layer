@@ -149,6 +149,7 @@ Fixtures in `tests/e2e/fixtures/` (committed):
 | `lightcraft/probe-photo.jpg`, `lightcraft/probe-scan.tif`, `lightcraft/elsewhere/probe-scan.tif`, `lightcraft/probe-raw.dng` | A 120x80 JPEG, a 90x60 TIFF, a different 64x64 TIFF under the same name, and a 96x64 DNG with an uncompressed RGGB mosaic, written by `lightcraft/make-fixtures.mjs` (which needs Playwright's Chromium for the JPEG; see [apps/lightcraft.md](apps/lightcraft.md#tests)) |
 | `filmcraft/FilmCraft Demo.fcproj`, `filmcraft/Main Edit.edl`, `filmcraft/craftsuite-probe.fcproj`, `filmcraft/old-schema.fcproj` | Saved by FilmCraft 0.6.0 from its demo project (the project, and its File > Export > EDL…; FilmCraft's own content under MIT or Apache-2.0), and derived from it by `filmcraft/make-fixtures.mjs`: a copy that stores another project name (`Probe Title`) with a marker in its notes, and one in schema 14 (see [apps/filmcraft.md](apps/filmcraft.md)) |
 | `effectcraft/craftsuite-probe.ecproj`, `effectcraft/craftsuite-probe.ecprojx` | Saved by EffectCraft 0.8.0: a blank project with a new composition and a solid, and its Save a Copy As XML (see [apps/effectcraft.md](apps/effectcraft.md#tests)); the spec derives the other files it opens from them |
+| `figcraft/craftsuite-probe.figcraft` | Written by `figcraft/make-fixtures.mjs`: a FigCraft file (a zip with `document.json`) whose document `craftsuite-probe` has one frame with a marker; the spec derives the other files it opens from it (see [apps/figcraft.md](apps/figcraft.md)) |
 | `soundcraft/craftsuite-probe.scraftz` | Written by `soundcraft/make-fixtures.mjs`: a bundle of stored entries like SoundCraft's saves, the session `craftsuite-probe` (comments `CRAFTSUITE-PROBE-sc01`) with the tracks Tone A (selected) and Tone B, each a 0.1 s tone, in the fields SoundCraft 0.6.1 writes (see [apps/soundcraft.md](apps/soundcraft.md#tests)) |
 
 `node tests/e2e/fixtures/make-fixtures.mjs` rewrites the PDFs, and the `make-fixtures.mjs` in the
@@ -486,8 +487,8 @@ own ([hosting.md](hosting.md#the-app-list), [nextcloud-app.md](nextcloud-app.md#
 `crates/core/src/catalog.rs`); watch the releases of a candidate (on GitHub, Watch → Custom →
 Releases) and look at storytold's new repositories now and then. An app can join once its web
 build opens a file it is handed (a drop on the page, as the core hands files over) and saves to a
-download (a Blob URL on an `<a download>` that the page clicks). FigCraft 0.6.0 does neither
-(SoundCraft does since 0.6.1).
+download (a Blob URL on an `<a download>` that the page clicks). FigCraft did both only from
+0.12.1 on, SoundCraft from 0.6.1.
 
 1. Study the web build: how it takes files, how it downloads, how it names and writes saves.
    Start the list of file types from the app's own packaging, `packaging/macos/Info.plist.in`

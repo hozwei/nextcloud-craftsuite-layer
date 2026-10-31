@@ -48,6 +48,7 @@ class NewFiles {
 		'filmcraft' => ['ext' => 'fcproj', 'mime' => 'application/x-filmcraft', 'ratio' => 16 / 9],
 		'effectcraft' => ['ext' => 'ecproj', 'mime' => 'application/x-effectcraft', 'ratio' => 16 / 9],
 		'soundcraft' => ['ext' => 'scraftz', 'mime' => 'application/x-soundcraft-session', 'ratio' => 16 / 9],
+		'figcraft' => ['ext' => 'figcraft', 'mime' => 'application/x-figcraft', 'ratio' => 16 / 9],
 	];
 
 	/**
@@ -249,6 +250,7 @@ class NewFiles {
 			'filmcraft' => $this->l->t('New FilmCraft project'),
 			'effectcraft' => $this->l->t('New EffectCraft project'),
 			'soundcraft' => $this->l->t('New SoundCraft session'),
+			'figcraft' => $this->l->t('New FigCraft design'),
 			default => $app,
 		};
 	}

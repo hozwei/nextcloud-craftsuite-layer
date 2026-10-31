@@ -37,8 +37,8 @@ What the project is and how it works in short: [README](../README.md). Changes p
 - [EffectCraft](apps/effectcraft.md): project files, its service worker and URL switches.
 - [SoundCraft](apps/soundcraft.md): `.scraftz` sessions with their audio, saves told from an
   export of selected tracks.
-
-FigCraft is not supported yet: its web build can neither open nor save a file.
+- [FigCraft](apps/figcraft.md): `.figcraft` files, saved under the name of the document inside;
+  Figma and Sketch files not offered.
 
 ## For developers
 

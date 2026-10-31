@@ -14,6 +14,7 @@ cadcraft.png: Copyright (c) 2026 ArtCraft Team and the CADCraft contributors
 filmcraft.png: Copyright (c) 2026 ArtCraft Team and the FilmCraft contributors
 effectcraft.png: Copyright (c) 2026 ArtCraft Team and the EffectCraft contributors
 soundcraft.png: Copyright (c) 2026 ArtCraft Team and the SoundCraft contributors
+figcraft.png: Copyright (c) 2026 ArtCraft Team and the FigCraft contributors
 
 MIT License
 

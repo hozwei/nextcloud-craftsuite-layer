@@ -152,29 +152,32 @@ async function scenario(context: BrowserContext, title: string, body: (page: Pag
 
 type Box = { x: number; y: number; width: number; height: number };
 
-// Pointer targets (measured on SoundCraft 0.6.1 and 0.7.0), relative to the app frame at the
-// pinned viewport. This is the only layout knowledge in this file; when a release moves something,
-// fix it here. `added` is the number of File menu rows above Save Session that 0.6.1 does not
-// have (see addedRows()); each row is 22 points high.
-const ROW = 22;
+// Pointer targets (measured on SoundCraft 0.6.1, 0.7.0 and 0.14.0), relative to the app frame at
+// the pinned viewport. This is the only layout knowledge in this file; when a release moves
+// something, fix it here. The File menu's rows come from `menu` (see fileMenu()).
 const AT = {
   // Menu bar, after SoundCraft: File.
   fileMenu: (b: Box) => ({ x: b.x + 96, y: b.y + 11 }),
   // File menu: Save Session, after New, Open, (Open Recent,) Dashboard and Close Session.
-  fileSave: (b: Box, added: number) => ({ x: b.x + 129, y: b.y + 124 + ROW * added }),
-  // File menu: Export, ten rows further down, which opens a submenu.
-  fileExport: (b: Box, added: number) => ({ x: b.x + 150, y: b.y + 322 + ROW * added }),
-  // File > Export: Selected Tracks as New Session…, the second row of the submenu.
-  exportSession: (b: Box, added: number) => ({ x: b.x + 384, y: b.y + 344 + ROW * added }),
+  fileSave: (b: Box, menu: Menu) => ({ x: b.x + 129, y: b.y + menu.first + menu.row * (4 + menu.recent) }),
+  // File menu: Export, nine rows below Save Session, which opens a submenu.
+  fileExport: (b: Box, menu: Menu) => ({ x: b.x + 150, y: b.y + menu.first + menu.row * (13 + menu.recent) }),
+  // File > Export: Selected Tracks as New Session…, the second row of the submenu, which starts
+  // level with Export.
+  exportSession: (b: Box, menu: Menu) => ({ x: b.x + 384, y: b.y + menu.first + menu.row * (14 + menu.recent) }),
   // The OK button of the name dialog it opens, in the middle of the frame, 80 points up.
   dialogOk: (b: Box) => ({ x: b.x + 609, y: b.y + 316 }),
 };
 
-// The File menu rows above Save Session that SoundCraft gained since 0.6.1, the oldest version
-// this spec runs on: Open Recent (0.7.0).
-async function addedRows(page: Page) {
+// The File menu: the middle of its first row (New), the row height, and whether Open Recent sits
+// above Save Session (since 0.7.0; 0.6.1 is the oldest version this spec runs on). Since 0.14.0
+// the rows are 24 points high instead of 22, and the first one is 3 points lower.
+type Menu = { first: number; row: number; recent: number };
+async function fileMenu(page: Page): Promise<Menu> {
   const version = await page.evaluate(() => (window as HostWindow).CRAFTSUITE_TEST?.versions?.soundcraft ?? '');
-  return /^0\.6\./.test(version) ? 0 : 1;
+  const [major = 0, minor = 0] = version.split('.').map(Number);
+  if (major > 0 || minor >= 14) return { first: 39, row: 24, recent: 1 };
+  return { first: 36, row: 22, recent: minor >= 7 ? 1 : 0 };
 }
 
 function appFrame(page: Page): Frame {
@@ -224,10 +227,10 @@ async function search(page: Page, app: Frame, label: string) {
 }
 
 // For the @ui test: a click at a point from AT, after a hover frame so egui sees the target.
-async function clickApp(page: Page, app: Frame, what: string, at: (b: Box, added: number) => { x: number; y: number }) {
+async function clickApp(page: Page, app: Frame, what: string, at: (b: Box, menu: Menu) => { x: number; y: number }) {
   const box = await page.locator('#app').boundingBox();
   if (!box) throw new Error('the app frame is not visible');
-  const { x, y } = at(box, await addedRows(page));
+  const { x, y } = at(box, await fileMenu(page));
 
   await test.step(`ui: click ${what}`, async () => {
     await page.mouse.move(x, y, { steps: 4 });

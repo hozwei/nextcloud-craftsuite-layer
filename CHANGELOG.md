@@ -13,6 +13,45 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.5.5] - 2026-10-31
+
+FigCraft joins as the thirteenth app. The Craft releases of 2026-10-28 (canary issue #10): PdfCraft
+0.15.0, VectorCraft 0.18.0, DesignCraft 0.14.0, WordCraft 0.12.0, GridCraft 0.13.0, DeckCraft
+0.12.0, CADCraft 0.14.0, LightCraft 0.15.0, FilmCraft 0.14.0, EffectCraft 0.18.0, SoundCraft 0.14.0
+and FigCraft 0.12.1 are the tested versions (`apps.json`). PhotoCraft stays at 0.16.0: the web
+build of 0.17.0 does not start at all, with or without the layer (its loader asks for
+`app/snippets/…`, which the release lacks;
+[storytold/photocraft#10017](https://github.com/storytold/photocraft/issues/10017), fixed in pull
+request #10248). The canary keeps holding it back until a release starts again.
+
+### Added
+
+- FigCraft (0.12.1 and later, the first release that saves in the browser): the adapter
+  `translators/figcraft.js`, its spec and docs/apps/figcraft.md. A `.figcraft` opens as the
+  document; FigCraft saves the whole file under the name of the document inside it, so a file
+  whose document is named otherwise gets its saves in a new file next to it. A new document, or a
+  document the user opened from the disk that would save under the same name, never replaces the
+  file. The host's language reaches FigCraft as the browser's language (17 languages; Bengali,
+  Japanese, Korean, Thai and Chinese show English in its web build). FigCraft is a plain Trunk
+  build: it needs no hosting option, and hostings that take their apps from `apps.json` serve it
+  as they are.
+- Nextcloud app: FigCraft, see craftsuite_layer/CHANGELOG.md.
+
+### Fixed
+
+- Tests: LightCraft's `saved-as` test sometimes saw no file picker. Chromium shows one only within
+  about 5 seconds of the key press, and LightCraft handled Ctrl+Shift+I 17 seconds later while it
+  still rendered its demo thumbnails (canary 2026-10-30). The test now waits for those renders
+  first, as the pointer test does.
+
+### Changed
+
+- Tests: the pointer tests follow PdfCraft 0.15.0 (no Inspector tab above the attachments, a
+  Delete button in their row) and SoundCraft 0.14.0 (taller menu rows; the positions now depend
+  on the version).
+- The README's app table and docs/architecture.md show the tested versions of `apps.json` again
+  (they still showed those of 0.4.x).
+
 ## [0.5.4] - 2026-10-26
 
 The Craft releases of 2026-10-22 to 2026-10-25 (canary issues #7 and #9): PdfCraft 0.14.0,
@@ -499,7 +538,8 @@ DeckCraft 0.6.1, FilmCraft 0.7.2, LightCraft 0.7.1 and EffectCraft 0.9.2 are the
 - Documentation: an index (`docs/README.md`), architecture, protocol, security, hosting,
   development, the Nextcloud app, and one page per Craft app.
 
-[Unreleased]: https://github.com/hozwei/nextcloud-craftsuite-layer/compare/v0.5.4...main
+[Unreleased]: https://github.com/hozwei/nextcloud-craftsuite-layer/compare/v0.5.5...main
+[0.5.5]: https://github.com/hozwei/nextcloud-craftsuite-layer/compare/v0.5.4...v0.5.5
 [0.5.4]: https://github.com/hozwei/nextcloud-craftsuite-layer/compare/v0.5.3...v0.5.4
 [0.5.3]: https://github.com/hozwei/nextcloud-craftsuite-layer/compare/v0.5.2...v0.5.3
 [0.5.2]: https://github.com/hozwei/nextcloud-craftsuite-layer/compare/v0.5.1...v0.5.2

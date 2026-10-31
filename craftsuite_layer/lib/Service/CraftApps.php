@@ -97,6 +97,14 @@ class CraftApps {
 		'effectcraft' => ['name' => 'EffectCraft', 'extensions' => ['ecproj'], 'default' => ['ecproj'], 'languages' => ['en', 'es', 'pt-BR', 'uk']],
 		// Sessions only, as the web build saves them (.scraftz; 0.6.1 and later).
 		'soundcraft' => ['name' => 'SoundCraft', 'extensions' => ['scraftz'], 'default' => ['scraftz'], 'languages' => []],
+		// Its own files only: FigCraft's packaging claims no other type (it also imports .fig, .sketch
+		// and images, which save as a new .figcraft). bn, ja, ko, th and zh-Hans show English on the web.
+		'figcraft' => [
+			'name' => 'FigCraft',
+			'extensions' => ['figcraft'],
+			'default' => ['figcraft'],
+			'languages' => ['en', 'cs', 'de', 'es', 'es-419', 'fi', 'fr', 'id', 'it', 'ka', 'nl', 'pl', 'pt-BR', 'ru', 'sv', 'tr', 'vi'],
+		],
 	];
 
 	/**

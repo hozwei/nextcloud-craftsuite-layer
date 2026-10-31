@@ -14,6 +14,21 @@ Each GitHub release takes its text from the section whose heading matches the ve
 
 ## [Unreleased]
 
+## [0.5.5] - 2026-10-31
+
+### Added
+
+- FigCraft (0.12.1 and later): `.figcraft` files open in it from the action menu and on a click,
+  with FigCraft's icon (as `application/x-figcraft`, the type FigCraft's packaging names), and
+  "+ New" makes a "New FigCraft design" from FigCraft's new document. It can start in the
+  language set for it (key `figcraft_language`, 17 languages).
+
+### Upgrading
+
+- With the address for all apps set, FigCraft gets its entries as soon as Nextcloud runs 0.5.5:
+  switch it off (`figcraft_disabled`) until the hosting serves it. Without that address nothing
+  changes. `occ upgrade` registers the new file type, as on every update.
+
 ## [0.5.4] - 2026-10-26
 
 ### Changed

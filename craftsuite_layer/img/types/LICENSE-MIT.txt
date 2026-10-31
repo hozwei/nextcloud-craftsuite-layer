@@ -14,6 +14,7 @@ lightcraft.svg: Copyright (c) 2026 ArtCraft Team and the LightCraft contributors
 filmcraft.svg: Copyright (c) 2026 ArtCraft Team and the FilmCraft contributors
 effectcraft.svg: Copyright (c) 2026 ArtCraft Team and the EffectCraft contributors
 soundcraft.svg: Copyright (c) 2026 ArtCraft Team and the SoundCraft contributors
+figcraft.svg: Copyright (c) 2026 ArtCraft Team and the FigCraft contributors
 
 MIT License
 
