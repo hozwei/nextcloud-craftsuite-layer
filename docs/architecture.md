@@ -269,10 +269,10 @@ Pull request #2263 proposes `window.photocraft` and a `postMessage` API enabled 
 | What | Where | Current |
 |---|---|---|
 | Protocol | `version` in every message | 1 |
-| Translator | `LAYER_VERSION` in `translators/core.js`, reported as `layerVersion` in `hello` and `ready` | 0.5.5 |
-| Nextcloud app | `<version>` in `craftsuite_layer/appinfo/info.xml` | 0.5.5, Nextcloud 34 and 35 |
-| Release | the tag `v<version>` | v0.5.5 |
-| Supported apps, their oldest and tested versions | `apps.json` ([hosting.md](hosting.md#the-app-list)) | PdfCraft 0.15.0, PhotoCraft 0.16.0, VectorCraft 0.18.0, DesignCraft 0.14.0, WordCraft 0.12.0, GridCraft 0.13.0, DeckCraft 0.12.0, CADCraft 0.14.0, LightCraft 0.15.0, FilmCraft 0.14.0, EffectCraft 0.18.0, SoundCraft 0.14.0, FigCraft 0.12.1 (tested; the oldest is `minVersion`) |
+| Translator | `LAYER_VERSION` in `translators/core.js`, reported as `layerVersion` in `hello` and `ready` | 0.5.6 |
+| Nextcloud app | `<version>` in `craftsuite_layer/appinfo/info.xml` | 0.5.6, Nextcloud 34 and 35 |
+| Release | the tag `v<version>` | v0.5.6 |
+| Supported apps, their oldest and tested versions | `apps.json` ([hosting.md](hosting.md#the-app-list)) | PdfCraft 0.17.0, PhotoCraft 0.16.0, VectorCraft 0.20.0, DesignCraft 0.16.0, WordCraft 0.14.0, GridCraft 0.15.0, DeckCraft 0.14.1, CADCraft 0.16.0, LightCraft 0.17.0, FilmCraft 0.16.0, EffectCraft 0.20.0, SoundCraft 0.16.0, FigCraft 0.14.0 (tested; the oldest is `minVersion`) |
 
 The translator and the Nextcloud app share one version number, and a release carries both: the
 app, and the translators with the injector for the hosting

@@ -542,6 +542,7 @@ test.describe('under a Mac user agent', () => {
   test.use({ userAgent: async ({ browserName }, use) => use(browserName === 'webkit' ? devices['Desktop Safari'].userAgent : MAC_CHROME) });
 
   test('exports: an export under the opened name, sessions named Untitled, a session SoundCraft cannot open, sessions from the disk', async ({ context, browserName }) => {
+    test.slow(); // several scenarios, each loading the app; near 120 s on a slow GitHub runner
     await scenario(context, 'Export > Selected Tracks as New Session… under the opened name is a new file; Cmd+S after it is the document', async (page, downloads) => {
       // Its dialog proposes '<session name>.scraftz', and the fixture stores its own stem.
       const app = await openInHost(page, 'craftsuite-probe.scraftz');

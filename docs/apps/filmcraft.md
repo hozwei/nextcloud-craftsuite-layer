@@ -68,7 +68,7 @@ are to the `v0.6.0` tag; `web/` is `apps/filmcraft-web/`, the other paths are un
   project without asking, also one with unsaved changes (`engine/src/commands.rs:1200-1203`).
 - Every other file is imported into the open project, not opened: media as a `Blob` read in
   chunks (`fs.rs`), interchange files (EDL, XML, FCPXML, OTIO, AAF, OMF, captions) as new items of
-  the project. There is always a project open: the demo project `FilmCraft Demo`, which FilmCraft
+  the project. There is always a project open: the demo project `FilmCraft – Demo Project` (`FilmCraft Demo` before 0.16.0), which FilmCraft
   opens at every start (`lib.rs:147`, `:184-186`; `?empty` would make it an empty `Untitled`).
 - Projects refer to their media by path (`/files/<name>` on the web) and do not contain them. The
   host sends one file per frame, so a project opened from Nextcloud cannot find its media unless
@@ -111,7 +111,7 @@ are to the `v0.6.0` tag; `web/` is `apps/filmcraft-web/`, the other paths are un
   `<stem> (schema vN backup).fcproj` (`commands.rs:3826-3835`, `:3847-3850`), then the project in
   the current schema. Older schemas are upgraded on opening.
 - New projects are named `Untitled` (File > New > Project…, Ctrl+Alt+N, without a dialog,
-  `commands.rs:844-856`; Close Project, `clip_ops.rs:828`), the demo project `FilmCraft Demo`
+  `commands.rs:844-856`; Close Project, `clip_ops.rs:828`), the demo project `FilmCraft – Demo Project` (`FilmCraft Demo` before 0.16.0)
   (`engine/src/demo.rs:45`, `:52`), not translated. A project stores no identity: no GUID, no
   creation time (`project/src/lib.rs:1229-1260`; the items' `created` fields are counters).
 - On Windows and Linux the shortcuts are the Ctrl ones (`Cmd` is Ctrl there,
@@ -125,7 +125,7 @@ are to the `v0.6.0` tag; `web/` is `apps/filmcraft-web/`, the other paths are un
 | Save As… (Ctrl+Shift+S) of the opened project | `<project>.fcproj`: before the first Save the name stored in the file, after it the opened name | `document` |
 | The backup on the first Save of an older schema | `<stem> (schema vN backup).fcproj`, the opened bytes | `export` |
 | Save a Copy… (Ctrl+Alt+S) | `<project> copy.fcproj`; for an opened `<name> copy.fcproj` that still stores `<name>`, the opened name | `export` |
-| Save of a new project (Ctrl+Alt+N) or the demo project | `Untitled.fcproj`, `FilmCraft Demo.fcproj`, also when that is the opened name | `export` |
+| Save of a new project (Ctrl+Alt+N) or the demo project | `Untitled.fcproj`, `FilmCraft – Demo Project.fcproj`, `FilmCraft Demo.fcproj`, also when that is the opened name | `export` |
 | Save of a project the user dropped or opened from the disk | its name, which may be the opened one | `export` |
 | File > Export > EDL…, Final Cut Pro XML…, FCPXML…, OpenTimelineIO…, AAF…, OMF… | `<sequence>.<ext>` (EDL of the demo: `Main Edit.edl`), lossy re-encodings with export reports | `export` |
 | File > Export > Avid Log Exchange…, Markers CSV | `<project>.ale`, `<sequence>.csv` | `export` |
@@ -175,7 +175,7 @@ the host's file any more, and no later save in this frame is `document`.
 name. The adapter returns `document` only if all of these hold, otherwise `export`:
 
 - the opened file and the download are `*.fcproj`;
-- the download's stem is not `Untitled` or `FilmCraft Demo`;
+- the download's stem is not `Untitled`, `FilmCraft – Demo Project` or `FilmCraft Demo`;
 - no project file came from the user in this frame;
 - the opened file was a project FilmCraft opens (a schema was recorded);
 - the download is FilmCraft's envelope with `format` and a `view` object (Export Selection as
@@ -269,8 +269,8 @@ build behaves the same; only FilmCraft's desktop app keeps the choice, in `prefe
 
 ## Known gaps
 
-- **Projects named like FilmCraft's own.** A project file named `Untitled.fcproj` or
-  `FilmCraft Demo.fcproj` is never saved back: every save of it is a new file (`Untitled (2).fcproj`,
+- **Projects named like FilmCraft's own.** A project file named `Untitled.fcproj`,
+  `FilmCraft – Demo Project.fcproj` or `FilmCraft Demo.fcproj` is never saved back: every save of it is a new file (`Untitled (2).fcproj`,
   ...), because a new project's save looks the same and the format has no identity. Renaming the
   file in Nextcloud before opening it avoids that.
 - **Project files from elsewhere, unnoticed.** The watch above relies on how FilmCraft 0.6.0 reads
@@ -330,7 +330,7 @@ For the Nextcloud app's list:
 
 | Extension | Opens as | Offer | Default (a click in Files) |
 |---|---|---|---|
-| `fcproj` | the project; Save replaces the file (one named `Untitled` or `FilmCraft Demo` gets a new file per save, see [Known gaps](#known-gaps)) | yes | yes: no other app opens it |
+| `fcproj` | the project; Save replaces the file (one named `Untitled` or like the demo project gets a new file per save, see [Known gaps](#known-gaps)) | yes | yes: no other app opens it |
 
 Match the extension in any letter case, as FilmCraft does. Nextcloud 34 and 35 have no MIME type
 for it (it arrives as `application/octet-stream`), so the app must pick FilmCraft by extension.
@@ -358,7 +358,7 @@ the `@ui` test.
 | Test | What it checks |
 |---|---|
 | `contract` | An allowed host: the handshake with the served app version; `ready` only after `#loading` was removed, while FilmCraft's drop listener came earlier (times recorded in the frame and the host page); the frame address `?ack=…&result=…&fresh`. The open of `craftsuite-probe.fcproj`, which stores `Probe Title`: a marker (M) saved with Ctrl+S arrives as the document under the opened name, with the edit and the fixture's notes, and so does the next Ctrl+S. Save a Copy (Ctrl+Alt+S) and a new project's save (Ctrl+Alt+N, Ctrl+S) arrive as new files. Nothing becomes a browser download, also not after the deadlines for the host's confirmation and result. Without WebGL2 and WebGPU (blocked in the frame) the host gets `the app failed to start: failed to create wgpu surface ...` and no `ready`, after FilmCraft's reload to `?fresh&webgl`, although its drop listener was there. |
-| `saved-as` | An opened `Probe Title Selection.fcproj` (the fixture under another name): File > Export > Selection as FilmCraft Project… of its sequence, named and stored like the opened file but without `view`, is a new file; Save As first: `Probe Title.fcproj` as the document, then Ctrl+S again. An opened `Probe Title copy.fcproj`: Save a Copy is a new file, Ctrl+S the document. `old-schema.fcproj` (schema 14): the backup with the opened bytes is a new file, the save in schema 15 the document. The blank of the Nextcloud app's "+ New" entry, `blank.fcproj` as in `craftsuite_layer/assets/` (an empty project storing `New FilmCraft project`), opens (`execute('project.inspect')`; `ui.elements` can stay unanswered after it), and its first Ctrl+S, without an edit, is the document. An opened `Untitled.fcproj` storing `FilmCraft Demo`: its Save As and a new project saved under the opened name are new files. An opened EDL: imported, and its EDL export and the demo project's save are new files. A project with the opened name from the user's disk (Chromium: a trusted drop; WebKit: Open Project with the file input): Ctrl+S is a new file. An earlier session's unsaved project named `corrupt` and an imported WAV in OPFS, then the host opens a `corrupt.fcproj` FilmCraft refuses: nothing of the earlier session comes back, Ctrl+S saves the demo project as a new file, and the WAV imported again keeps its name. |
+| `saved-as` | An opened `Probe Title Selection.fcproj` (the fixture under another name): File > Export > Selection as FilmCraft Project… of its sequence, named and stored like the opened file but without `view`, is a new file; Save As first: `Probe Title.fcproj` as the document, then Ctrl+S again. An opened `Probe Title copy.fcproj`: Save a Copy is a new file, Ctrl+S the document. `old-schema.fcproj` (schema 15): the backup with the opened bytes is a new file, the save in schema 17 the document. The blank of the Nextcloud app's "+ New" entry, `blank.fcproj` as in `craftsuite_layer/assets/` (an empty project storing `New FilmCraft project`), opens (`execute('project.inspect')`; `ui.elements` can stay unanswered after it), and its first Ctrl+S, without an edit, brings the schema backup (the blank stays in schema 15, which every FilmCraft from 0.6.0 opens) as a new file, then the document. An opened `Untitled.fcproj` storing `FilmCraft – Demo Project`: its Save As and a new project saved under the opened name are new files. An opened EDL: imported, and its EDL export and the demo project's save are new files. A project with the opened name from the user's disk (Chromium: a trusted drop; WebKit: Open Project with the file input): Ctrl+S is a new file. An earlier session's unsaved project named `corrupt` and an imported WAV in OPFS, then the host opens a `corrupt.fcproj` FilmCraft refuses: nothing of the earlier session comes back, Ctrl+S saves the demo project as a new file, and the WAV imported again keeps its name. |
 | `language` | The host's language under the browser locale `en-US`: with `lang=de`, `ready` reports `de`, FilmCraft reports `de` as its interface language (`request('ui.inspect')`, polled: a request answered on its very first frame, before the frame applies the language, can still say `en`), File > Save is labelled `Speichern` (`request('ui.menu.list')`), and the open project is the opened `craftsuite-probe.fcproj` (`execute('project.inspect')`: `Probe Title` at `/projects/craftsuite-probe.fcproj`). |
 | `ui` (`@ui`) | The File menu with the pointer, on the opened `craftsuite-probe.fcproj`: Save saves the document; Export > EDL… arrives as a new file. |
 
@@ -389,7 +389,7 @@ Selection as Project. When a new release fails the canary:
   (`#loading`, `#status.err`, the order in `web/src/lib.rs` `start()`), the drop routing
   (`import.rs`), the download helper (`fs.rs`), the save names and the renaming
   (`ui-egui/src/lib.rs:1219-1225`, `commands.rs:3804-3845`), the envelope and its `view`
-  (`format/src/lib.rs`), the names `Untitled` and `FilmCraft Demo`, or the flag `fresh`. The rules
+  (`format/src/lib.rs`), the names `Untitled` and `FilmCraft – Demo Project`, or the flag `fresh`. The rules
   fail towards new files, not towards overwriting: a save the adapter does not recognise arrives
   as an `export`. A renamed `#loading` fails as `the app did not start in time` after 120 s. Sites
   that host the app should hold the release back until the adapter is fixed. If only the waits
@@ -410,12 +410,12 @@ Selection as Project. When a new release fails the canary:
   Ctrl+Alt+S, Ctrl+Alt+N, Ctrl+O (WebKit), M and the arrow keys are used by the contract tests.
   Check them against `shortcut_presets.rs` before holding a release back.
 
-The fixtures in `tests/e2e/fixtures/filmcraft/`: `FilmCraft Demo.fcproj` is FilmCraft 0.6.0's
-Ctrl+S of the demo project it opens at start, and `Main Edit.edl` its File > Export > EDL… of the
-same project, both kept as FilmCraft wrote them. `make-fixtures.mjs` derives
-`craftsuite-probe.fcproj` (stored name `Probe Title`, the marker `CRAFTSUITE-PROBE-fc01` as its
-project notes) and `old-schema.fcproj` (schema 14, which differs from 15 only by the notes) from
-the former. The spec derives the other files it opens from these.
+The fixtures in `tests/e2e/fixtures/filmcraft/`: `FilmCraft Demo.fcproj` is FilmCraft 0.16.0's
+Ctrl+S (schema 17) of FilmCraft 0.6.0's save of the demo project it opened at start, and
+`Main Edit.edl` 0.6.0's File > Export > EDL… of the same project, both kept as FilmCraft wrote
+them. `make-fixtures.mjs` derives `craftsuite-probe.fcproj` (stored name `Probe Title`, the marker
+`CRAFTSUITE-PROBE-fc01` as its project notes) and `old-schema.fcproj` (schema 15 as 0.6.0 wrote
+it, which differs only in `schema_version`, `generator` and `next_id`) from the former. The spec derives the other files it opens from these.
 
 ## Upstream
 

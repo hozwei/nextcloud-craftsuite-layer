@@ -34,9 +34,9 @@
  *    file in an older schema first downloads the original bytes as
  *    '<stem> (schema vN backup).fcproj' (commands.rs:3826-3835).
  *  - Projects FilmCraft makes itself are named 'Untitled' (File > New > Project, Close Project) or
- *    'FilmCraft Demo' (the demo project), not translated. A project file stores no identity (no
- *    GUID, no creation time), so a save named 'Untitled.fcproj' or 'FilmCraft Demo.fcproj' cannot
- *    be told from a new project's.
+ *    'FilmCraft – Demo Project' (the demo project; 'FilmCraft Demo' before 0.16.0), not
+ *    translated. A project file stores no identity (no GUID, no creation time), so a save named
+ *    like them cannot be told from a new project's.
  *  - Only Save, Save As and Save a Copy write the editor view ("view"); Export Selection as
  *    Project ('<name> Selection.fcproj', a subset of the project stored under its file's stem,
  *    engine/src/project_tools.rs:788-807) and Save as Template do not.
@@ -82,8 +82,9 @@
     return dot > 0 ? name.slice(0, dot) : name;
   };
   // Names FilmCraft gives the projects it creates (engine/src/commands.rs:845, clip_ops.rs:828,
-  // lib.rs:462; demo.rs:45, 52). Not translated.
-  const APP_MADE = new Set(['Untitled', 'FilmCraft Demo']);
+  // lib.rs:462; demo.rs:45, 52; the demo project is 'FilmCraft – Demo Project' since 0.16.0).
+  // Not translated.
+  const APP_MADE = new Set(['Untitled', 'FilmCraft Demo', 'FilmCraft – Demo Project']);
 
   // A file's JSON object, or null: UTF-8 JSON whose first character is '{'.
   const json = (bytes) => {

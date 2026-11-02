@@ -451,6 +451,9 @@ function openProject(app: Frame) {
 // ---------------------------------------------------------------------------------------------
 
 test('contract: an allowed host opens the file and stores every save, nothing is downloaded', async ({ page }) => {
+  // Three new compositions: since 0.20.0 each takes 8-16 s to settle in the software renderer
+  // here, about twice that on a GitHub runner.
+  test.slow();
   const downloads = trackDownloads(page);
   await recordAppVersions(page);
   const app = await openInHost(page, PROBE_NAME, `&app-ack=${SHORT_ACK}&app-result=${SHORT_RESULT}`);

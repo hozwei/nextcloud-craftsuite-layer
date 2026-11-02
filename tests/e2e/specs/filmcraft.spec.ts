@@ -21,8 +21,9 @@
 //              '<name> copy.fcproj' is a new file, the next Ctrl+S the document; the first save of
 //              an older schema brings FilmCraft's backup of the original as a new file, then the
 //              document; the blank of the Nextcloud app's + New entry (an empty project storing
-//              'New FilmCraft project') opens, and its first Ctrl+S, without an edit, is the
-//              document; saves named like the projects FilmCraft makes ('FilmCraft Demo.fcproj',
+//              'New FilmCraft project') opens, and its first Ctrl+S, without an edit, brings the
+//              schema backup and then the document; saves named like the projects FilmCraft makes
+//              ('FilmCraft – Demo Project.fcproj',
 //              the Save As of an opened 'Untitled.fcproj' storing that name, and 'Untitled.fcproj',
 //              a new project saved under the opened name) are new files; an opened EDL is
 //              imported, and its export under the opened name is a new file; after a project file
@@ -45,9 +46,10 @@
 // item or click does (crates/ui-egui/src/control.rs, menus::invoke). Only the test tagged @ui
 // clicks with the pointer: a moved menu item fails it without the translator being at fault.
 //
-// The fixtures in fixtures/filmcraft/: 'FilmCraft Demo.fcproj' and 'Main Edit.edl' were saved by
-// FilmCraft 0.6.0; make-fixtures.mjs derives craftsuite-probe.fcproj (stored name 'Probe Title',
-// MARKER as its project notes) and old-schema.fcproj (schema 14) from the former.
+// The fixtures in fixtures/filmcraft/: 'FilmCraft Demo.fcproj' was saved by FilmCraft 0.16.0
+// (schema 17, the oldest version this spec runs on), 'Main Edit.edl' by 0.6.0; make-fixtures.mjs
+// derives craftsuite-probe.fcproj (stored name 'Probe Title', MARKER as its project notes) and
+// old-schema.fcproj (schema 15) from the former.
 
 import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
@@ -62,6 +64,7 @@ const PROBE = fixture('craftsuite-probe.fcproj');
 const OLD = fixture('old-schema.fcproj');
 const MARKER = 'CRAFTSUITE-PROBE-fc01';
 const STORED = 'Probe Title'; // the project name stored in PROBE
+const DEMO = 'FilmCraft – Demo Project'; // the demo project FilmCraft opens at start (since 0.16.0)
 const portBase = Number(process.env.CRAFTSUITE_PORT_BASE || 8701);
 const HOST = `http://127.0.0.1:${portBase}/`;
 const APP_ORIGIN = `http://127.0.0.2:${portBase + 1}`;
@@ -671,11 +674,11 @@ test('saved-as: saves under other names, project files from elsewhere, and what 
     const app = await openInHost(page, 'old-schema.fcproj');
     await shortcut(page, app, 'Save', 'Control+s');
     const backup = await hostSave(page, 1);
-    expectExport(backup.save, 'old-schema (schema v14 backup).fcproj');
+    expectExport(backup.save, 'old-schema (schema v15 backup).fcproj');
     expect(backup.bytes.equals(OLD), 'the backup holds the opened bytes').toBe(true);
     const own = await hostSave(page, 2);
     expectDocument(own.save, 'old-schema.fcproj');
-    expect(fcproj(own.bytes), 'the project in the current schema').toMatchObject({ schema_version: 15, project: { name: 'old-schema' } });
+    expect(fcproj(own.bytes), 'the project in the current schema').toMatchObject({ schema_version: 17, project: { name: 'old-schema' } });
     expectNoDownloads(downloads);
   });
 
@@ -684,22 +687,25 @@ test('saved-as: saves under other names, project files from elsewhere, and what 
   // Its open is checked with project.inspect: FilmCraft can keep answering ui.elements with 'the
   // timeline is still zooming' (seen in Chromium) when the demo project's zoom was under way, which
   // the timeline of a project without a sequence never finishes.
+  // The blank stays in schema 15, which every FilmCraft from 0.6.0 opens, so since 0.16.0 its first
+  // save brings FilmCraft's backup first.
   await scenario(context, 'the + New blank opens and its first save replaces it', async (page, downloads) => {
     const app = await openInHost(page, 'blank.fcproj', { folder: 'blanks' });
     await expect.poll(() => app.evaluate(() => (window as AppWindow).filmcraft!.execute('project.inspect', {})),
       { message: 'the open project (project.inspect)' }).toMatchObject({ name: 'New FilmCraft project', path: '/projects/blank.fcproj' });
     await shortcut(page, app, 'Save', 'Control+s'); // FilmCraft saves without an edit
-    expectDocument((await hostSave(page, 1)).save, 'blank.fcproj');
+    expectExport((await hostSave(page, 1)).save, 'blank (schema v15 backup).fcproj');
+    expectDocument((await hostSave(page, 2)).save, 'blank.fcproj');
     expectNoDownloads(downloads);
   });
 
   // Names FilmCraft gives the projects it makes: a project file stores no identity, so a save
   // under them cannot be told from a new project's.
-  await scenario(context, 'saves named like FilmCraft\'s own projects are new files: Save As of a project storing \'FilmCraft Demo\', and a new project saved as the opened \'Untitled.fcproj\'', async (page, downloads) => {
-    const app = await openInHost(page, 'Untitled.fcproj', { bytes: renamedProbe('FilmCraft Demo', MARKER) });
+  await scenario(context, 'saves named like FilmCraft\'s own projects are new files: Save As of a project storing the demo\'s name, and a new project saved as the opened \'Untitled.fcproj\'', async (page, downloads) => {
+    const app = await openInHost(page, 'Untitled.fcproj', { bytes: renamedProbe(DEMO, MARKER) });
     await shortcut(page, app, 'Save As', 'Control+Shift+S');
     const demo = await hostSave(page, 1);
-    expectExport(demo.save, 'FilmCraft Demo.fcproj'); // the name a Save As of the opened file gets
+    expectExport(demo.save, `${DEMO}.fcproj`); // the name a Save As of the opened file gets
     expect(fcproj(demo.bytes).project.notes, 'the opened project, not FilmCraft\'s demo').toBe(MARKER);
 
     await newProject(page, app);
@@ -716,7 +722,7 @@ test('saved-as: saves under other names, project files from elsewhere, and what 
     expectExport((await hostSave(page, 1)).save, 'Main Edit.edl');
     // The EDL went into the project FilmCraft opened at start.
     await shortcut(page, app, 'Save', 'Control+s');
-    expectExport((await hostSave(page, 2)).save, 'FilmCraft Demo.fcproj');
+    expectExport((await hostSave(page, 2)).save, `${DEMO}.fcproj`);
     expectNoDownloads(downloads);
   });
 
@@ -758,13 +764,13 @@ test('saved-as: saves under other names, project files from elsewhere, and what 
       // The host opens 'corrupt.fcproj', a schema 15 project that FilmCraft cannot read. Without
       // `fresh` the recovered 'corrupt' would stay open and its Ctrl+S would have the opened name.
       const corrupt = Buffer.from(JSON.stringify({ format: 'filmcraft.project', schema_version: 15, generator: 'FilmCraft 0.6.0', project: { name: 'corrupt', items: 5 } }));
-      app = await openInHost(page, 'corrupt.fcproj', { bytes: corrupt, shows: 'FilmCraft Demo' });
+      app = await openInHost(page, 'corrupt.fcproj', { bytes: corrupt, shows: DEMO });
       expect(new URL(app.url()).searchParams.has('fresh'), 'the flag is set').toBe(true);
       const paths = await app.evaluate(() => (window as AppWindow).filmcraft!.files().map((f) => f.path));
       expect(paths.filter((p) => p.startsWith('/recovered/') || p.startsWith('/files/')), 'nothing reopened from the earlier session').toEqual([]);
       expect(await app.evaluate(() => (window as AppWindow).filmcraft!.info().restoredMedia), 'media registered from OPFS').toBe(0);
       await shortcut(page, app, 'Save', 'Control+s');
-      expectExport((await hostSave(page, 1)).save, 'FilmCraft Demo.fcproj');
+      expectExport((await hostSave(page, 1)).save, `${DEMO}.fcproj`);
       // The same media again takes its own name, so its copy in OPFS replaces the earlier one
       // instead of piling up as 'tone (2).wav'.
       expect((await importMedia(app, 'tone.wav', toneWav())).paths).toEqual(['/files/tone.wav']);

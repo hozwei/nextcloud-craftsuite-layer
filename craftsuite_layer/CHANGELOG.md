@@ -14,6 +14,13 @@ Each GitHub release takes its text from the section whose heading matches the ve
 
 ## [Unreleased]
 
+## [0.5.6] - 2026-11-02
+
+### Changed
+
+- No changes to the app. Released together with translators 0.5.6, which handle the Craft
+  releases of 2026-11-01 (FilmCraft 0.16.0 names its demo project anew).
+
 ## [0.5.5] - 2026-10-31
 
 ### Added
