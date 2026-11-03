@@ -132,6 +132,17 @@
       apps: APPS,
       keys: words(KEYS_0_6),
     },
+    // 0.17.0 (0.14.0 to 0.16.0 write what 0.13.0 writes): the current table style in the header,
+    // $CTABLESTYLE after $TEXTSTYLE (v0.17.0 io/src/dxf_write/header.rs:22). Otherwise the 0.13.0
+    // lists.
+    {
+      versions: words(VERSIONS_0_6),
+      codePage: CODE_PAGE_0_6,
+      types: words(TYPES_0_6),
+      vars: words(`${VARS_0_10} $DIMTFILL $DIMTFILLCLR $CTABLESTYLE`),
+      apps: APPS,
+      keys: words(KEYS_0_6),
+    },
   ];
   const LISTS = ['types', 'vars', 'apps', 'keys'];
   const anyRelease = (list, value) => RELEASES.some((r) => r[list].has(value));

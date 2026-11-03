@@ -8,7 +8,7 @@
 |---|---|
 | Upstream | [github.com/storytold/cadcraft](https://github.com/storytold/cadcraft) |
 | Adapter | [`translators/cadcraft.js`](../../translators/cadcraft.js) |
-| Tested version | `tested` in [`apps.json`](../../apps.json) (0.5.0 when this page was written, checked again with 0.6.2, the writer with 0.10.0 and 0.13.0) |
+| Tested version | `tested` in [`apps.json`](../../apps.json) (0.5.0 when this page was written, checked again with 0.6.2, the writer with 0.10.0, 0.13.0 and 0.17.0) |
 | Tests | [`tests/e2e/specs/cadcraft.spec.ts`](../../tests/e2e/specs/cadcraft.spec.ts) (Chromium and WebKit, see [Tests](#tests)) |
 
 This page records what the CADCraft web build does in the browser, as far as the translator
@@ -169,7 +169,9 @@ the header, after `$DIMSTYLE` (`$DIMTXT`, `$DIMDEC` and the others of the style'
 `$DIMSCALE`, which is a header variable of its own, and the three linetypes; v0.10.0
 `io/src/dxf_write.rs:297-339`, `doc/src/tables.rs:279-347`, upstream #1051). 0.12.0 writes what
 0.10.0 writes. 0.13.0: the 0.10.0 lists plus `$DIMTFILL` and `$DIMTFILLCLR`, the text fill of the
-dimension style (v0.13.0 `doc/src/tables.rs:284-354`). CADCraft writes no
+dimension style (v0.13.0 `doc/src/tables.rs:284-354`). 0.14.0 to 0.16.0 write what 0.13.0
+writes. 0.17.0: the 0.13.0 lists plus `$CTABLESTYLE`, the current table style, after
+`$TEXTSTYLE` (v0.17.0 `io/src/dxf_write/header.rs:22`). CADCraft writes no
 version number into a DXF, so the vocabulary is what tells the releases apart (0.6.2 always
 writes `CADCRAFT_HANDSEED`, 0.10.0 the `$DIM` variables whenever the current dimension style
 exists, as it does in every drawing CADCraft makes, `doc/src/lib.rs:167`) and what tells their
@@ -185,7 +187,8 @@ own `CADCRAFT` APPID record, `0 EOF` as the last pair) the adapter reads:
   table and a leader; 0.6.2 regenerates the dimension blocks and drops the stale ones). 0.10.0
   writes every group pair that 0.8.0 writes of the tests' fixture, plus the `$DIM` variables and
   an empty `DIMPOST` (group 3) in the dimension style; 0.13.0 every pair 0.10.0 writes, plus
-  `$DIMTFILL` and `$DIMTFILLCLR`. A DXF
+  `$DIMTFILL` and `$DIMTFILLCLR`; 0.17.0 saves the tests' fixture in place again with
+  `$CTABLESTYLE`. A DXF
   that fits no release (from a newer CADCraft, changed by another tool, or holding another
   program's data that 0.6 keeps, such as a copy CADCraft saved of `foreign.dxf`) is not taken for
   one CADCraft writes again without losses. So are `newer-cadcraft.dxf` of the tests (CADCraft's

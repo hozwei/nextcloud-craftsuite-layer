@@ -112,7 +112,14 @@ are to the `v0.9.2` tag (the web app's own files, `apps/effectcraft-web/`, are t
   project, the demo, a blank start), for Save As… (Ctrl+Shift+S) and for Save a Copy…
   (`ui-egui/src/menus.rs:1229-1231`). After Save As, the project's path is
   `/Untitled Project.ecproj`, and every later Save writes that name. There is no counter: every
-  untitled project saves under the same name.
+  untitled project saves under the same name. Since 0.21.0 a project save that has no path to
+  write to (Save of a project without one, Save As…, Save a Copy…) asks for the name with the
+  browser's `window.prompt`, suggesting the open project's name (Save a Copy: `<stem> copy.ecproj`,
+  a new project: `Untitled Project.ecproj`); Cancel cancels the save, a name without `.ecproj`
+  gets it, and a name already in the file table asks whether to replace it
+  (`apps/effectcraft-web/src/app.rs` `pick_save`, `store.rs` `typed_save_name`, upstream #2788).
+  A save under the typed name is classified like any other: under the opened name, with the
+  project clean at that path right after it, it is the document; otherwise a new file.
 - New Project (Ctrl+Alt+N), templates and a blank start leave the project without a path. A
   project file has no document identity: no creation stamp, no id (`project/src/lib.rs:1297-1312`),
   only `savedBy`, which every save rewrites.
@@ -129,7 +136,7 @@ are to the `v0.9.2` tag (the web app's own files, `apps/effectcraft-web/`, are t
 |---|---|---|
 | Save (Ctrl+S) of the opened project | the opened name, the whole project | `document` (`copy` for a project a newer EffectCraft wrote) |
 | Save of another project (New Project, a template, File > Open Project… of a file from the user's disk) | `Untitled Project.ecproj`, or the name of that file | `export`; with the opened name see [How the adapter classifies](#how-the-adapter-classifies) |
-| Save As… (Ctrl+Shift+S), Save a Copy…, and every Save after Save As | `Untitled Project.ecproj` | `export` |
+| Save As… (Ctrl+Shift+S), Save a Copy…, and every Save after Save As | `Untitled Project.ecproj`; since 0.21.0 the name typed in the prompt (suggested: the open project's, `<stem> copy.ecproj` for Save a Copy) | `export`, unless it is the opened name (see the list above) |
 | Increment and Save (Ctrl+Alt+Shift+S), and every Save after it | `<stem> 2.ecproj`, `<stem> 3.ecproj`, ..., never a name in the file table (`engine/src/autosave.rs:249-264`) | `export` |
 | File > Dependencies > Collect Files… | each footage file under its name (`2_<name>` for a second one with the same name), then `<stem>.ecproj`, the opened name: the project with its footage paths rewritten to `/Collected Files/(Footage)/...`, written without `savedBy` (`engine/src/commands/file_more.rs:374-421`) | `export` |
 | Save a Copy As XML… | `Untitled Project.ecprojx` | `export` |
@@ -222,7 +229,7 @@ Why:
   apply, and the format has no document identity to tell projects apart. The name, Save's own
   format, the files that came in and the app's state decide.
 - **`Untitled Project`.** Every new project, every Save As and every Save a Copy downloads
-  `Untitled Project.ecproj`. With a file of that name open, nothing in the bytes tells a save of it
+  `Untitled Project.ecproj` (since 0.21.0 a new project's save suggests that name in its prompt). With a file of that name open, nothing in the bytes tells a save of it
   from a new project's, so such a save is never the document (see [Known gaps](#known-gaps)).
 - **The `savedBy` head.** Collect Files downloads `<stem>.ecproj`, the opened name, with the
   footage paths rewritten to folders that exist only in the browser. It is written with
@@ -338,8 +345,9 @@ with `storage=memory` never sees that choice.
   saves as a new file every time (`Untitled Project (2).ecproj`, ...): a new project's save has the
   same name, and nothing in the file tells the two apart. Renaming the file in Nextcloud before
   opening it avoids that.
-- **Save As always makes a new file.** Save As… names the file `Untitled Project.ecproj`, and every
-  Save after it writes that name, each a new file. Save (Ctrl+S) is the way to save back.
+- **Save As always makes a new file** (before 0.21.0). Save As… names the file `Untitled
+  Project.ecproj`, and every Save after it writes that name, each a new file. Save (Ctrl+S) is the
+  way to save back. Since 0.21.0 Save As asks for the name; under another name it is a new file.
 - **A same-named project the adapter does not see.** Should a release read dropped or picked files
   another way (`DataTransfer.items`, the File System Access API) and store them under `/<name>`, a
   file with the opened name from the user's disk goes unnoticed and its saves pass as the
@@ -456,10 +464,10 @@ the `@ui` test.
 
 | Test | What it checks |
 |---|---|
-| `contract` | An allowed host: the handshake with the served app version; the frame's URL carries `empty`, `nosw` and `storage=memory`, the app reports memory storage and no restored session, and no service worker is registered. A new composition saved with Ctrl+S arrives as the document under the opened name, a project file as Save writes it with the edit (with 0.9.2 also the open compositions between `savedBy` and `schema`), and so does a second one. Collect Files (from the command palette), under the opened name and without `savedBy`, Save Frame As (`comp.saveFrameAs` with `Frame.png`, the path its shortcut Ctrl+Alt+S asks for, through `window.effectcraft`: right after the command palette the shortcut opened the palette again on GitHub's runner), another project under the opened name that a Script Console script (`script.run`) writes to another folder while Allow Scripts to Write Files is on (`prefs.set`, off again afterwards) and the project is clean under its path, a project file under the opened name written while the project has unsaved changes (`file.saveCopy`) or saved to another folder (`file.save` with a path), both through `window.effectcraft` because no menu of the web build gives them a path, Save As (Ctrl+Shift+S) and the Save after it, and the save of a new project (Ctrl+Alt+N) arrive as new files. Nothing becomes a browser download, also not after the deadlines for the host's confirmation and result. |
+| `contract` | An allowed host: the handshake with the served app version; the frame's URL carries `empty`, `nosw` and `storage=memory`, the app reports memory storage and no restored session, and no service worker is registered. A new composition saved with Ctrl+S arrives as the document under the opened name, a project file as Save writes it with the edit (with 0.9.2 also the open compositions between `savedBy` and `schema`), and so does a second one. Collect Files (from the command palette), under the opened name and without `savedBy`, Save Frame As (`comp.saveFrameAs` with `Frame.png`, the path its shortcut Ctrl+Alt+S asks for, through `window.effectcraft`: right after the command palette the shortcut opened the palette again on GitHub's runner), another project under the opened name that a Script Console script (`script.run`) writes to another folder while Allow Scripts to Write Files is on (`prefs.set`, off again afterwards) and the project is clean under its path, a project file under the opened name written while the project has unsaved changes (`file.saveCopy`) or saved to another folder (`file.save` with a path), both through `window.effectcraft` because no menu of the web build gives them a path, Save As (Ctrl+Shift+S) under a typed name (the prompt suggests the open project's) and the Save after it, and the save of a new project (Ctrl+Alt+N; its prompt and the question whether to replace the file Save As made, both accepted) arrive as new files. Nothing becomes a browser download, also not after the deadlines for the host's confirmation and result. |
 | `saved-as` | An opened `Untitled Project.ecproj` saves as a new file. The blank of the Nextcloud app's "+ New" entry, `blank.ecproj` as in `craftsuite_layer/assets/` (EffectCraft's New Project with `savedBy` 0.8.0), opens (`project.summary`: its path, no composition), and its first Ctrl+S, without an edit, is the document. A project a newer EffectCraft wrote, with `savedBy` after `schema`, saves as a copy: the first save is a document that follows its own id, the next one, after an edit, a document that follows the first; the XML form of such a project under a `.ecproj` name, written as only the app's lenient reader takes it (another attribute, a comment, an entity), saves as a copy too. The XML form of this version saves as the document, as JSON. A different project named like the opened one, opened with File > Open Project (Ctrl+O) or, in Chromium, dropped from the desktop, saves as an export after a first save as the document. With the adapter's `history.replaceState` blocked, so that the flags do not take effect, the host gets a startup error and nothing is opened. |
 | `language` | The host names Spanish (`lang=es`): `ready` reports `es`, EffectCraft's setting `general.language` is `es` (`prefs.get`), File > Save reads `Guardar` in its menus (`ui.menu.list`), and the probe opens as without a language (`project.summary`: its path, `Comp 1`). With `lang=it`, a language EffectCraft lacks (0.8.0 and 0.9.2), the host gets no error, `ready` reports no language, and EffectCraft stays in its own: `general.language` is `system`, File > Save reads `Save`. |
-| `ui` (`@ui`) | The File menu with the pointer: Save saves the document; Save As > Save a Copy… arrives as a new file. |
+| `ui` (`@ui`) | The File menu with the pointer: Save saves the document; Save As > Save a Copy… under the name it suggests (`<stem> copy.ecproj`) arrives as a new file. |
 
 A test with several scenarios (`saved-as`, `language`) runs each in a page of its own and reports
 every scenario that fails as `scenario failed: <title>`, not only the first. The drop from the

@@ -8,7 +8,9 @@
  *  - It takes dropped files on its canvas (canvas#designcraft_canvas, through eframe); the core's
  *    default drop target fits. A dropped .designcraft or .idml opens as a new document titled
  *    with the file name up to its last dot (an IDML package also loses any '.idml' left at the
- *    end of that); a title stored inside the file is ignored. Anything else is placed into the
+ *    end of that; since 0.17.0 the whole name less one '.designcraft', or for an IDML package one
+ *    '.idml', '.indd' or '.indt', any case); a title stored inside the file is ignored. Anything
+ *    else is placed into the
  *    open document, and with no document open nothing opens. A file dropped while a dialog is
  *    open is not opened.
  *  - Every download is a Blob behind an <a download> that is clicked and removed at once. Its type
@@ -48,13 +50,40 @@
   const UNTITLED = /^Untitled-\d+$/;
   const stem = (name) => name.replace(/\.[^.]*$/, '');
 
-  // The name DesignCraft saves an opened file under: its title plus '.designcraft'. The title is
-  // the name up to its last dot; an IDML package (DesignCraft tells it by its content, not by its
-  // name) also loses every '.idml' left at the end, so 'x.idml.idml' saves as 'x.designcraft'.
-  // Equal to the opened name only for a .designcraft in lower case.
+  // The app version core.js was given (data-app-version), or null when the host did not say.
+  const appVersion = (() => {
+    const script = document.querySelector('script[data-app-version]');
+    return script && script.dataset.appVersion ? script.dataset.appVersion : null;
+  })();
+  // major.minor.patch, anything after '-' or '+' ignored; an unknown version counts as the newest.
+  const atLeast = (version, wanted) => {
+    if (!version) return true;
+    const parts = (v) => String(v).split(/[-+]/)[0].split('.').map((x) => (/^\d+$/.test(x) ? Number(x) : 0));
+    const a = parts(version);
+    const b = parts(wanted);
+    for (let i = 0; i < 3; i++) if ((a[i] || 0) !== (b[i] || 0)) return (a[i] || 0) > (b[i] || 0);
+    return true;
+  };
+  // Since 0.17.0 the web build passes the whole file name and the engine removes one extension
+  // (engine/src/cmd/file/open.rs without_native_extension, interchange.rs
+  // without_document_extension); before, the web build cut the name at its last dot.
+  const FULL_NAME = atLeast(appVersion, '0.17.0');
+
+  // The name DesignCraft saves an opened file under: its title plus '.designcraft'. An IDML
+  // package is told by its content, not by its name. Since 0.17.0 the title is the name less one
+  // '.designcraft' (a .designcraft package, unless nothing is left) or one '.idml', '.indd' or
+  // '.indt' (an IDML package), any case, so 'x.idml.idml' saves as 'x.idml.designcraft'. Before,
+  // the title was the name up to its last dot, and an IDML package also lost every '.idml' left at
+  // the end ('x.idml.idml' saved as 'x.designcraft'). Equal to the opened name only for a
+  // .designcraft in lower case.
   const savedName = (opened, bytes) => {
+    const idml = isZipOf(bytes, IDML);
+    if (FULL_NAME) {
+      const title = idml ? opened.replace(/\.(idml|indd|indt)$/i, '') : opened.replace(/(.)\.designcraft$/i, '$1');
+      return title + '.designcraft';
+    }
     let title = stem(opened);
-    if (isZipOf(bytes, IDML)) title = title.replace(/(\.idml)+$/, '');
+    if (idml) title = title.replace(/(\.idml)+$/, '');
     return title + '.designcraft';
   };
 

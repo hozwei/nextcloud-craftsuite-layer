@@ -403,11 +403,12 @@ test('saved-as: a save under another name or type than the opened file is the do
     expectNoDownloads(downloads);
   });
 
-  // Names DesignCraft turns into another title than the name up to the last dot would suggest
-  // (ui-egui/src/lib.rs drain_inbox; engine/src/cmd/interchange.rs open_idml).
+  // Names whose title is not simply the name less its extension: since 0.17.0 the engine removes
+  // one '.designcraft' or (IDML) one '.idml', any case (engine/src/cmd/file/open.rs,
+  // engine/src/cmd/interchange.rs open_idml).
   const renamed: [opened: string, bytes: Buffer, saved: string][] = [
     ['Probe.DESIGNCRAFT', PROBE, 'Probe.designcraft'],
-    ['from-indesign.idml.idml', IDML, 'from-indesign.designcraft'],
+    ['from-indesign.idml.idml', IDML, 'from-indesign.idml.designcraft'],
   ];
   for (const [opened, bytes, saved] of renamed) {
     await scenario(context, `'${opened}' saves as '${saved}', the document`, async (page, downloads) => {

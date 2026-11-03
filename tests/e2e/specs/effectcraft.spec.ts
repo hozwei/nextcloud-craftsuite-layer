@@ -53,13 +53,14 @@ import { readFileSync } from 'node:fs';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { test as baseTest, expect, type BrowserContext, type Download, type Frame, type Page } from '@playwright/test';
+import { test as baseTest, expect, type BrowserContext, type Dialog, type Download, type Frame, type Page } from '@playwright/test';
 import { appFrames, press, runCommand, settle } from '../lib/craft-ui.ts';
 
 const PROBE = readFileSync(new URL('../fixtures/effectcraft/craftsuite-probe.ecproj', import.meta.url));
 const PROBE_XML = readFileSync(new URL('../fixtures/effectcraft/craftsuite-probe.ecprojx', import.meta.url));
 const PROBE_NAME = 'craftsuite-probe.ecproj';
-const UNTITLED = 'Untitled Project.ecproj'; // every new project, Save As and Save a Copy
+const UNTITLED = 'Untitled Project.ecproj'; // every new project
+const COPY_NAME = 'craftsuite-probe copy.ecproj'; // what Save a Copy suggests for the probe (since 0.21.0)
 const NEWER = '99.0.0'; // savedBy of a project from an EffectCraft newer than any tested one
 const PALETTE = 'Control+Shift+Space'; // Edit > Quick Apply… (crates/engine/src/commands/frontend.rs)
 const portBase = Number(process.env.CRAFTSUITE_PORT_BASE || 8701);
@@ -333,6 +334,29 @@ async function messageTypes(page: Page) {
   return [...new Set((await hostRecord(page)).messages.map((m) => m.type))];
 }
 
+// Since 0.21.0 Save As and Save a Copy ask for the project's file name with window.prompt,
+// suggesting the open project's (apps/effectcraft-web/src/app.rs pick_save, upstream #2788).
+// Answers the next dialog with `name`, or with its suggestion, and returns the suggestion.
+// acceptDialogs() accepts every dialog until stopped, prompts with their suggestion, and lists
+// them as '<type>: <suggestion or message>'.
+function acceptDialogs(page: Page) {
+  const seen: string[] = [];
+  const listener = (dialog: Dialog) => {
+    seen.push(`${dialog.type()}: ${dialog.type() === 'prompt' ? dialog.defaultValue() : dialog.message()}`);
+    dialog.accept(dialog.type() === 'prompt' ? dialog.defaultValue() : undefined).catch(() => {});
+  };
+  page.on('dialog', listener);
+  return { seen, stop: () => page.off('dialog', listener) };
+}
+function answerPrompt(page: Page, name?: string): Promise<string> {
+  return new Promise((resolve) => {
+    page.once('dialog', (dialog) => {
+      const suggested = dialog.defaultValue();
+      dialog.accept(name ?? suggested).then(() => resolve(suggested), () => resolve(suggested));
+    });
+  });
+}
+
 // The n-th save (from 1) the host received, with the bytes it kept.
 async function hostSave(page: Page, n: number) {
   await untilHost(page, `save #${n} reached the host`, (h) => h.saves.length >= n);
@@ -555,8 +579,10 @@ test('contract: an allowed host opens the file and stores every save, nothing is
     expectSavedProject(elsewhere.bytes, 3);
   });
 
-  await test.step('Save As (Ctrl+Shift+S) and the Save after it arrive as new files, Untitled Project.ecproj', async () => {
+  await test.step('Save As (Ctrl+Shift+S) under a typed name and the Save after it arrive as new files', async () => {
+    const asked = answerPrompt(page, 'Untitled Project');
     await press(page, app, 'Control+Shift+S');
+    expect(await asked, 'the name Save As suggests: the open project\'s').toBe(PROBE_NAME);
     const first = await hostSave(page, 8);
     expectExport(first.save, UNTITLED);
     expectSavedProject(first.bytes, 3);
@@ -569,8 +595,13 @@ test('contract: an allowed host opens the file and stores every save, nothing is
   await test.step('the save of a new project (Ctrl+Alt+N) arrives as a new file', async () => {
     await press(page, app, 'Control+Alt+n');
     await settle(page.locator('#app'), app);
+    // Since 0.21.0 Save of a project without a path asks for its name too, and, as Save As made
+    // a file of that name, whether to replace it.
+    const dialogs = acceptDialogs(page);
     await press(page, app, 'Control+s');
     const { save, bytes } = await hostSave(page, 10);
+    dialogs.stop();
+    expect(dialogs.seen, 'the dialogs of the Save').toEqual([`prompt: ${UNTITLED}`, `confirm: ${UNTITLED} already exists. Replace it?`]);
     expectExport(save, UNTITLED);
     expect(project(bytes).comps, 'a new, empty project').toEqual([]);
   });
@@ -721,10 +752,12 @@ test('ui: File > Save and File > Save As > Save a Copy… with the pointer', { t
     expectSavedProject(bytes, 0);
   });
 
-  await test.step('File > Save As > Save a Copy… arrives as a new file', async () => {
+  await test.step('File > Save As > Save a Copy… under the name it suggests arrives as a new file', async () => {
+    const asked = answerPrompt(page);
     await fileMenu(page, app, 'Save As > Save a Copy…', [AT.fileSaveAs, AT.saveAsFirst, AT.saveAsCopy]);
+    expect(await asked, 'the name Save a Copy suggests').toBe(COPY_NAME);
     const { save, bytes } = await hostSave(page, 2);
-    expectExport(save, UNTITLED);
+    expectExport(save, COPY_NAME);
     expect(expectSavedProject(bytes, 0).comps, 'a copy of the opened project').toEqual(['Comp 1']);
     expectNoDownloads(downloads);
   });

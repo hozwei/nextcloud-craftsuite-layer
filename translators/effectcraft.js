@@ -37,7 +37,10 @@
  *    clean. There is no dialog: the save hook takes the suggested name (app.rs:178), and the
  *    suggestion is always 'Untitled Project.ecproj', for Save of a project without a path (new,
  *    demo, blank), Save As (Ctrl+Shift+S) and Save a Copy (ui-egui/src/menus.rs:1229-1231).
- *    After Save As the project's path is '/Untitled Project.ecproj'. Increment and Save writes
+ *    After Save As the project's path is '/Untitled Project.ecproj'. Since 0.21.0 a save with no
+ *    path to write to (Save As, Save a Copy, Save of a project without a path) asks for the name
+ *    with window.prompt instead (app.rs pick_save, upstream #2788); the rules below do not depend
+ *    on the name the user types. Increment and Save writes
  *    '<stem> <n>.ecproj', never a name in the file table (engine/src/autosave.rs:249-264).
  *  - A project file has no document identity (project/src/lib.rs:1297-1312), and every new
  *    project saves as 'Untitled Project.ecproj': a save under that name is never the document.

@@ -49,8 +49,13 @@ Source references are to the `v0.6.0` tag; `web.rs` and `browser_policy.rs` are 
   (`engine/src/cmd/file.rs:227-229`) or the `Name` in an IDML's `designmap.xml`
   (`engine/src/cmd/interchange.rs:146-148`). For an IDML package DesignCraft also cuts every
   `.idml` left at the end of that (`interchange.rs:134`, `trim_end_matches`), so
-  `x.idml.idml` gets the title `x`. The tests open fixtures whose stored titles differ from
-  their names.
+  `x.idml.idml` gets the title `x`. Since 0.17.0 the web build passes the whole file name and
+  the engine removes one extension: one `.designcraft` (any case, unless nothing would be left;
+  `engine/src/cmd/file/open.rs`, `without_native_extension`) or, for an IDML package, one
+  `.idml`, `.indd` or `.indt` (`interchange.rs`, `without_document_extension`), so
+  `x.idml.idml` gets the title `x.idml` and `x.v2.designcraft` the title `x.v2`. The translator
+  follows the app version core.js was given (`data-app-version`) and assumes 0.17.0 or later
+  when there is none. The tests open fixtures whose stored titles differ from their names.
 - There is no `?file=` and no embedding API. The only query flags are `webgl` and `sample`
   (see [Hosting notes](#hosting-notes)).
 - There is no JavaScript-visible signal that a file was opened, could not be opened, or has
@@ -243,7 +248,7 @@ contract tests; the canary runs them apart from the `@ui` test.
 | Test | What it checks |
 |---|---|
 | `contract` | An allowed host: the handshake with the served app version, then the open of a `.designcraft` whose stored title differs from its name. An inserted page saved with Ctrl+S arrives as the document under the opened name, a DesignCraft package with the edit; Save As (Ctrl+Shift+S) after another edit is the document again. Export Page as PNG (Ctrl+E) and the save of a new document (Ctrl+N) arrive as new files. Nothing becomes a browser download, also not after the deadlines for the host's confirmation and result. |
-| `saved-as` | Saves under another name or type: an opened `.idml` saves as `<stem>.designcraft` (not under the name stored in the IDML), as the document, and so does the next save, with the edit. `Probe.DESIGNCRAFT` saves as `Probe.designcraft` and an IDML named `from-indesign.idml.idml` as `from-indesign.designcraft`, both as the document. `Untitled-1.designcraft` as the desktop app writes it (the fixture with a creation time, made in the spec) saves as the document, keeping its creation time, and a new document (Ctrl+N), which saves under the same name, arrives as an export. The blank of the "+ New" entry in Files (`blank.designcraft` from `craftsuite_layer/assets/`, served by the test server) opens, and its first save is the document. |
+| `saved-as` | Saves under another name or type: an opened `.idml` saves as `<stem>.designcraft` (not under the name stored in the IDML), as the document, and so does the next save, with the edit. `Probe.DESIGNCRAFT` saves as `Probe.designcraft` and an IDML named `from-indesign.idml.idml` as `from-indesign.idml.designcraft` (since 0.17.0), both as the document. `Untitled-1.designcraft` as the desktop app writes it (the fixture with a creation time, made in the spec) saves as the document, keeping its creation time, and a new document (Ctrl+N), which saves under the same name, arrives as an export. The blank of the "+ New" entry in Files (`blank.designcraft` from `craftsuite_layer/assets/`, served by the test server) opens, and its first save is the document. |
 | `ui` (`@ui`) | The File menu with the pointer, on an opened `.idml`: Save saves the document; Export IDML…, under the opened name, arrives as a new file. |
 
 A test with several scenarios (`saved-as`) runs each in a page of its own and reports every

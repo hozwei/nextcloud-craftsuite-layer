@@ -14,6 +14,14 @@ Each GitHub release takes its text from the section whose heading matches the ve
 
 ## [Unreleased]
 
+## [0.5.7] - 2026-11-03
+
+### Changed
+
+- No changes to the app. Released together with translators 0.5.7, which handle the Craft
+  releases of 2026-11-03 (DesignCraft 0.17.0 titles opened files anew, CADCraft 0.17.0 writes a
+  new header variable).
+
 ## [0.5.6] - 2026-11-02
 
 ### Changed
