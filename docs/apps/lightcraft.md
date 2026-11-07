@@ -155,7 +155,8 @@ nothing, and the app keeps its stored library as without the layer.
 adapter's `started()` has resolved. `started()` asks the app `web.stats` and resolves only if
 `storage` is `memory` and no render worker runs. Otherwise the host gets a startup error and no
 file is handed over (fail closed). When the host named a language, `started()` sets it first (see
-[Interface language](#interface-language)). Startup errors from `started()`:
+[Interface language](#interface-language)). Then it closes LightCraft's startup dialog (see
+below). Startup errors from `started()`:
 
 | `message` | Cause |
 |---|---|
@@ -178,6 +179,19 @@ made unavailable; eframe installs its event handlers only after the graphics sta
 checked the other refusals: a frame URL with `workers=2`, a page without `globalThis.lightcraft`
 and a panic cover while `web.stats` was pending each gave the startup error of the table above,
 and the photo was never sent.
+
+**The startup dialog.** Since 0.19.0 the first frame opens the Welcome tour (or What's New
+after an update) whenever no stored `ui.json` says the running version was seen; in memory mode
+there is none, so at every start (`crates/ui-egui/src/app/frame.rs:31-48`, `startup.rs:85-99`).
+While any dialog is open, LightCraft refuses a drop with "Close the open dialog, then drop the
+files again" (`apps/lightcraft-web/src/web.rs:701-712`), and the opened photo would be lost.
+After `web.stats`, `started()` therefore runs `app.whatsNew` (What's New replaces whatever dialog
+is open; its first presentation records the version as seen, `dialogs.rs:367-374`), waits three
+frames, runs `view.back` (Back, Escape: with a dialog open it closes it and does nothing else,
+`menus/run.rs:1502-1504`), and does that twice, in case the first close came before a
+presentation. This has its own limit of 60 s (frames are slow while the demo thumbnails render);
+past it, or in a release without the command, the photo is handed over anyway. The user does not
+see the tour in the integration.
 
 **`classify()`.** Always `export`. No download of LightCraft is a save of the opened file: every
 export is a new, lossy rendering, also under the opened name, and a demo photo or a photo from the
@@ -269,6 +283,9 @@ without the layer.
   Before `ready` the adapter reports it as a startup error.
 - **`delivered` is not "opened".** The host cannot tell whether LightCraft could read the file; a
   file it cannot import shows an error in the app only.
+- **LightCraft 0.19.0 stops on raw photos.** Opening a raw photo (the tests' DNG) in the web
+  build panics with "time not implemented on this platform", also without the layer; 0.18.1 opens
+  it. `apps.json` keeps LightCraft at 0.18.0.
 - **Raws are mostly untested.** The tests open one raw format, a small synthetic DNG; CR2, CR3,
   NEF, ARW, RAF, ORF, RW2, PEF and SRW are decoded by the same build but were not opened in a
   browser.

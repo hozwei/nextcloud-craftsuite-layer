@@ -171,7 +171,9 @@ the header, after `$DIMSTYLE` (`$DIMTXT`, `$DIMDEC` and the others of the style'
 0.10.0 writes. 0.13.0: the 0.10.0 lists plus `$DIMTFILL` and `$DIMTFILLCLR`, the text fill of the
 dimension style (v0.13.0 `doc/src/tables.rs:284-354`). 0.14.0 to 0.16.0 write what 0.13.0
 writes. 0.17.0: the 0.13.0 lists plus `$CTABLESTYLE`, the current table style, after
-`$TEXTSTYLE` (v0.17.0 `io/src/dxf_write/header.rs:22`). CADCraft writes no
+`$TEXTSTYLE` (v0.17.0 `io/src/dxf_write/header.rs:22`). 0.18.0: the 0.17.0 lists plus `$VIEWCTR`
+and `$VIEWSIZE`, the model view the drawing is saved at, after `$PSLTSCALE` (v0.18.0
+`io/src/dxf_write/header.rs:49-52`, upstream #1602). CADCraft writes no
 version number into a DXF, so the vocabulary is what tells the releases apart (0.6.2 always
 writes `CADCRAFT_HANDSEED`, 0.10.0 the `$DIM` variables whenever the current dimension style
 exists, as it does in every drawing CADCraft makes, `doc/src/lib.rs:167`) and what tells their
@@ -188,7 +190,7 @@ own `CADCRAFT` APPID record, `0 EOF` as the last pair) the adapter reads:
   writes every group pair that 0.8.0 writes of the tests' fixture, plus the `$DIM` variables and
   an empty `DIMPOST` (group 3) in the dimension style; 0.13.0 every pair 0.10.0 writes, plus
   `$DIMTFILL` and `$DIMTFILLCLR`; 0.17.0 saves the tests' fixture in place again with
-  `$CTABLESTYLE`. A DXF
+  `$CTABLESTYLE`, 0.18.0 with `$VIEWCTR` and `$VIEWSIZE`. A DXF
   that fits no release (from a newer CADCraft, changed by another tool, or holding another
   program's data that 0.6 keeps, such as a copy CADCraft saved of `foreign.dxf`) is not taken for
   one CADCraft writes again without losses. So are `newer-cadcraft.dxf` of the tests (CADCraft's
@@ -438,7 +440,8 @@ measured on 0.5.0 at a 1400x900 viewport with the locale `en-US` (the same in Ch
 WebKit, and unchanged in 0.6.2: File at x 17, Help at x 465, the menu bar at y 43, Save the fifth
 row of the File menu at y 166, Open Sample Drawing the first of the Help menu at y 70). 0.7.0 added
 Open Recent as the File menu's third row, so Save is the sixth, at y 189; at y 166 the click would
-hit Close All. When a new release fails the canary:
+hit Close All. 0.18.0 orders its menus after a reference tree, which puts Import… before Save:
+Save is the seventh row, at y 213. When a new release fails the canary:
 
 - **Contract tests fail.** The release changed something the translator relies on: the drop
   routing (`upload.rs`, `ui-egui/src/lib.rs:385-394`), the title and save name

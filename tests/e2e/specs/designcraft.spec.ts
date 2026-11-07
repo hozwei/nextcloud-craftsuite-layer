@@ -153,8 +153,9 @@ const AT = {
   // File menu: Save, the sixth row (after New Document…, Open…, Open Recent, which 0.9.0 added, a
   // separator and Close).
   fileSave: (b: Box) => ({ x: b.x + 84, y: b.y + 154 }),
-  // File menu: Export IDML…, the row below Export Page as PNG….
-  fileExportIdml: (b: Box) => ({ x: b.x + 84, y: b.y + 424 }),
+  // File menu: Export IDML…, the row below Export Page as PNG… (one row lower since 0.18.0, which
+  // added Export Layouts and Versions… after Export PDF…).
+  fileExportIdml: (b: Box) => ({ x: b.x + 84, y: b.y + 449 }),
 };
 
 function appFrame(page: Page): Frame {

@@ -13,6 +13,29 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.5.8] - 2026-11-07
+
+The Craft releases of 2026-11-06 (canary issue #10, run 42367142260): PdfCraft 0.19.0, VectorCraft
+0.22.0, DesignCraft 0.18.0, WordCraft 0.16.0, GridCraft 0.17.0, DeckCraft 0.16.0, CADCraft 0.18.0,
+FilmCraft 0.18.0, EffectCraft 0.22.0, SoundCraft 0.18.0 and FigCraft 0.16.0 are the tested versions
+(`apps.json`). PhotoCraft stays at 0.16.0: 0.21.0 still does not start
+([storytold/photocraft#10017](https://github.com/storytold/photocraft/issues/10017)). LightCraft
+stays at 0.18.0: 0.19.0 stops with "time not implemented on this platform" when a raw photo (the
+tests' DNG) is opened, also without the layer.
+
+### Changed
+
+- LightCraft: since 0.19.0 the first frame opens the Welcome tour whenever no stored settings say
+  the version was seen, in memory mode at every start, and a file dropped while a dialog is open
+  is refused, so the opened photo was lost. The translator now closes the startup dialog before it
+  hands the photo over (What's New, which marks the version as seen, then Back). Older releases
+  are unaffected.
+- CADCraft: 0.18.0 writes `$VIEWCTR` and `$VIEWSIZE` in the header; the translator knows them, so a
+  file 0.18.0 saved is saved in place again.
+- CADCraft and DesignCraft tests: the File menus of 0.18.0 have a row more above Save (CADCraft:
+  Import…) and above Export IDML… (DesignCraft: Export Layouts and Versions…); the pointer tests
+  click the new places.
+
 ## [0.5.7] - 2026-11-03
 
 The Craft releases of 2026-11-03 (canary issue #10, run 41631260556): PdfCraft 0.18.0, VectorCraft

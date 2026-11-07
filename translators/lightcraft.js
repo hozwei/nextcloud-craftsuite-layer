@@ -133,6 +133,41 @@
     }
   };
 
+  // Since 0.19.0 the first frame opens a startup dialog, the Welcome tour, whenever no stored
+  // ui.json says the running version was seen: in memory mode at every start (crates/ui-egui/src/
+  // app/frame.rs:31-48, startup.rs:85-99). While any dialog is open, a drop is refused with
+  // 'Close the open dialog, then drop the files again' (apps/lightcraft-web/src/web.rs:701-712),
+  // so the opened photo would be lost. App > What's New (`app.whatsNew`) replaces whatever dialog
+  // is open with What's New, and its first presentation records the version as seen
+  // (dialogs.rs:367-374); Back (`view.back`, Escape) then closes the open dialog and nothing else
+  // (menus/run.rs:1502-1504), and no startup dialog comes back. Twice, in case the first close
+  // came before a presentation. Each command and web.stats runs on a frame of its own, and a
+  // frame can take seconds while the page renders the demo thumbnails, so this has a time limit
+  // of its own; past it, or in a release without the command, the photo is handed over anyway.
+  const DIALOG_FRAMES = 3;
+  const DIALOG_WAIT_MS = 60000;
+  const closeStartupDialog = async (api) => {
+    const close = async () => {
+      for (let round = 0; round < 2; round++) {
+        await api.command('app.whatsNew', '{}');
+        for (let i = 0; i < DIALOG_FRAMES; i++) await api.command('web.stats', '{}');
+        await api.command('view.back', '{}');
+        await api.command('web.stats', '{}');
+      }
+    };
+    let timer;
+    try {
+      await Promise.race([
+        close(),
+        new Promise((resolve, reject) => { timer = setTimeout(reject, DIALOG_WAIT_MS, new Error('no answer')); }),
+      ]);
+    } catch (error) {
+      console.warn('[craftsuite-layer] LightCraft may keep its startup dialog', error);
+    } finally {
+      clearTimeout(timer);
+    }
+  };
+
   window.craftsuiteLayer.register({
     app: 'lightcraft',
     language(tag, util) {
@@ -170,13 +205,15 @@
           finish(new Error('the app cannot confirm that it keeps nothing in browser storage'));
           return;
         }
-        Promise.resolve().then(() => applyLanguage(api)).then(() => api.command('web.stats', '{}')).then((answer) => {
+        Promise.resolve().then(() => applyLanguage(api)).then(() => api.command('web.stats', '{}')).then(async (answer) => {
           const stats = JSON.parse(answer);
           if (!stats || stats.storage !== 'memory') {
             finish(new Error('the app would keep the photo in browser storage (' + String(stats && stats.storage) + ')'));
           } else if (!stats.workers || stats.workers.alive !== 0) {
             finish(new Error('the app would render in workers that cannot read the photo'));
           } else {
+            clearTimeout(timer); // the dialog has its own limit
+            await closeStartupDialog(api);
             finish(null);
           }
         }).catch((error) => {

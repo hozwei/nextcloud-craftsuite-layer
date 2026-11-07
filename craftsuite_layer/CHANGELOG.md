@@ -14,6 +14,14 @@ Each GitHub release takes its text from the section whose heading matches the ve
 
 ## [Unreleased]
 
+## [0.5.8] - 2026-11-07
+
+### Changed
+
+- No changes to the app. Released together with translators 0.5.8, which handle the Craft
+  releases of 2026-11-06 (LightCraft 0.19.0 opens a Welcome tour at every start, CADCraft 0.18.0
+  writes two new header variables).
+
 ## [0.5.7] - 2026-11-03
 
 ### Changed

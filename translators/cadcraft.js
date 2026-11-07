@@ -143,6 +143,16 @@
       apps: APPS,
       keys: words(KEYS_0_6),
     },
+    // 0.18.0: the model view the drawing is saved at, $VIEWCTR and $VIEWSIZE after $PSLTSCALE
+    // (v0.18.0 io/src/dxf_write/header.rs:49-52, upstream #1602). Otherwise the 0.17.0 lists.
+    {
+      versions: words(VERSIONS_0_6),
+      codePage: CODE_PAGE_0_6,
+      types: words(TYPES_0_6),
+      vars: words(`${VARS_0_10} $DIMTFILL $DIMTFILLCLR $CTABLESTYLE $VIEWCTR $VIEWSIZE`),
+      apps: APPS,
+      keys: words(KEYS_0_6),
+    },
   ];
   const LISTS = ['types', 'vars', 'apps', 'keys'];
   const anyRelease = (list, value) => RELEASES.some((r) => r[list].has(value));
