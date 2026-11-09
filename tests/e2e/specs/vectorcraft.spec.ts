@@ -173,18 +173,21 @@ const FILE = { x: 78, y: 15 }; // the File title in the menu bar, the first menu
 const AT = {
   fileMenu: (b: Box) => ({ x: b.x + FILE.x, y: b.y + FILE.y }),
   // File menu: Save (after Close and Close All), and Export, which opens a submenu on hover.
-  fileSave: (b: Box) => ({ x: b.x + FILE.x + 11, y: b.y + FILE.y + 246 }),
-  fileExport: (b: Box) => ({ x: b.x + FILE.x + 16, y: b.y + FILE.y + 500 }),
+  // 0.23.0 added Show in Folder after Open Recent Files, a row higher up.
+  fileSave: (b: Box) => ({ x: b.x + FILE.x + 11, y: b.y + FILE.y + 274 }),
+  fileExport: (b: Box) => ({ x: b.x + FILE.x + 16, y: b.y + FILE.y + 528 }),
   // File > Export submenu: Export As SVG..., third after Export for Screens and Export As.
-  exportAsSvg: (b: Box) => ({ x: b.x + FILE.x + 287, y: b.y + FILE.y + 558 }),
+  exportAsSvg: (b: Box) => ({ x: b.x + FILE.x + 287, y: b.y + FILE.y + 586 }),
   // Save As and SVG Options, modals centred in the frame (a little above the middle): OK, the
   // bottom-right button.
   saveAsOk: (b: Box) => ({ x: b.x + b.width / 2 + 154, y: b.y + b.height / 2 + 148 }),
   svgOptionsOk: (b: Box) => ({ x: b.x + b.width / 2 + 154, y: b.y + b.height / 2 + 211 }),
   // About VectorCraft, a modal centred in the frame and sized to its tab. On the About tab: the
-  // Contributors tab, second in its tab row. On the Contributors tab: the first name, a link.
+  // Contributors tab, second in its tab row. On the Contributors tab: a name in the first row, a
+  // link (0.23.0 lists some 250 names, so the tab is as high as the frame allows and its first
+  // row sits higher).
   aboutContributorsTab: (b: Box) => ({ x: b.x + b.width / 2 - 99, y: b.y + b.height / 2 - 101 }),
-  firstContributor: (b: Box) => ({ x: b.x + b.width / 2 - 303, y: b.y + b.height / 2 + 20 }),
+  firstContributor: (b: Box) => ({ x: b.x + b.width / 2 - 303, y: b.y + b.height / 2 - 29 }),
 };
 
 function appFrame(page: Page): Frame {

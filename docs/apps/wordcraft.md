@@ -92,7 +92,11 @@ Source references are to the `v0.6.1` tag; `web.rs` is `apps/wordcraft-web/src/w
 - The name is `default_save_name` (`lib.rs:1268-1274`, `title_stem` `1297-1308`): for a document
   opened from a Word package (`.docx`, `.docm`, `.dotx`, `.dotm`) the opened name, its extension
   in the opened letter case; for any other opened file `<stem>.docx` (an opened `report.odt` saves
-  as `report.docx`); for a new document `<title>.docx`, or `Document1.docx` without a title. The
+  as `report.docx`); for a new document `<title>.docx`, or `Document1.docx` without a title. From
+  0.17.0 on a new document without a title saves under its first words instead
+  (`ui-egui/src/app/files.rs`, `default_save_name` and `suggested_stem`: the first paragraph with
+  text, up to its first `.`, `!`, `?`, `;` or `:`, without `\ / * " < > |`, at most 50
+  characters at a word's end), and as `Document1.docx` only while it has no text. The
   web build never changes the document's file name on a save, so every later save has the same
   name.
 - Every save writes the whole Word package anew from WordCraft's document model
@@ -151,8 +155,8 @@ Source references are to the `v0.6.1` tag; `web.rs` is `apps/wordcraft-web/src/w
 | Download | Name | Kind |
 |---|---|---|
 | Save, Save As of the opened document | an opened Word package: its name; another opened type: `<stem>.docx` | `document`; for a Word package another program wrote, `copy` (see [How the adapter classifies](#how-the-adapter-classifies)) |
-| Save of a new document (File > New, templates, Envelopes, Labels) | `<title>.docx`, mostly `Document1.docx` | `export` |
-| Save of the document Finish & Merge made | `<title>.docx` with the opened document's title (`Document1.docx` without one) | `export` once a recipient list may have reached the app as a file, and when the version of the document it follows had merge fields; see [Known gaps](#known-gaps) |
+| Save of a new document (File > New, templates, Envelopes, Labels) | `<title>.docx`, mostly `Document1.docx`; from 0.17.0 on without a title `<first words>.docx` | `export` |
+| Save of the document Finish & Merge made | `<title>.docx` with the opened document's title (`Document1.docx` without one; from 0.17.0 on `<first words>.docx` without one) | `export` once a recipient list may have reached the app as a file, and when the version of the document it follows had merge fields; see [Known gaps](#known-gaps) |
 | Save of a file the user opened from their disk (File > Open, a drop) | its own save name | `export` |
 | File > Export > Word document | `<title>.docx`: what Save writes, also stamped (`ui-egui/src/file_dialogs.rs:216-223`); for an opened `.docm`, `.dotx` or `.dotm` not the saved name | like Save; otherwise `export` |
 | File > Export > PDF document, Word XML Document (0.6.1), OpenDocument Text, Rich Text Format, Web page, Markdown, LaTeX, Plain text | `<title>.<ext>` (`file_dialogs.rs:274-277`); for an opened `.odt` or `.rtf` that is the opened name | `export` |
@@ -300,7 +304,8 @@ Everything else is `export`. In detail:
   and what a newer release models, the hosted one may drop.
 - **An opened file without a creation time.** Before its first stored save (for a file of
   another program: for the whole session, since copies never become the reference), a new
-  document the user titled like the opened file's stem saves under the saved name and passes:
+  document the user titled like the opened file's stem, or (0.17.0) whose first words are that
+  stem, saves under the saved name and passes:
   for a WordCraft file as the document, for a file of another program as the copy.
 - **Files named like a new document.** An opened `Document1.docx` (or `Documento1.docx` and the
   like) without a creation time saves as a new file every time: a new document's save looks the
@@ -415,9 +420,9 @@ contract tests; the canary runs them apart from the `@ui` test.
 
 | Test | What it checks |
 |---|---|
-| `contract` | An allowed host: the handshake with the served app version, then the open of a `.docx` WordCraft wrote. The app sees no `showSaveFilePicker`. An edit saved with Ctrl+S arrives as the document under the opened name, with the edit and the opened creation time; Save As (F12) after another edit is the document again. A file opened from the disk (File > Open, Ctrl+O, of an RTF: `probe.docx`) and the save of a new document (Ctrl+N, `Document1.docx`) arrive as new files. Nothing becomes a browser download, also not after the deadlines for the host's confirmation and result. |
+| `contract` | An allowed host: the handshake with the served app version, then the open of a `.docx` WordCraft wrote. The app sees no `showSaveFilePicker`. An edit saved with Ctrl+S arrives as the document under the opened name, with the edit and the opened creation time; Save As (F12) after another edit is the document again. A file opened from the disk (File > Open, Ctrl+O, of an RTF: `probe.docx`) and the save of a new document (Ctrl+N, `NEWDOC.docx` after its first words) arrive as new files. Nothing becomes a browser download, also not after the deadlines for the host's confirmation and result. |
 | `saved-as` | An opened `.odt` and `.rtf` save as `probe.docx`, the document, twice. A `.docx` Word wrote: the first save is a new file under the opened name, the second replaces it (`follows` the first). `Document1.docx` with a creation time saves as the document, and a new document saved under the same name is a new file; `Document1.docx` without one is a new file. The blanks of the "+ New" entry in Files (`blank.docx` on A4 and `blank-letter.docx`, from `craftsuite_layer/assets/`, served by the test server) open, and their first saves are the document. After a dropped recipient list, the opened document's save is a new file. A copy of the opened file (same name and creation time, other text) opened with File > Open, and in Chromium dropped from the desktop, saves as a new file. |
-| `ui` (`@ui`) | File > Export with the pointer on an opened `.odt`: PDF and OpenDocument Text (under the opened name) arrive as new files, Word document as the document `probe.docx`. Mailings > Finish & Merge on an opened `Document1.docx` after Select Recipients > Use an Existing List…, whose picker is cancelled, and a dropped `people.txt`, which WordCraft loads as recipients: the merged document, saved as `Document1.docx` with the opened creation time, arrives as a new file. Mailings > Finish & Merge on an opened letter `invitation.docx` (titled `invitation`, with a simple `MERGEFIELD` field) after a recipient typed into Select Recipients > Type a New List…, so that no file comes in: the letter saved before the merge keeps its field and is the document, and the merged document, saved as `invitation.docx` with the opened creation time and the typed name in place of the field, arrives as a new file. |
+| `ui` (`@ui`) | File > Export with the pointer on an opened `.odt`: PDF and OpenDocument Text (under the opened name) arrive as new files, Word document as the document `probe.docx`. Mailings > Finish & Merge on an opened `CRAFTSUITE-PROBE-wc01 WordCraft fixture.docx` (named after its first words) after Select Recipients > Use an Existing List…, whose picker is cancelled, and a dropped `people.txt`, which WordCraft loads as recipients: the merged document, saved under the same name (its first words; `Document1.docx` before 0.17.0) with the opened creation time, arrives as a new file. Mailings > Finish & Merge on an opened letter `invitation.docx` (titled `invitation`, with a simple `MERGEFIELD` field) after a recipient typed into Select Recipients > Type a New List…, so that no file comes in: the letter saved before the merge keeps its field and is the document, and the merged document, saved as `invitation.docx` with the opened creation time and the typed name in place of the field, arrives as a new file. |
 
 A test with several scenarios runs each in a page of its own and reports every scenario that
 fails as `scenario failed: <title>`, not only the first.

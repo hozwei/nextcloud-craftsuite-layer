@@ -13,6 +13,28 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.5.9] - 2026-11-09
+
+The Craft releases of 2026-11-08 and 2026-11-09 (canary issue #10, run 42618392158): PdfCraft
+0.20.0, VectorCraft 0.23.0, DesignCraft 0.19.0, WordCraft 0.17.0, GridCraft 0.18.0, DeckCraft
+0.17.0, CADCraft 0.19.0, FilmCraft 0.19.0, EffectCraft 0.23.0, SoundCraft 0.19.0 and FigCraft
+0.17.0 are the tested versions (`apps.json`). PhotoCraft stays at 0.16.0: 0.22.0 still does not
+start ([storytold/photocraft#10017](https://github.com/storytold/photocraft/issues/10017)).
+LightCraft stays at 0.18.0: 0.20.0, like 0.19.0, stops with "time not implemented on this
+platform" when a raw photo (the tests' DNG) is opened, also without the layer.
+
+### Changed
+
+- WordCraft: since 0.17.0 a new document without a title saves under its first words instead of
+  `Document1.docx` (storytold/wordcraft#5793), and so does the document Finish & Merge makes of an
+  untitled one. The translator needs no change: such saves still differ from the opened document
+  by their name or creation time. The tests and `docs/apps/wordcraft.md` follow the new names;
+  the known gap for an opened file without a creation time now also covers a new document whose
+  first words are its name.
+- VectorCraft tests: the File menu of 0.23.0 has a row more above Save (Show in Folder), and About
+  > Contributors lists some 250 names, so its first row sits higher; the pointer tests click the
+  new places.
+
 ## [0.5.8] - 2026-11-07
 
 The Craft releases of 2026-11-06 (canary issue #10, run 42367142260): PdfCraft 0.19.0, VectorCraft
@@ -604,7 +626,9 @@ DeckCraft 0.6.1, FilmCraft 0.7.2, LightCraft 0.7.1 and EffectCraft 0.9.2 are the
 - Documentation: an index (`docs/README.md`), architecture, protocol, security, hosting,
   development, the Nextcloud app, and one page per Craft app.
 
-[Unreleased]: https://github.com/hozwei/nextcloud-craftsuite-layer/compare/v0.5.7...main
+[Unreleased]: https://github.com/hozwei/nextcloud-craftsuite-layer/compare/v0.5.9...main
+[0.5.9]: https://github.com/hozwei/nextcloud-craftsuite-layer/compare/v0.5.8...v0.5.9
+[0.5.8]: https://github.com/hozwei/nextcloud-craftsuite-layer/compare/v0.5.7...v0.5.8
 [0.5.7]: https://github.com/hozwei/nextcloud-craftsuite-layer/compare/v0.5.6...v0.5.7
 [0.5.6]: https://github.com/hozwei/nextcloud-craftsuite-layer/compare/v0.5.5...v0.5.6
 [0.5.5]: https://github.com/hozwei/nextcloud-craftsuite-layer/compare/v0.5.4...v0.5.5

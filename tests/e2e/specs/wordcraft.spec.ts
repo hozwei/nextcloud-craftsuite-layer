@@ -23,7 +23,7 @@
 //              that the user opens with File > Open, and (Chromium) drops from the desktop
 //   ui (@ui)   File > Export with the pointer, on an opened .odt: PDF and OpenDocument Text (under
 //              the opened name) arrive as new files, Word document as the document; Mailings >
-//              Finish & Merge on an opened Document1.docx, with recipients from a .txt dropped
+//              Finish & Merge on an opened file named after its first words, with recipients from a .txt dropped
 //              after Use an Existing List… was cancelled: the merged document, saved under the
 //              opened name with the opened creation time, arrives as a new file; on an opened
 //              letter with a merge field, after a recipient typed into Type a New List… (no file
@@ -519,7 +519,8 @@ test('contract: an allowed host opens the file and stores every save, nothing is
     await typeText(page, app, 'NEWDOC ');
     await press(page, app, 'Control+s');
     const { save, bytes } = await hostSave(page, 4);
-    expectExport(save, 'Document1.docx');
+    // 0.17.0 names a new document without a title after its first words (#5793).
+    expectExport(save, 'NEWDOC.docx');
     const doc = wordDocument(bytes);
     expect(doc.text, 'the new document').toContain('NEWDOC');
     expect(doc.text, 'not the opened document').not.toContain(MARKER);
@@ -586,7 +587,8 @@ test('saved-as: interchange formats, copies, new documents and files from elsewh
     expectSaved(own.bytes, 'EDIT1');
 
     await pressAndSettle(page, app, 'create a new document', 'Control+n');
-    await typeText(page, app, 'NEWDOC ');
+    // Its first words up to the full stop name it 'Document1' (0.17.0, #5793).
+    await typeText(page, app, 'Document1. NEWDOC ');
     await press(page, app, 'Control+s');
     const other = await hostSave(page, 2);
     expectExport(other.save, 'Document1.docx');
@@ -684,19 +686,21 @@ test('ui: File > Export and Mailings > Finish & Merge with the pointer', { tag: 
     expectNoDownloads(downloads);
   });
 
-  await scenario(context, 'Mailings > Finish & Merge on an opened Document1.docx: the merged document is a new file', async (page, downloads) => {
+  await scenario(context, 'Mailings > Finish & Merge on an opened file named after its first words: the merged document is a new file', async (page, downloads) => {
     // The merged document is a copy of the opened one with its title (none) and creation time,
-    // so it saves as 'Document1.docx' (engine/src/cmd/mailings.rs finish). The recipients come
+    // so it saves under its first words (0.17.0, #5793; 'Document1.docx' before), the opened
+    // name here (engine/src/cmd/mailings.rs finish). The recipients come
     // from a .txt dropped after the picker of Use an Existing List… was cancelled, which WordCraft
     // loads as a list (ui-egui/src/lib.rs drain_inbox, recipient_list_pending).
-    const app = await openInHost(page, 'Document1.docx', '', PROBE);
+    const name = `${MARKER} WordCraft fixture.docx`;
+    const app = await openInHost(page, name, '', PROBE);
     await cancelExistingList(page, app);
     await dropRecipientList(page, app, 'people.txt');
     await finishAndMerge(page, app);
     await clickApp(page, app, 'Don\'t Save in the question', AT.dontSave);
     await press(page, app, 'Control+s');
     const { save, bytes } = await hostSave(page, 1);
-    expectExport(save, 'Document1.docx');
+    expectExport(save, name);
     const merged = expectSaved(bytes);
     expect(merged.text.split(MARKER).length - 1, 'the opened text once per recipient').toBe(2);
     expect(merged.created, 'the opened creation time').toBe(PROBE_CREATED);

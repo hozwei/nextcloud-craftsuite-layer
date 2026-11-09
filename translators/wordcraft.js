@@ -30,7 +30,9 @@
  *    writes what Save writes.
  *  - New documents (Ctrl+N, templates, Envelopes, Labels) have no file name and save as
  *    '<title or Document1>.docx' (lib.rs:1297-1308), 'Document1' translated with the interface
- *    language (0.6.1 takes the browser's, ui-egui/src/i18n/mod.rs:270-278); they get a creation
+ *    language (0.6.1 takes the browser's, ui-egui/src/i18n/mod.rs:270-278); from 0.17.0 on one
+ *    without a title saves under its first words instead, and as 'Document1' only without text
+ *    (ui-egui/src/app/files.rs, default_save_name, suggested_stem); they get a creation
  *    time of their own on their first save. Mailings > Finish & Merge makes its new document as a
  *    copy of the open one (engine/src/cmd/mailings.rs:574, 661-662), with its title and creation
  *    time, so it can save under the opened name with the opened creation time. It turns the merge
@@ -420,7 +422,7 @@
     // of an opened file that is not a Word package before its first stored save are not seen; a
     // copy of the opened file that reaches WordCraft another way than the two watched passes as
     // the document; before the first stored save of an opened file without a creation time, a new
-    // document the user titled like it does too.
+    // document the user titled like it, or (0.17.0) whose first words are its stem, does too.
     async classify(save, entry) {
       if (save.name !== entry.savedName || !WORD_PACKAGE.test(save.name)) return 'export';
       if (recipientList || foreignSaves.has(save.name)) return 'export';

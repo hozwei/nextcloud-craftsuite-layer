@@ -14,6 +14,14 @@ Each GitHub release takes its text from the section whose heading matches the ve
 
 ## [Unreleased]
 
+## [0.5.9] - 2026-11-09
+
+### Changed
+
+- No changes to the app. Released together with translators 0.5.9, which handle the Craft
+  releases of 2026-11-08 and 2026-11-09 (WordCraft 0.17.0 names new documents after their first
+  words, new menu rows in VectorCraft 0.23.0).
+
 ## [0.5.8] - 2026-11-07
 
 ### Changed

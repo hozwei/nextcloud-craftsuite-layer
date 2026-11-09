@@ -44,19 +44,19 @@ opens them in the app ([docs/nextcloud-app.md](docs/nextcloud-app.md#new-files))
 
 | App | Tested version | In the action menu for | Also on a click on the file |
 |---|---|---|---|
-| PdfCraft | 0.19.0 | `pdf` | none |
+| PdfCraft | 0.20.0 | `pdf` | none |
 | PhotoCraft | 0.16.0 | `psd` `psb` `pcraft` `tga` `png` `jpg` `jpeg` `webp` `gif` `bmp` `tif` `tiff` `ico` `heic` `heif` | `psd` `psb` `pcraft` `tga` |
-| VectorCraft | 0.22.0 | `vectorcraft` `drawcraft` `ai` `eps` `svgz` `dxf` `svg` `emf` `wmf` `pdf` | `vectorcraft` `drawcraft` `eps` `svgz` `dxf` |
-| DesignCraft | 0.18.0 | `designcraft` `idml` | `designcraft` `idml` |
-| WordCraft | 0.16.0 | `docx` `docm` `dotx` `dotm` `doc` `dot` `odt` `rtf` | none |
-| GridCraft | 0.17.0 | `xlsx` `xlsm` `ods` `csv` | none |
-| DeckCraft | 0.16.0 | `deckcraft` `pptx` `potx` `ppsx` | `deckcraft` |
-| CADCraft | 0.18.0 | `dxf` | `dxf` (instead of VectorCraft when both are set up) |
+| VectorCraft | 0.23.0 | `vectorcraft` `drawcraft` `ai` `eps` `svgz` `dxf` `svg` `emf` `wmf` `pdf` | `vectorcraft` `drawcraft` `eps` `svgz` `dxf` |
+| DesignCraft | 0.19.0 | `designcraft` `idml` | `designcraft` `idml` |
+| WordCraft | 0.17.0 | `docx` `docm` `dotx` `dotm` `doc` `dot` `odt` `rtf` | none |
+| GridCraft | 0.18.0 | `xlsx` `xlsm` `ods` `csv` | none |
+| DeckCraft | 0.17.0 | `deckcraft` `pptx` `potx` `ppsx` | `deckcraft` |
+| CADCraft | 0.19.0 | `dxf` | `dxf` (instead of VectorCraft when both are set up) |
 | LightCraft | 0.18.0 | `dng` `cr2` `cr3` `nef` `nrw` `arw` `raf` `orf` `rw2` `rwl` `pef` `srw` `jpg` `jpeg` `png` `tif` `tiff` `webp` | the camera raw types |
-| FilmCraft | 0.18.0 | `fcproj` | `fcproj` |
-| EffectCraft | 0.22.0 | `ecproj` | `ecproj` |
-| SoundCraft | 0.18.0 | `scraftz` | `scraftz` |
-| FigCraft | 0.16.0 | `figcraft` | `figcraft` |
+| FilmCraft | 0.19.0 | `fcproj` | `fcproj` |
+| EffectCraft | 0.23.0 | `ecproj` | `ecproj` |
+| SoundCraft | 0.19.0 | `scraftz` | `scraftz` |
+| FigCraft | 0.17.0 | `figcraft` | `figcraft` |
 
 LightCraft develops photos and exports them as new files; it never saves a photo back, and its
 edits are gone when the editor closes. FilmCraft and EffectCraft open their project files; a
@@ -103,7 +103,7 @@ The app is not in the Nextcloud App Store. Each
 | `SHA256SUMS` | The checksums of both |
 
 ```sh
-v=0.5.8
+v=0.5.9
 base=https://github.com/hozwei/nextcloud-craftsuite-layer/releases/download/v$v
 curl -fL --remote-name-all "$base/craftsuite_layer-$v.tar.gz" \
   "$base/craftsuite-layer-hosting-$v.tar.gz" "$base/SHA256SUMS"
