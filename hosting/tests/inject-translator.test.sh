@@ -3,7 +3,8 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 #
 # Tests for hosting/inject-translator.sh, on small made-up index.html files and, if
-# `npm run craft:fetch` has run, on the fetched Craft web builds (.craft-builds/selected.json).
+# `npm run craft:fetch` has run, on the fetched Craft web builds (.craft-builds/selected.json, or
+# the folder in $CRAFT_BUILDS_DIR, relative to the repository).
 #
 #   sh hosting/tests/inject-translator.test.sh                 the script under sh
 #   sh hosting/tests/inject-translator.test.sh dash            ... under another shell
@@ -49,9 +50,20 @@ run() {
 }
 mk() { mkdir -p "$work/$1" && printf '%s' "$2" >"$work/$1/index.html"; }
 O=https://cloud.example.com
+# imports_ok FOLDER: every ./snippets/... that a module in a subfolder imports is there.
+imports_ok() {
+  for js in "$1"/*/*.js; do
+    case $js in */craftsuite-layer/*) continue ;; esac
+    [ -f "$js" ] || continue
+    grep -o '[.]/snippets/[-A-Za-z0-9._/]*[.]js' "$js" | sort -u >"$work/imports"
+    while IFS= read -r p; do
+      [ -f "${js%/*}/$p" ] || return 1
+    done <"$work/imports"
+  done
+}
 
 # --- Real builds ------------------------------------------------------------------------------
-builds=$repo/.craft-builds
+builds=$(cd "$repo" && cd "${CRAFT_BUILDS_DIR:-.craft-builds}" 2>/dev/null && pwd) || builds=$repo/.craft-builds
 if [ -f "$builds/selected.json" ]; then
   skipped=
   # Every fetched build (npm run craft:fetch writes one "<app>": "<version>" line per app; app ids
@@ -69,8 +81,19 @@ if [ -f "$builds/selected.json" ]; then
     # A service worker at the build's root (EffectCraft's sw.js) is replaced, see below.
     sw=0
     if [ -f "$src/sw.js" ]; then sw=1 && cp "$src/sw.js" "$d/" && cp "$src/sw.js" "$work/$app.sw"; fi
+    # The modules in subfolders with their snippets, and the root's snippets: PhotoCraft's app/
+    # lacks the one its glue imports (0.17.0 and later), see "Snippets the release lacks" below.
+    for js in "$src"/*/*.js; do
+      [ -f "$js" ] || continue
+      s=${js%/*}
+      s=${s##*/}
+      mkdir -p "$d/$s" && cp "$js" "$d/$s/"
+      [ ! -d "$src/$s/snippets" ] || cp -R "$src/$s/snippets" "$d/$s/"
+    done
+    [ ! -d "$src/snippets" ] || cp -R "$src/snippets" "$d/"
     run 1 "$app: --check before" --check -o "$O" "$d"
     run 0 "$app: inject" -o "$O" "$d"
+    check "$app: every snippet a module in a subfolder imports is there, no warning" 'imports_ok "$d" && [ ! -s "$work/err" ]'
     check "$app: one line added" '[ "$(diff "$work/$app.orig" "$d/index.html" | grep -c "^[<>]")" = 1 ]'
     [ "$sw" = 0 ] || check "$app: sw.js replaced, the original kept" '! grep -q fetch "$d/sw.js" && grep -q "registration.unregister()" "$d/sw.js" && cmp -s "$work/$app.sw" "$d/craftsuite-layer/sw.js.orig"'
     check "$app: tags right after <head>" 'grep -A1 -i -m1 "<head[ >]" "$d/index.html" | tail -n 1 | grep -q "^ *<script src=\"./craftsuite-layer/core.js?v=[0-9a-f][0-9a-f-]*\" data-allowed-origins=\"$O\" data-app-version=\"$ver\"></script><script src=\"./craftsuite-layer/$app.js?v=[0-9a-f][0-9a-f-]*\"></script>$"'
@@ -303,6 +326,54 @@ mk pdfcraft-web-9.2.0 '<html><head></head></html>'
 mkdir "$work/pdfcraft-web-9.2.0/sw.js"
 run 3 "sw.js is a folder" -o "$O" "$work/pdfcraft-web-9.2.0"
 check "no temporary files left after the service worker" '[ -z "$(find "$work" -name "*.craftsuite-*")" ]'
+
+# --- Snippets the release lacks ---------------------------------------------------------------
+# A module in a subfolder imports ./snippets/<path>, which the release has only at its root
+# (PhotoCraft 0.17.0 and later, app/photocraft-web.js): the root's file is copied next to the
+# module, never over a file the release has, never through a symbolic link.
+mk photocraft-web-11.0.0 '<html><head>
+</head></html>
+'
+n=$work/photocraft-web-11.0.0
+mkdir -p "$n/app" "$n/assets/snippets/x-1" "$n/snippets/x-1/js" "$n/elsewhere" "$n/lnk"
+printf '%s\n' "import { a } from './snippets/x-1/inline0.js'; import(\"./snippets/x-1/js/host.js\");" \
+  "import './snippets/x-1/inline0.js'; import './snippets/../../up.js'; import './snippets/.hidden/x.js';" \
+  "import \"./snippets/x-1/odd.js'; const later = './snippets/missing/y.js';" >"$n/app/glue.js"
+echo "export const a = 1;" >"$n/snippets/x-1/inline0.js"
+echo "export const h = 1;" >"$n/snippets/x-1/js/host.js"
+echo "export const o = 1;" >"$n/snippets/x-1/odd.js"
+echo "export const u = 1;" >"$work/up.js"
+echo "import './snippets/x-1/inline0.js';" >"$n/assets/own.js"
+echo "own" >"$n/assets/snippets/x-1/inline0.js"
+echo "import './snippets/x-1/inline0.js';" >"$n/lnk/mod.js"
+ln -s "$n/elsewhere" "$n/lnk/snippets"
+echo "import './snippets/root-only/z.js';" >"$n/root.js"
+run 1 "snippets: --check before" --check -o "$O" "$n"
+check "... names the two missing files, nothing else" 'grep -q "app/snippets/x-1/inline0.js is missing (the release has it as snippets/x-1/inline0.js)" "$work/out" && grep -q "app/snippets/x-1/js/host.js is missing" "$work/out" && [ "$(grep -c "is missing" "$work/out")" = 2 ]'
+run 0 "snippets: inject" -o "$O" "$n"
+check "... copies both next to the module, readable" 'cmp -s "$n/snippets/x-1/inline0.js" "$n/app/snippets/x-1/inline0.js" && cmp -s "$n/snippets/x-1/js/host.js" "$n/app/snippets/x-1/js/host.js" && [ "$(ls -l "$n/app/snippets/x-1/js/host.js" | cut -c1-10)" = "-rw-r--r--" ]'
+check "... says so" 'grep -q "copied snippets/x-1/inline0.js to app/snippets/x-1/inline0.js" "$work/out" && [ "$(grep -c "^inject-translator: photocraft 11.0.0: copied" "$work/out")" = 2 ]'
+check "... only imports in matching quotes, without . or .. parts" '[ "$(find "$n/app/snippets" -type f | wc -l | tr -d " ")" = 2 ] && [ ! -e "$n/up.js" ]'
+check "... warns about a snippet the release lacks also at its root" 'grep -q "app/glue.js imports ./snippets/missing/y.js, which the release lacks" "$work/err"'
+check "... keeps a file the release has" '[ "$(cat "$n/assets/snippets/x-1/inline0.js")" = own ]'
+check "... writes nothing through a symbolic link, and says so" '[ -z "$(ls "$n/elsewhere")" ] && grep -q "not copied to lnk/snippets/x-1/inline0.js, a symbolic link is in the way" "$work/err"'
+check "... leaves modules at the root alone" '[ ! -e "$n/snippets/root-only" ] && ! grep -q root-only "$work/err"'
+run 0 "snippets: --check after" --check -o "$O" "$n"
+run 0 "snippets: again" -o "$O" "$n"
+check "... changes nothing" 'grep -q "already up to date" "$work/out" && ! grep -q copied "$work/out"'
+run 0 "snippets: --remove" --remove "$n"
+check "... leaves the copies, without warnings" 'cmp -s "$n/snippets/x-1/inline0.js" "$n/app/snippets/x-1/inline0.js" && [ ! -s "$work/err" ]'
+run 0 "snippets: inject after --remove" -o "$O" "$n"
+rm -r "$n/app/snippets"
+run 0 "snippets: copied again when only they are due" -o "$O" "$n"
+check "... copied, not 'already up to date'" 'grep -q "copied snippets/x-1/js/host.js" "$work/out" && ! grep -q "already up to date" "$work/out" && cmp -s "$n/snippets/x-1/js/host.js" "$n/app/snippets/x-1/js/host.js"'
+check "no temporary files left after the snippets" '[ -z "$(find "$work" -name "*.craftsuite-*")" ]'
+if [ "$(id -u)" != 0 ]; then
+  rm -r "$n/app/snippets"
+  chmod a-w "$n/app"
+  run 5 "snippets: a read-only subfolder" -o "$O" "$n"
+  chmod u+w "$n/app"
+fi
 
 printf '%s: %d checks passed, %d failed\n' "$sut" "$pass" "$fail"
 [ "$fail" = 0 ]

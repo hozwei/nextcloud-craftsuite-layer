@@ -16,7 +16,7 @@
       "description": { "en": "Edit photos and layers, PSD included", "de": "Fotos und Ebenen bearbeiten, auch PSD" },
       "color": "#2f7bf5",
       "minVersion": "0.7.0",
-      "tested": "0.16.0"
+      "tested": "0.22.0"
     },
     "vectorcraft": {
       "name": "VectorCraft",
@@ -90,7 +90,7 @@
       "color": "#e0368f",
       "startupTimeout": 180000,
       "minVersion": "0.8.0",
-      "tested": "0.23.0"
+      "tested": "0.23.1"
     },
     "soundcraft": {
       "name": "SoundCraft",

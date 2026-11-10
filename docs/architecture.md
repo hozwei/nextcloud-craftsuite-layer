@@ -211,6 +211,7 @@ What the layer relies on, and what happens if an upstream release changes it:
 | The apps' own URL switches, which their adapters set: LightCraft `store=memory` and `workers=0`, EffectCraft `empty`, `nosw` and `storage=memory`, FilmCraft `fresh` | nothing kept in the browser, no restored session that a failed open would leave to be saved under the opened name, no service worker in the frame | LightCraft's and EffectCraft's `started` checks read what the app reports (`lightcraft.command('web.stats')`, `effectcraft.info()`) and stop every open with a startup error if a switch no longer takes effect. FilmCraft's `fresh` is checked by its `saved-as` test. |
 | EffectCraft's `window.effectcraft` (`info()`, `execute('project.summary')`) and its Save writing `savedBy` first (Collect Files writes none) | the newer-version rule, telling a Save from other downloads under the opened name | If `info()` changes, every open stops with a startup error; if `project.summary` or `savedBy` change, saves under the opened name arrive as `export`: new files, nothing overwritten. The `contract` test fails. |
 | A build's service worker is `sw.js` at its root (EffectCraft) | `inject-translator.sh` replaces it with one that unregisters itself | A worker under another name is not replaced. On the same site, browsers that hold it keep a cached page and translator until the app's next release. |
+| A glue file in a subfolder that lacks its snippets (PhotoCraft 0.17.0 and later: `app/`) imports them as `./snippets/<path>` and the release has the same file at its root | `inject-translator.sh` copies it next to the glue, so the app starts | If the root lacks it too, the script warns and the app does not start; the `contract` test fails, and the hosting tests on the fetched builds check every such import. A release that ships the snippets in place needs no copy. |
 | A failed start shows as an error event before `TrunkApplicationStarted` (the loader awaits the `.wasm` module at its top level) | `the app failed to load` | The failure is reported only after `data-startup-timeout`, as `the app did not start in time`. |
 | The app registers a `drop` listener with `addEventListener` | drop target, `ready` | No `ready`; the host gets `the app registered no drop target`. |
 | VectorCraft removes its loading text (`#vectorcraft_loading`) once it can take files | the adapter's `started` check, `ready` | No `ready`; the host gets `the app did not get ready in time`. |
@@ -269,10 +270,10 @@ Pull request #2263 proposes `window.photocraft` and a `postMessage` API enabled 
 | What | Where | Current |
 |---|---|---|
 | Protocol | `version` in every message | 1 |
-| Translator | `LAYER_VERSION` in `translators/core.js`, reported as `layerVersion` in `hello` and `ready` | 0.5.9 |
-| Nextcloud app | `<version>` in `craftsuite_layer/appinfo/info.xml` | 0.5.9, Nextcloud 34 and 35 |
-| Release | the tag `v<version>` | v0.5.9 |
-| Supported apps, their oldest and tested versions | `apps.json` ([hosting.md](hosting.md#the-app-list)) | PdfCraft 0.20.0, PhotoCraft 0.16.0, VectorCraft 0.23.0, DesignCraft 0.19.0, WordCraft 0.17.0, GridCraft 0.18.0, DeckCraft 0.17.0, CADCraft 0.19.0, LightCraft 0.18.0, FilmCraft 0.19.0, EffectCraft 0.23.0, SoundCraft 0.19.0, FigCraft 0.17.0 (tested; the oldest is `minVersion`) |
+| Translator | `LAYER_VERSION` in `translators/core.js`, reported as `layerVersion` in `hello` and `ready` | 0.6.0 |
+| Nextcloud app | `<version>` in `craftsuite_layer/appinfo/info.xml` | 0.6.0, Nextcloud 34 and 35 |
+| Release | the tag `v<version>` | v0.6.0 |
+| Supported apps, their oldest and tested versions | `apps.json` ([hosting.md](hosting.md#the-app-list)) | PdfCraft 0.20.0, PhotoCraft 0.22.0, VectorCraft 0.23.0, DesignCraft 0.19.0, WordCraft 0.17.0, GridCraft 0.18.0, DeckCraft 0.17.0, CADCraft 0.19.0, LightCraft 0.18.0, FilmCraft 0.19.0, EffectCraft 0.23.1, SoundCraft 0.19.0, FigCraft 0.17.0 (tested; the oldest is `minVersion`) |
 
 The translator and the Nextcloud app share one version number, and a release carries both: the
 app, and the translators with the injector for the hosting

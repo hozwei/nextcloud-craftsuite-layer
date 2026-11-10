@@ -137,7 +137,7 @@ function hostSite(req, res, u) {
   return sendFile(res, within(path.join(e2e, 'host'), rel));
 }
 
-function appSite(req, res, u) {
+async function appSite(req, res, u) {
   if (u.pathname.startsWith('/files/')) return sendFile(res, fixture(u.pathname.slice(7)));
   const m = u.pathname.match(/^\/([a-z0-9_-]+)\/(.*)$/);
   const apps = loadApps();
@@ -149,7 +149,18 @@ function appSite(req, res, u) {
   if (rest === '' || rest === 'index.html') {
     return sendFile(res, within(app.root, 'index.html'), (html) => inject(html, app, u.searchParams));
   }
-  return sendFile(res, within(app.root, rest));
+  return sendFile(res, await withSnippet(app.root, rest));
+}
+
+// What inject-translator.sh does for a release whose module in a subfolder imports a snippet the
+// release has only at its root (PhotoCraft 0.17.0 and later, storytold/photocraft#10017): it
+// copies snippets/<path> next to the module, so <sub>/snippets/<path> is served from there.
+async function withSnippet(root, rest) {
+  const file = within(root, rest);
+  const m = rest.match(/^([^/]+)\/(snippets\/.+\.js)$/);
+  if (!file || !m || m[1] === 'craftsuite-layer' || existsSync(file)) return file;
+  const top = within(root, m[2]);
+  return top && (await stat(top).catch(() => null))?.isFile() ? top : file;
 }
 
 for (const [name, o] of Object.entries(origins)) {

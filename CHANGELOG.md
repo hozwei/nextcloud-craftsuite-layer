@@ -13,6 +13,41 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-11-10
+
+PhotoCraft is back on its newest release: 0.22.0 is the tested version (`apps.json`), up from
+0.16.0. Its releases since 0.17.0 do not start as published
+([storytold/photocraft#10017](https://github.com/storytold/photocraft/issues/10017)); the
+hosting now repairs that. EffectCraft 0.23.1 is tested as well (canary run 42811225291).
+LightCraft stays at 0.18.0
+([storytold/lightcraft#4017](https://github.com/storytold/lightcraft/issues/4017)).
+
+### Added
+
+- `inject-translator.sh` copies a JavaScript snippet that a release lacks where its module
+  imports it. PhotoCraft 0.17.0 and later moved the app's wasm-bindgen glue to
+  `app/photocraft-web.js` but ship the snippet it imports (`./snippets/eframe-<hash>/inline0.js`)
+  only at the build's root, for the boot module, so the browser gets a 404 and PhotoCraft never
+  starts. For a `.js` directly in a subfolder that imports `./snippets/<path>`, missing there, the
+  script copies `snippets/<path>` from the root. It never replaces a file the release has (once
+  upstream ships the snippets, it copies nothing), never writes through a symbolic link, warns
+  about an import the root lacks too, reports a pending copy with `--check` and leaves the copies
+  with `--remove`. The options and exit codes are unchanged. Documented in `docs/hosting.md`
+  ("Snippets a release lacks") and `hosting/README.md`; the hosting tests cover it on made-up
+  folders and on the fetched builds, and the test server serves such a snippet the same way.
+
+### Changed
+
+- PhotoCraft: since 0.17.0 the page dispatches `TrunkApplicationStarted` from a small boot module,
+  before the app itself (14.8 MB in 0.22.0) downloads, so its drop target comes 15 s after the
+  start on an 8 Mbit/s line. From 0.17.0 on (and without `data-app-version`) the adapter waits for
+  the drop target as long as the startup timeout (`data-startup-timeout`, else 60 s) instead of
+  15 s, so a slow line no longer gives `the app registered no drop target` first. Its `startup`
+  test holds the app's download back for 16 s. `docs/hosting.md` names PhotoCraft among the apps
+  that may need `--startup-timeout 180000` for slow connections.
+- PhotoCraft tests: the File menu has a row more above Save (Open as Smart Object), so the pointer
+  test clicks the new place.
+
 ## [0.5.9] - 2026-11-09
 
 The Craft releases of 2026-11-08 and 2026-11-09 (canary issue #10, run 42618392158): PdfCraft
@@ -626,7 +661,8 @@ DeckCraft 0.6.1, FilmCraft 0.7.2, LightCraft 0.7.1 and EffectCraft 0.9.2 are the
 - Documentation: an index (`docs/README.md`), architecture, protocol, security, hosting,
   development, the Nextcloud app, and one page per Craft app.
 
-[Unreleased]: https://github.com/hozwei/nextcloud-craftsuite-layer/compare/v0.5.9...main
+[Unreleased]: https://github.com/hozwei/nextcloud-craftsuite-layer/compare/v0.6.0...main
+[0.6.0]: https://github.com/hozwei/nextcloud-craftsuite-layer/compare/v0.5.9...v0.6.0
 [0.5.9]: https://github.com/hozwei/nextcloud-craftsuite-layer/compare/v0.5.8...v0.5.9
 [0.5.8]: https://github.com/hozwei/nextcloud-craftsuite-layer/compare/v0.5.7...v0.5.8
 [0.5.7]: https://github.com/hozwei/nextcloud-craftsuite-layer/compare/v0.5.6...v0.5.7

@@ -81,6 +81,29 @@
     'Tanpa Judul', '名称未設定', '未标题', '未命名', '제목 없음', 'Névtelen', 'İsimsiz',
     'Chưa đặt tên'].join('|') + ')(?:-\\d+)?|Untitled_(?:Panorama|HDR)\\d+)$', 'u');
 
+  // The settings core.js was given on its tag: the app version (data-app-version; none counts as
+  // the newest) and the startup timeout (data-startup-timeout, else the core's 60 s).
+  const coreTag = document.querySelector('script[data-allowed-origins]');
+  const appVersion = coreTag && coreTag.dataset.appVersion ? coreTag.dataset.appVersion : null;
+  const startupTimeout = (() => {
+    const n = Number(coreTag && coreTag.dataset.startupTimeout);
+    return Number.isFinite(n) && n > 0 ? n : 60000; // as core.js reads it
+  })();
+  // major.minor.patch, anything after '-' or '+' ignored; an unknown version counts as the newest.
+  const atLeast = (version, wanted) => {
+    if (!version) return true;
+    const parts = (v) => String(v).split(/[-+]/)[0].split('.').map((x) => (/^\d+$/.test(x) ? Number(x) : 0));
+    const a = parts(version);
+    const b = parts(wanted);
+    for (let i = 0; i < 3; i++) if ((a[i] || 0) !== (b[i] || 0)) return (a[i] || 0) > (b[i] || 0);
+    return true;
+  };
+  // Since 0.17.0 the page's loader starts a small boot module, which dispatches
+  // TrunkApplicationStarted and only then downloads the app itself (app/, about 15 MB): its drop
+  // target comes when that download is done, 15 s after the start on an 8 Mbit/s line. Up to
+  // 0.16.0 the loader started the whole app, and only the preset storage came in between.
+  const BOOT_MODULE = atLeast(appVersion, '0.17.0');
+
   // Preset files open no document (preset_files_ui.rs, PRESET_EXTS, and the Preset Manager's own
   // .pcpresets): a brush named like the image must not block its saves.
   const PRESET = /\.(abr|grd|aco|ase|kys|psp|pcpresets)$/i;
@@ -175,8 +198,9 @@
         return null;
       }
     },
-    // PhotoCraft waits up to 10 s for its preset storage (IndexedDB) before it takes drops.
-    dropTargetTimeout: 15000,
+    // PhotoCraft waits up to 10 s for its preset storage (IndexedDB) before it takes drops; since
+    // 0.17.0 the app's download comes before that, so it may take as long as the whole start.
+    dropTargetTimeout: BOOT_MODULE ? Math.max(15000, startupTimeout) : 15000,
     // Save As on the web: the opened name with the extension replaced, lower case (file_dialog.rs).
     savedName(name) {
       return stem(name) + (/\.pdn$/i.test(name) ? '.pcraft' : '.psd');

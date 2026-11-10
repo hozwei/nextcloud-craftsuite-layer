@@ -14,6 +14,14 @@ Each GitHub release takes its text from the section whose heading matches the ve
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-11-10
+
+### Changed
+
+- No changes to the app. Released together with translators and hosting tools 0.6.0, with which
+  PhotoCraft 0.17.0 and later start again (the hosting copies a snippet their release lacks) and
+  the PhotoCraft adapter waits for the app's download after its start.
+
 ## [0.5.9] - 2026-11-09
 
 ### Changed

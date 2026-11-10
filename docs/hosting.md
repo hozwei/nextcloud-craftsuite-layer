@@ -48,9 +48,10 @@ https://craft.example.com/photocraft/
 
 Serve each web build's folder as it was unpacked. The pages load more than `index.html`, the
 JavaScript glue and the `.wasm`, all through relative URLs: FilmCraft loads `audio-worklet.js`
-at start, EffectCraft `worker.js`, `audio-worklet.js` and a script under `snippets/`, and
-LightCraft its font `lightcraft_zh_hans.otf` (and `worker.js`, except with `workers=0`, which its
-adapter sets).
+at start, EffectCraft `worker.js`, `audio-worklet.js` and a script under `snippets/`, PhotoCraft
+(0.17.0 and later) the app from `app/`, with a snippet that the hosting must copy there first
+([Snippets a release lacks](#snippets-a-release-lacks)), and LightCraft its font
+`lightcraft_zh_hans.otf` (and `worker.js`, except with `workers=0`, which its adapter sets).
 
 The exception is LightCraft. Its release zip (0.6.0) also holds the leftovers of its Cargo build,
 which the page never loads and a hosting must not serve: `build/` (about 23 MB), `deps/` (about
@@ -93,8 +94,9 @@ real one: not one inside an HTML comment, and not a `<header>` tag):
   to change them. A value that is not a positive, finite number means the default. See
   [Startup timeout](#startup-timeout) for the one that some apps need.
 - Change nothing else, except a service worker that the build ships (see
-  [Service workers](#service-workers)). The integrity attributes in `index.html` stay valid,
-  because the files they cover are unchanged.
+  [Service workers](#service-workers)) and a snippet the release lacks (see
+  [Snippets a release lacks](#snippets-a-release-lacks)). The integrity attributes in
+  `index.html` stay valid, because the files they cover are unchanged.
 - Precompressed copies of a changed file (`index.html.gz`, `index.html.br`; LightCraft's release
   ships both) would serve the old content. Compress after injecting; the injector writes a new
   `.gz` of each file it changes and removes a `.br`, which it cannot write.
@@ -125,6 +127,11 @@ tag:
   compressed, it fits into 60 seconds down to about 2 Mbit/s. Give it 180000 too if it is
   served uncompressed (then it needs about 6 Mbit/s) or the hosting's users have slow
   connections.
+- **PhotoCraft (0.17.0 and later): only if needed.** A small boot module starts first and then
+  downloads the app itself (14.8 MB in 0.22.0, already compressed), and the app takes files only
+  after that. Its adapter therefore waits for the drop target as long as the startup timeout
+  (`the app registered no drop target` otherwise): 60 seconds fit down to about 2 Mbit/s. Give it
+  180000 if the hosting's users have slower connections.
 - **SoundCraft: no option.** Its loader does not hold back `load` either, but its `.wasm` is
   smaller (15.5 MB, 5.9 MB with gzip, in 0.7.0): served compressed, it fits into 60 seconds down
   to about 0.8 Mbit/s.
@@ -171,6 +178,26 @@ injector does:
 Serve `sw.js` with `Cache-Control: no-cache` (as EffectCraft's `HOSTING.md` asks; the nginx
 template does). Browsers fetch a service worker's script past the HTTP cache when they check it,
 but other caches in between may not.
+
+## Snippets a release lacks
+
+wasm-bindgen's glue imports the JavaScript snippets of its crates relative to itself, as
+`./snippets/<crate>-<hash>/<file>.js`. Since 0.17.0, PhotoCraft's release has two glue files: a
+boot module at its root, with `snippets/` next to it, and the app's glue in `app/`, without the
+snippets it imports
+([storytold/photocraft#10017](https://github.com/storytold/photocraft/issues/10017), fix
+proposed in storytold/photocraft#10248). The browser gets a 404 for
+`app/snippets/eframe-<hash>/inline0.js` (or `index.html` from a server with a fallback, which it
+refuses as a module), and PhotoCraft stays at "Loading PhotoCraft…".
+
+The file the app's glue imports is the one at the root: both glue files come from the same
+crates. So `inject-translator.sh` copies it: for a `.js` directly in a subfolder of the build that
+imports `./snippets/<path>`, missing next to it, it copies `snippets/<path>` from the build's
+root. It never replaces a file the release has (once a release ships its snippets, nothing is
+copied), never writes through a symbolic link, and warns about an import that the root lacks too.
+`--check` reports a snippet still to be copied; `--remove` leaves the copies, which the app needs
+with or without the layer. Another hosting does the same after unpacking, or serves
+`app/snippets/` from `snippets/`.
 
 ## Headers
 
@@ -480,6 +507,9 @@ page frames the app, so:
 - [ ] `--startup-timeout 180000` for LightCraft and EffectCraft, the same on every run
 - [ ] A service worker the build ships (EffectCraft's `sw.js`) is replaced by one that removes
   itself (`inject-translator.sh` does it; `--check` reports one that is still the app's own)
+- [ ] PhotoCraft 0.17.0 and later: `app/snippets/` has the snippet the app's glue imports
+  (`inject-translator.sh` copies it from `snippets/`, see
+  [Snippets a release lacks](#snippets-a-release-lacks))
 - [ ] `data-allowed-origins` and `frame-ancestors` list the same Nextcloud origins
 - [ ] No `X-Frame-Options`
 - [ ] `immutable` only on `*.js` and `*.wasm` with a content hash in the name; `no-cache` on

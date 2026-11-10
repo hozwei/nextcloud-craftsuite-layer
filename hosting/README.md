@@ -53,6 +53,16 @@ What it does with the folder (the one that holds the app's `index.html`):
    `index.html` or translator would reach browsers that have it only with the app's next release
    ([docs/hosting.md](../docs/hosting.md#service-workers)). The original stays as
    `craftsuite-layer/sw.js.orig`. The app then no longer starts offline from the hosting.
+5. Copies a JavaScript snippet that the release lacks where a module imports it: wasm-bindgen's
+   glue imports the snippets of its crates relative to itself (`./snippets/<crate>-<hash>/…`),
+   and PhotoCraft 0.17.0 and later moved the app's glue to `app/photocraft-web.js` without them,
+   so the app never starts
+   ([storytold/photocraft#10017](https://github.com/storytold/photocraft/issues/10017)). For a
+   `.js` directly in a subfolder that imports `./snippets/<path>`, missing there, the script
+   copies `snippets/<path>` from the folder's root, where the release has the same file for its
+   boot module. It never replaces a file the release has, so it does nothing once a release ships
+   them, and never writes through a symbolic link. It warns about an import that the root lacks
+   too.
 
 ```html
 <head>
@@ -68,7 +78,7 @@ What it does with the folder (the one that holds the app's `index.html`):
 | `--startup-timeout` | Milliseconds (1 to 2147483647) after the page's `load` event for the app to start, written as `data-startup-timeout`; without it the translator's default of 60000 applies. 180000 for LightCraft and EffectCraft, see below. |
 | `-t`, `--translators` | Folder with `core.js` and the adapters. Default: `$CRAFTSUITE_TRANSLATORS`, else `../translators` next to the script. |
 | `-c`, `--check` | Change nothing; exit 0 if the folder is up to date, 1 if not. For monitoring. |
-| `-r`, `--remove` | Remove the tags again and put back the app's own `sw.js` from `craftsuite-layer/sw.js.orig`; the app then works as without the layer. `craftsuite-layer/` stays in place. On a folder not named `<app>-web-<version>` (a served `www/<app>`, for example), give `--app` too; the version is not needed. |
+| `-r`, `--remove` | Remove the tags again and put back the app's own `sw.js` from `craftsuite-layer/sw.js.orig`; the app then works as without the layer. `craftsuite-layer/` and copied snippets (step 5, the app needs them) stay in place. On a folder not named `<app>-web-<version>` (a served `www/<app>`, for example), give `--app` too; the version is not needed. |
 | `-q`, `--quiet` | No message on success. |
 | `-h`, `--help` | The options and exit codes. |
 
@@ -88,7 +98,9 @@ also a 16 MB font) from a module script, which does not hold back the page's `lo
 translator's startup timer (60 s from `load`) runs during the download. On a slow first load the
 host then reports `the app did not start in time` for an app that is still loading, and `ready`
 once it has started. Pass `--startup-timeout 180000` for `lightcraft` and `effectcraft`; FilmCraft
-needs it only when its `.wasm` is served uncompressed or for users on slow connections
+needs it only when its `.wasm` is served uncompressed or for users on slow connections, and
+PhotoCraft 0.17.0 and later, which download the app after their start, only for users below about
+2 Mbit/s
 ([docs/hosting.md](../docs/hosting.md#startup-timeout)). The script has no per-app defaults.
 
 **Run again**, the script changes nothing and says `already up to date`. With other origins,
@@ -96,7 +108,8 @@ another version, another startup timeout or other translator files it replaces i
 files. It writes the whole block each time, so pass the same `--startup-timeout` on every run,
 `--check` included: without it, the attribute is removed (and `--check` exits 1). It refuses to
 touch `craftsuite-layer` tags it did not write. A `sw.js` that is the app's own again (a release
-unpacked over the folder) is replaced again, and the new original kept.
+unpacked over the folder) is replaced again, and the new original kept. `--check` reports a
+snippet that is still to be copied.
 
 **Precompressed files.** If the folder already has `index.html.gz`, `sw.js.gz` or
 `craftsuite-layer/*.js.gz` (for nginx `gzip_static`), the script writes them again for the files
@@ -110,7 +123,7 @@ injecting.
 | 0 | Done, or already up to date | Go on: compress, switch to the new version. |
 | 1 | `--check` only: not up to date | Run without `--check`. |
 | 2 | Usage error or invalid setting (origin, app id, version, startup timeout) | Fix the configuration. Keep the current version. |
-| 3 | Missing or unusable input: folder, `index.html`, `craftsuite-layer/`, `core.js` (a wrong `--translators` or `$CRAFTSUITE_TRANSLATORS`), an unreadable adapter, a `sw.js` that is not a regular file; no working `cksum`, `sha256sum` or `md5sum` | Fix the setup. Keep the current version. |
+| 3 | Missing or unusable input: folder, `index.html`, `craftsuite-layer/`, `core.js` (a wrong `--translators` or `$CRAFTSUITE_TRANSLATORS`), an unreadable adapter, a `sw.js` that is not a regular file, an unreadable `.js` in a subfolder; no working `cksum`, `sha256sum` or `md5sum` | Fix the setup. Keep the current version. |
 | 4 | `index.html` cannot take the tags: no `<head>`, or `craftsuite-layer` tags the script did not write | The release changed its layout. Keep the current version and report it. |
 | 5 | Writing failed (permissions, disk space) | Keep the current version. |
 | 6 | `no adapter for <app>`: this version of the layer does not support the app | The app can be served without the layer (it works, but Nextcloud cannot open files in it), or keep the current version until there is an adapter. |
@@ -123,7 +136,7 @@ The script needs only POSIX `sh` and `awk` and a few standard tools: `cat`, `chm
 precompressed files. CI runs ShellCheck on it and its tests under dash, `bash --posix` and
 BusyBox sh with BusyBox's tools (`--busybox`), on made-up pages and on the web builds of all
 apps that `npm run craft:fetch` fetched, in the versions `tested` in `apps.json` (EffectCraft's
-with its service worker).
+with its service worker, PhotoCraft's with the snippet its glue imports).
 
 ### In a release updater
 
@@ -137,7 +150,7 @@ repository: one pinned in its configuration, moving to a newer one deliberately 
 # Once per layer version: the bundle unpacks to craftsuite-layer-hosting-<version>/, with
 # hosting/ and translators/ side by side, so the script finds the translators by itself, and
 # apps.json, the apps this release supports (docs/hosting.md#the-app-list).
-layer_version=0.5.9
+layer_version=0.6.0
 base=https://github.com/hozwei/nextcloud-craftsuite-layer/releases/download/v$layer_version
 cd /opt
 curl -fL --remote-name-all "$base/craftsuite-layer-hosting-$layer_version.tar.gz" "$base/SHA256SUMS"
@@ -228,7 +241,7 @@ template serves every file in an app's folder: remove LightCraft's Cargo leftove
 with `pdfcraft-web-0.6.0/` injected next to the bundle as in the repository's README:
 
 ```sh
-cd craftsuite-layer-hosting-0.5.9/hosting
+cd craftsuite-layer-hosting-0.6.0/hosting
 cp compose.example.yaml compose.yaml
 mkdir -p www/releases
 mv ../../pdfcraft-web-0.6.0 www/releases/

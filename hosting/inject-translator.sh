@@ -15,7 +15,9 @@
 # inserts their two script tags directly after the first real <head> tag of <folder>/index.html
 # (not one inside an HTML comment, not <header>). A service worker at the build's root
 # (<folder>/sw.js, as EffectCraft ships one) is replaced by one that serves nothing and removes
-# itself; the original is kept as <folder>/craftsuite-layer/sw.js.orig. Run again, it changes
+# itself; the original is kept as <folder>/craftsuite-layer/sw.js.orig. A wasm-bindgen snippet
+# that a module in a subfolder imports, but the release has only at its root, is copied next to
+# the module (PhotoCraft 0.17.0 and later, see "Snippets the release lacks"). Run again, it changes
 # nothing; with other origins, another version, another startup timeout or other translator
 # files, it replaces its own tags and files.
 # Plain POSIX sh and awk: runs with dash, BusyBox ash, bash and others. Run with --help for the
@@ -56,7 +58,7 @@ Options:
   -c, --check                 Change nothing. Exit 0 if FOLDER is up to date, 1 if not.
   -r, --remove                Remove the two script tags again and put back the app's own
                               service worker (the app then works as without the layer).
-                              Leaves FOLDER/craftsuite-layer/ in place.
+                              Leaves FOLDER/craftsuite-layer/ and copied snippets in place.
   -q, --quiet                 No message on success.
   -h, --help                  Show this help.
 
@@ -65,8 +67,8 @@ Exit codes:
   1  --check: FOLDER is not up to date
   2  usage error or invalid setting (origin, app id, version, startup timeout)
   3  missing or unusable input: FOLDER, FOLDER/index.html, FOLDER/craftsuite-layer, core.js
-     (see --translators), an unreadable adapter, a FOLDER/sw.js that is not a regular file, or
-     no working cksum, sha256sum or md5sum
+     (see --translators), an unreadable adapter, a FOLDER/sw.js that is not a regular file, an
+     unreadable .js in a subfolder of FOLDER, or no working cksum, sha256sum or md5sum
   4  index.html cannot take the tags: no <head> tag, or craftsuite-layer tags this script did
      not write
   5  writing failed (permissions, disk space)
@@ -83,6 +85,11 @@ A service worker that the build ships as FOLDER/sw.js would serve index.html and
 from its cache, so that changes to them reach browsers only with the app's next release. It is
 replaced by one that serves nothing, deletes the app's caches and unregisters itself; the
 original is kept as FOLDER/craftsuite-layer/sw.js.orig.
+
+A module directly in a subfolder (such as FOLDER/app/x.js) that imports ./snippets/<path>, which
+the release lacks next to it but has as FOLDER/snippets/<path>, would not load, and the app would
+not start (PhotoCraft 0.17.0 and later). That file is copied next to the module; a file the
+release has is never replaced.
 EOF
 }
 
@@ -307,6 +314,67 @@ if [ -e "$sw" ] || [ -h "$sw" ]; then
   fi
 fi
 
+# --- Snippets the release lacks ---------------------------------------------------------------
+# wasm-bindgen's glue imports the JavaScript snippets of its crates relative to itself, as
+# ./snippets/<crate>-<hash>/<file>.js. A release that puts its app's glue into a subfolder without
+# them never starts: PhotoCraft 0.17.0 and later ship app/photocraft-web.js, but the snippet it
+# imports only at the build's root, where the boot module imports the same file from
+# (storytold/photocraft#10017). Where the root has the file, it is copied next to the glue. Only
+# for a .js directly in a subfolder of the build, never over a file the release has (so it stops
+# once a release ships them), never through a symbolic link. --remove leaves the copies: they
+# belong to the app, not to the translator.
+# Prints each <path> that a file imports as './snippets/<path>' or "./snippets/<path>", once, if
+# its parts are names (no '.', '..' or empty parts).
+# shellcheck disable=SC2016 # awk program, not shell
+list_snippets='
+BEGIN { sq = sprintf("%c", 39); re = "[.]/snippets/[-A-Za-z0-9._/]+[.]js" }
+{
+  s = $0
+  while (match(s, re)) {
+    q = RSTART > 1 ? substr(s, RSTART - 1, 1) : ""
+    p = substr(s, RSTART + 11, RLENGTH - 11)
+    after = substr(s, RSTART + RLENGTH, 1)
+    s = substr(s, RSTART + RLENGTH)
+    if ((q != "\"" && q != sq) || after != q || (p in seen)) continue
+    n = split(p, part, "/"); ok = 1
+    for (i = 1; i <= n; i++) if (part[i] !~ /^[A-Za-z0-9_][-A-Za-z0-9._]*$/) ok = 0
+    if (ok) { seen[p] = 1; print p }
+  }
+}'
+# no_link BASE REL: no part of BASE/REL below BASE is a symbolic link.
+no_link() {
+  nl_at=$1
+  nl_rest=$2
+  while :; do
+    nl_at=$nl_at/${nl_rest%%/*}
+    [ ! -h "$nl_at" ] || return 1
+    case $nl_rest in */*) nl_rest=${nl_rest#*/} ;; *) return 0 ;; esac
+  done
+}
+# The copies due, as <sub>/snippets/<path> (names without blanks or wildcards, see above).
+snippets_due=
+[ "$mode" = remove ] || for js in "$dir"/*/*.js; do
+  if [ ! -f "$js" ] || [ -h "$js" ]; then continue; fi
+  sub=${js%/*}
+  sub=${sub##*/}
+  case $sub in craftsuite-layer | snippets | *[!A-Za-z0-9._-]*) continue ;; esac
+  [ ! -h "$dir/$sub" ] || continue
+  [ -r "$js" ] || die 3 "cannot read $js"
+  imports=$(LC_ALL=C awk "$list_snippets" "$js") || die 3 "could not read $js (awk failed)"
+  for p in $imports; do
+    t=$sub/snippets/$p
+    if [ -e "$dir/$t" ] || [ -h "$dir/$t" ]; then continue; fi
+    case " $snippets_due " in *" $t "*) continue ;; esac
+    if [ ! -f "$dir/snippets/$p" ] || ! no_link "$dir" "snippets/$p"; then
+      warn "$sub/${js##*/} imports ./snippets/$p, which the release lacks, also as snippets/$p: $app may not start"
+    elif ! no_link "$dir" "$t"; then
+      warn "$sub/${js##*/} imports ./snippets/$p: not copied to $t, a symbolic link is in the way"
+    else
+      snippets_due="$snippets_due${snippets_due:+ }$t"
+    fi
+  done
+done
+
 if [ "$mode" != remove ]; then
   if [ -z "$translators" ]; then
     case $0 in
@@ -416,8 +484,9 @@ noeol=0
 [ -n "$(tail -c 1 "$index" | tr -d '\n')" ] && noeol=1
 tmp=$dir/.index.html.craftsuite-$$
 sw_tmp=$dir/.sw.js.craftsuite-$$
+snip_tmp=$dir/.snippet.craftsuite-$$
 # shellcheck disable=SC2317,SC2329 # called by the EXIT trap (the code differs between versions)
-cleanup() { rm -f "$tmp" "$tmp.len" "$sw_tmp" "$layer/.core.js.craftsuite-$$" "$layer/.$app.js.craftsuite-$$" "$layer/.sw.js.orig.craftsuite-$$"; }
+cleanup() { rm -f "$tmp" "$tmp.len" "$sw_tmp" "$snip_tmp" "$layer/.core.js.craftsuite-$$" "$layer/.$app.js.craftsuite-$$" "$layer/.sw.js.orig.craftsuite-$$"; }
 trap cleanup EXIT
 trap 'exit 130' HUP INT TERM
 
@@ -466,7 +535,7 @@ sw_due=0
 case $sw_state in app | outdated) [ "$mode" = remove ] || sw_due=1 ;; esac
 
 if [ "$mode" = check ]; then
-  if [ "$rc" = 10 ] && [ -z "$changed_files" ] && [ "$sw_due" = 0 ]; then
+  if [ "$rc" = 10 ] && [ -z "$changed_files" ] && [ "$sw_due" = 0 ] && [ -z "$snippets_due" ]; then
     say "$app $ver: up to date in $dir"
     exit 0
   fi
@@ -474,11 +543,19 @@ if [ "$mode" = check ]; then
   [ -z "$changed_files" ] || printf '%s: %s %s: craftsuite-layer/ is not up to date:%s\n' "$me" "$app" "$ver" "$changed_files"
   [ "$sw_state" != app ] || printf "%s: %s %s: sw.js is the app's own service worker\n" "$me" "$app" "$ver"
   [ "$sw_state" != outdated ] || printf '%s: %s %s: sw.js is not up to date\n' "$me" "$app" "$ver"
+  for t in $snippets_due; do
+    printf '%s: %s %s: %s is missing (the release has it as snippets/%s)\n' "$me" "$app" "$ver" "$t" "${t#*/snippets/}"
+  done
   exit 1
 fi
 
-# Translator files first, then the service worker, then index.html: a page never refers to files
-# that are not there.
+# The snippets the app imports first, then the translator files, then the service worker, then
+# index.html: a page never refers to files that are not there.
+for t in $snippets_due; do
+  { mkdir -p "$dir/${t%/*}" && cp "$dir/snippets/${t#*/snippets/}" "$snip_tmp" && chmod 644 "$snip_tmp" &&
+    mv -f "$snip_tmp" "$dir/$t"; } 2>/dev/null || die 5 "cannot write $dir/$t"
+  recompress "$dir/$t"
+done
 if [ -n "$changed_files" ]; then
   mkdir -p "$layer" || die 5 "cannot create $layer"
   for f in $changed_files; do
@@ -524,10 +601,13 @@ fi
 if [ "$mode" = remove ]; then
   if [ "$rc" = 0 ]; then say "$app: removed the translator tags from $index"; else say "$app: no translator tags in $index"; fi
   [ "$sw_restored" = 0 ] || say "$app: put back the app's service worker $sw"
-elif [ "$rc" = 10 ] && [ -z "$changed_files" ] && [ "$sw_due" = 0 ]; then
+elif [ "$rc" = 10 ] && [ -z "$changed_files" ] && [ "$sw_due" = 0 ] && [ -z "$snippets_due" ]; then
   say "$app $ver: already up to date in $dir (allowed origins: $allowed${startup:+; startup timeout: $startup ms})"
 else
   say "$app $ver: translator added to $dir (allowed origins: $allowed${startup:+; startup timeout: $startup ms})"
   [ "$sw_state" != app ] || say "$app $ver: replaced the app's service worker $sw with one that removes itself (original: $sw_orig)"
+  for t in $snippets_due; do
+    say "$app $ver: copied snippets/${t#*/snippets/} to $t, which the release lacks"
+  done
 fi
 exit 0

@@ -18,7 +18,8 @@
 //                 'Untitled-1.psd', are new files. The blank of the "+ New" entry in Files opens,
 //                 and its first Ctrl+S (no edit) arrives as the document 'blank.psd'
 //   startup      a preset storage (IndexedDB) that never answers delays PhotoCraft's drop target
-//                 by 10 s: the host gets no error, and the file opens once the app takes drops
+//                 by 10 s, and since 0.17.0 a download of the app held back for 16 s by as much
+//                 again: the host gets no error, and the file opens once the app takes drops
 //   language      the host's de: ready reports de, PhotoCraft's stored preference and the
 //                 adapter's mark are de, and PhotoCraft shows German (its command palette runs
 //                 'Öffnen', File > Open, which opens the file picker). A language the user picked
@@ -159,10 +160,11 @@ type Box = { x: number; y: number; width: number; height: number };
 // The File menu from its top down to Save, in the order PhotoCraft draws it: the File rows of
 // crates/ui-egui/src/menu_catalog.rs, with New from Clipboard after New and the Open Recent
 // submenu after Open As (menus.rs menu_items); '---' is a separator. A release that adds a row
-// above Save moves Save down: add the row here (0.7.0 added Open EXR Parts…).
+// above Save moves Save down: add the row here (0.7.0 added Open EXR Parts…, a release after
+// 0.16.0 Open as Smart Object…).
 const FILE_MENU = {
-  rows: ['New…', 'New from Clipboard', 'Open…', 'Open As…', 'Open Recent', 'Open EXR Parts…', '---',
-    'Close', 'Close All', 'Close Others', '---', 'Save'],
+  rows: ['New…', 'New from Clipboard', 'Open…', 'Open As…', 'Open Recent', 'Open as Smart Object…',
+    'Open EXR Parts…', '---', 'Close', 'Close All', 'Close Others', '---', 'Save'],
   // The top of the first row in the frame: below the menu bar, the menu's margin and the
   // scroll-up arrow (16 px and 6 px spacing, menu_nav.rs level) that a menu taller than the frame
   // gets, as the File menu has been since 0.7.0 (in 0.6.0 it fit, and its first row began at 35).
@@ -562,9 +564,19 @@ test('another type: an opened PNG is saved as <stem>.psd, the document; a same-n
   });
 });
 
-test('startup: a preset storage that never answers delays the drop target, the host gets no error', async ({ page }) => {
+test('startup: a slow download and a preset storage that never answers delay the drop target, the host gets no error', async ({ page }) => {
   // PhotoCraft waits up to 10 s for its brush presets (IndexedDB) before it registers its drop
   // target (photocraft-web web.rs, indexed_presets.rs). Here the storage never answers.
+  // Since 0.17.0 a boot module dispatches TrunkApplicationStarted before the app itself
+  // (app/*.part-*) downloads. Here that download is held back for 16 s, as on a line of about
+  // 8 Mbit/s: with the adapter's 15 s of 0.16.0 the host got 'the app registered no drop target'.
+  test.slow();
+  let held = 0;
+  await page.route(/\/photocraft\/app\/[^/?]+\.part-[a-z]+(\?|$)/, async (route) => {
+    held++;
+    await new Promise((resolve) => setTimeout(resolve, 16_000));
+    await route.continue();
+  });
   await page.addInitScript((appOrigin) => {
     if (location.origin !== appOrigin) return;
     const open = IDBFactory.prototype.open;
@@ -580,8 +592,13 @@ test('startup: a preset storage that never answers delays the drop target, the h
   const loaded = Date.now();
   await page.goto(`${HOST}?target=photocraft&name=${PROBE_PSD}`);
   await untilHost(page, 'the translator delivered the file (or reported an error)',
-    (h) => h.state === 'delivered' || h.errors.length > 0, 60_000);
-  expect(Date.now() - loaded, 'the storage never answered, so PhotoCraft waited for it').toBeGreaterThanOrEqual(9_000);
+    (h) => h.state === 'delivered' || h.errors.length > 0, 90_000);
+  const served = await page.evaluate(() => (window as HostWindow).CRAFTSUITE_TEST?.versions?.photocraft ?? '');
+  const [major, minor] = served.split('.').map(Number);
+  const bootModule = major > 0 || minor >= 17;
+  expect(held > 0, 'the app\'s download (app/*.part-*, since 0.17.0) was held back').toBe(bootModule);
+  expect(Date.now() - loaded, 'PhotoCraft waited for the storage that never answered (and the download)')
+    .toBeGreaterThanOrEqual(bootModule ? 20_000 : 9_000);
   expect.soft((await hostRecord(page)).errors, 'errors the host got (the drop target came after the core\'s default 3 s)').toEqual([]);
   expect.soft(await messageTypes(page), 'message types the host got, in order').toEqual(['hello', 'ready', 'delivered']);
 });

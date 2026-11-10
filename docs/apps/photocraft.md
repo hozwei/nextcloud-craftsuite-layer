@@ -29,6 +29,18 @@ there to notice.
   `indexed_presets.rs:13`). After that, eframe starts and registers its drop listener on
   `canvas#photocraft_canvas` (`web.rs:25`, `75-103`). Normally the gap is 0.1 to 0.2 s; with a
   storage that never answers it was 10.2 s.
+- Since 0.17.0 the loader starts a small boot module (`photocraft-web-boot-<hash>.js`, about
+  100 KB of `.wasm`) and dispatches `TrunkApplicationStarted` once that runs. The boot module
+  then downloads the app itself (`app/parts.txt` names its parts, 14.8 MB in 0.22.0, already
+  compressed) and starts it from `app/photocraft-web.js`; the preset storage and the drop target
+  come after that. On a throttled line (Chromium, 0.22.0) the drop target came 0.4 s after the
+  start at 1000 Mbit/s, 2.7 s at 50, 7.7 s at 16 and 15.0 s at 8 Mbit/s.
+- The release lacks the snippet that `app/photocraft-web.js` imports
+  (`./snippets/eframe-<hash>/inline0.js`, relative to `app/`); it has the same file only at its
+  root, for the boot module. Without it the app never starts and the page stays at "Loading
+  PhotoCraft…" ([storytold/photocraft#10017](https://github.com/storytold/photocraft/issues/10017),
+  0.17.0 to 0.22.0 at least). `inject-translator.sh` copies it to `app/snippets/`
+  ([hosting.md](../hosting.md#snippets-a-release-lacks)), and the test server serves it from there.
 - It renders with WebGPU and falls back to WebGL2 on its own (`HOSTING.md` of the web build). In
   headless Chromium and in WebKit the tests run on WebGL2.
 
@@ -187,7 +199,10 @@ Why:
 - **A later drop target.** The adapter sets `dropTargetTimeout` to 15 s: PhotoCraft registers its
   drop target only after its preset storage answered or 10 s passed. With the core's default of
   3 s, a slow storage would first report `the app registered no drop target` to the host, and
-  then the file would open anyway. A `data-drop-target-timeout` on the script tag still wins.
+  then the file would open anyway. Since 0.17.0 the app's download comes in between as well
+  (see [Startup](#what-the-web-build-does)), so from that version (or with no
+  `data-app-version`) the adapter waits as long as the startup timeout: `data-startup-timeout`,
+  else 60 s, at least 15 s. A `data-drop-target-timeout` on the script tag still wins.
 
 ## File types
 
@@ -364,7 +379,12 @@ Krita (`kra`), new in 0.8.0, are not offered either; they are untested.
 - The app reads `cpu` and `webgl` anywhere in its query string as renderer flags
   (`web.rs:55-63`): the app URL must not contain those letters in its query by accident.
 - The `.wasm` file of 0.8.2 has 24,164,396 bytes (about 11.1 MB with gzip, 9.6 MB with Brotli at
-  quality 6). Serve it compressed and with a long cache time, as `HOSTING.md` says.
+  quality 6). Serve it compressed and with a long cache time, as `HOSTING.md` says. Since 0.17.0
+  the app comes as already compressed parts in `app/` (14.8 MB in 0.22.0), loaded after the
+  start; for users below about 2 Mbit/s, pass `--startup-timeout 180000`
+  ([hosting.md](../hosting.md#startup-timeout)).
+- Since 0.17.0 the hosting must copy the snippet the app imports into `app/snippets/` (see
+  [What the web build does](#what-the-web-build-does)); `inject-translator.sh` does it.
 - A `.wasm` file that is missing or cannot be compiled makes the loader fail, and the host gets
   `the app failed to load: ...` (see [protocol.md](../protocol.md#errors)).
 - Preferences live in the frame's `localStorage` (`photocraft.preferences`), brush presets in its
@@ -389,7 +409,7 @@ contract tests; the canary runs them apart from the `language` test (tagged `@la
 |---|---|
 | `contract` | An allowed host, `probe.psd` opened: the handshake with the served app version, then the open. An edit (Invert) saved with Ctrl+S arrives as the document `probe.psd`, a PSD with the edit; a second edit (Desaturate) saved with Save As is the document again. Quick Export as PNG arrives as an export `probe.png`. Nothing becomes a browser download, also not after the deadlines for the host's confirmation and result. |
 | `another type` | `probe.png` opened: Ctrl+S arrives as the document `probe.psd` with the open's `openId`, and so does the second Ctrl+S; Quick Export as PNG, under the opened file's own name, is an export. A different `probe.psd` opened with File > Open, and in Chromium one dropped from the desktop on the menu bar (where it opens as a tab; on the canvas 0.10.0 places it as a layer), saves as an export. `Untitled-1.png` opened (the PNG fixture under that name): its own save and that of a new document (File > New, Enter), both `Untitled-1.psd`, arrive as exports. The blank of the "+ New" entry in Files (`craftsuite_layer/assets/blank.psd`) opens, and its first Ctrl+S, without an edit, arrives as the document `blank.psd` (no `follows`) and not as a browser download. |
-| `startup` | An IndexedDB that never answers: PhotoCraft takes drops only after 10 s, and the host gets no error, then `ready` and `delivered`. |
+| `startup` | An IndexedDB that never answers, and since 0.17.0 a download of the app (`app/*.part-*`) held back for 16 s: PhotoCraft takes drops only after 10 s (26 s), and the host gets no error, then `ready` and `delivered`. |
 | `language` | The host's `de` (`lang=de`): `ready` reports `de`, the stored `interface.language` and the adapter's mark are `de`, and the palette runs `Öffnen` (File > Open in German), which opens the file picker. Then, with no PhotoCraft running, `fr` is stored as the user's own choice, and PhotoCraft starts again with the host's `de`: `ready` reports `null`, `fr` stays, and the palette runs `Ouvrir` (File > Open in French). |
 | `ui` (`@ui`) | The paths that need pointer clicks: File > Save in the menu bar saves the document; the Export button of the Export As dialog exports `probe.png`; the first name on About > Contributors (a link, with target `_blank` since 0.7.0) opens a new window and the editor stays. |
 
@@ -436,9 +456,9 @@ When a new release fails the canary:
   language. Sites that host the app should hold the release back until the adapter or the core is
   fixed.
 - **Only the `@ui` test fails.** A menu, dialog or button moved. For File > Save, compare the File
-  rows of `menu_catalog.rs` with `FILE_MENU` (0.7.0 added Open EXR Parts above Save) and check
-  whether the menu still scrolls; re-measure the other positions in `AT` for the paths it
-  reports. The translator is not at fault.
+  rows of `menu_catalog.rs` with `FILE_MENU` (0.7.0 added Open EXR Parts above Save, a release
+  after 0.16.0 Open as Smart Object) and check whether the menu still scrolls; re-measure the
+  other positions in `AT` for the paths it reports. The translator is not at fault.
 - **A command label or shortcut changed upstream.** The palette then runs another command or
   none, and the tests that use it fail: `Quick Export as PNG File` and the shortcuts for Invert,
   Desaturate, Save As, File > Open and File > New in the contract tests, the German and French
