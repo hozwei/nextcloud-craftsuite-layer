@@ -14,6 +14,27 @@ Each GitHub release takes its text from the section whose heading matches the ve
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-11-11
+
+### Added
+
+- TextureCraft (0.5.0 and later): `.tcraft` projects open in it from the action menu and on a
+  click, with TextureCraft's icon (as `application/x-texturecraft`, the type its packaging names),
+  and "+ New" makes a "New TextureCraft project", named like the new file. TextureCraft saves
+  under that name with `_` for spaces and other characters, so a name with them gets its saves in
+  a new file next to the blank. It can start in the language set for it (key
+  `texturecraft_language`, eight languages).
+- MaterialCraft (0.3.0 and later): `.mcraft` projects open in it from the action menu and on a
+  click, with MaterialCraft's icon (as `application/x-materialcraft`), and "+ New" makes a "New
+  MaterialCraft package". It can start in English or Arabic (key `materialcraft_language`).
+
+### Upgrading
+
+- With the address for all apps set, TextureCraft and MaterialCraft get their entries as soon as
+  Nextcloud runs 0.7.0: switch them off (`texturecraft_disabled`, `materialcraft_disabled`) until
+  the hosting serves them. Without that address nothing changes. `occ upgrade` registers the new
+  file types, as on every update.
+
 ## [0.6.0] - 2026-11-10
 
 ### Changed

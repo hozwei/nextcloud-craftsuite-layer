@@ -66,6 +66,9 @@ class FileTypes {
 		'scraftz' => ['application/x-soundcraft-session', null],
 		// FigCraft's packaging names this type (packaging/linux/ai.storyteller.figcraft.mime.xml).
 		'figcraft' => ['application/x-figcraft', null],
+		// TextureCraft's and MaterialCraft's packaging name these types (packaging/linux/*.mime.xml).
+		'tcraft' => ['application/x-texturecraft', null],
+		'mcraft' => ['application/x-materialcraft', null],
 		'dotm' => ['application/vnd.ms-word.template.macroEnabled.12', null],
 	];
 
@@ -84,6 +87,8 @@ class FileTypes {
 		'application/x-effectcraft' => 'file',
 		'application/x-soundcraft-session' => 'file',
 		'application/x-figcraft' => 'file',
+		'application/x-texturecraft' => 'file',
+		'application/x-materialcraft' => 'file',
 	];
 
 	/** Where this app notes the entries it added (JSON: {"mappings": {...}, "aliases": {...}}). */

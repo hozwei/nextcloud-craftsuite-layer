@@ -36,9 +36,10 @@
 //                 the app's blank (assets/; WordCraft's with the time it was made) and Files opens
 //                 it in the app: a PSD in PhotoCraft, a .designcraft in DesignCraft (with the time
 //                 it was made), a .deckcraft in DeckCraft (the same), a .fcproj named otherwise in
-//                 FilmCraft (with that name), a .scraftz in SoundCraft and a .figcraft in FigCraft
-//                 (each typed and with its app's icon), a .docx in WordCraft (with the time it was
-//                 made);
+//                 FilmCraft (with that name), a .scraftz in SoundCraft, a .figcraft in FigCraft, a
+//                 .tcraft named otherwise in TextureCraft (with that name) and a .mcraft in
+//                 MaterialCraft (each typed and with its app's icon), a .docx in WordCraft (with
+//                 the time it was made);
 //                 Back from the editor returns to the folder
 //   shares        for a second user, no administrator: a file shared without permission to
 //                 download has no entry and the editor page refuses it; a read-only share opens,
@@ -73,7 +74,7 @@ const CRAFT = `http://127.0.0.2:${Number(process.env.CRAFTSUITE_PORT_BASE || 870
 // CraftApps::APPS): the settings test restores them all.
 const APPS = Object.keys((JSON.parse(readFileSync(new URL('../../../apps.json', import.meta.url), 'utf8')) as { apps: object }).apps);
 // The apps the settings let start in a chosen language (CraftApps::APPS 'languages').
-const LANGUAGE_APPS = ['pdfcraft', 'photocraft', 'vectorcraft', 'gridcraft', 'cadcraft', 'lightcraft', 'filmcraft', 'effectcraft', 'figcraft'];
+const LANGUAGE_APPS = ['pdfcraft', 'photocraft', 'vectorcraft', 'gridcraft', 'cadcraft', 'lightcraft', 'filmcraft', 'effectcraft', 'figcraft', 'texturecraft', 'materialcraft'];
 // The apps that can be made the default app for all their types (CraftApps::sharedExtensions()).
 const DEFAULT_APPS = ['pdfcraft', 'photocraft', 'vectorcraft', 'wordcraft', 'gridcraft', 'deckcraft', 'lightcraft'];
 const SETTINGS = `${NC}/index.php/settings/admin/craftsuite_layer`;
@@ -536,8 +537,8 @@ test('default app: WordCraft and PdfCraft take the click on their types, the off
 });
 
 test('new files: + New makes a file from a Craft app\'s blank and opens it in the app', async ({ page, request }) => {
-  // Nine Craft apps open in turn: more than the other tests' time on a slow test server.
-  test.setTimeout(360_000);
+  // Eleven Craft apps open in turn: more than the other tests' time on a slow test server.
+  test.setTimeout(480_000);
   const folder = await newFolder(request, {});
   await login(page);
   trackDialogs(page); // leaving an editor page asks once the app has the file
@@ -606,6 +607,25 @@ test('new files: + New makes a file from a Craft app\'s blank and opens it in th
     expect((await folder.get('New FigCraft design.figcraft')).equals(BLANK('blank.figcraft')), 'the blank design').toBe(true);
     expect(await folder.contentType('New FigCraft design.figcraft')).toBe('application/x-figcraft');
     expect(await iconOf(page, 'application/x-figcraft')).toMatch(CRAFT_ICON('figcraft'));
+  });
+
+  await test.step('New TextureCraft project: the blank project named like the file, typed as a TextureCraft project, with TextureCraft\'s icon', async () => {
+    await openFolder(page, folder);
+    await newMenu(page);
+    await createNew(page, 'New TextureCraft project', 'New TextureCraft project.tcraft', 'texturecraft', 'Holzkiste.tcraft');
+    const project = JSON.parse(strFromU8(unzipSync(await folder.get('Holzkiste.tcraft'))['project.json'])) as { name: string };
+    expect(project.name, 'the project named like the file').toBe('Holzkiste');
+    expect(await folder.contentType('Holzkiste.tcraft')).toBe('application/x-texturecraft');
+    expect(await iconOf(page, 'application/x-texturecraft')).toMatch(CRAFT_ICON('texturecraft'));
+  });
+
+  await test.step('New MaterialCraft package: the blank package, typed as a MaterialCraft project, with MaterialCraft\'s icon', async () => {
+    await openFolder(page, folder);
+    await newMenu(page);
+    await createNew(page, 'New MaterialCraft package', 'New MaterialCraft package.mcraft', 'materialcraft');
+    expect((await folder.get('New MaterialCraft package.mcraft')).equals(BLANK('blank.mcraft')), 'the blank package').toBe(true);
+    expect(await folder.contentType('New MaterialCraft package.mcraft')).toBe('application/x-materialcraft');
+    expect(await iconOf(page, 'application/x-materialcraft')).toMatch(CRAFT_ICON('materialcraft'));
   });
 
   await test.step('as the default app, WordCraft has an entry; its .docx carries the time it was made', async () => {

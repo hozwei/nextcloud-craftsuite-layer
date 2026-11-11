@@ -6,7 +6,8 @@
 
 Open files from Nextcloud in storytold's Craft web apps (PdfCraft, PhotoCraft, VectorCraft,
 DesignCraft, WordCraft, GridCraft, DeckCraft, CADCraft, LightCraft, FilmCraft, EffectCraft,
-SoundCraft and FigCraft) and save the results back to Nextcloud, without modifying the apps.
+SoundCraft, FigCraft, TextureCraft and MaterialCraft) and save the results back to Nextcloud,
+without modifying the apps.
 
 [![CI](https://github.com/hozwei/nextcloud-craftsuite-layer/actions/workflows/ci.yml/badge.svg)](https://github.com/hozwei/nextcloud-craftsuite-layer/actions/workflows/ci.yml)
 [![Canary](https://github.com/hozwei/nextcloud-craftsuite-layer/actions/workflows/canary.yml/badge.svg)](https://github.com/hozwei/nextcloud-craftsuite-layer/actions/workflows/canary.yml)
@@ -57,12 +58,15 @@ opens them in the app ([docs/nextcloud-app.md](docs/nextcloud-app.md#new-files))
 | EffectCraft | 0.23.1 | `ecproj` | `ecproj` |
 | SoundCraft | 0.19.0 | `scraftz` | `scraftz` |
 | FigCraft | 0.17.0 | `figcraft` | `figcraft` |
+| TextureCraft | 0.5.0 | `tcraft` | `tcraft` |
+| MaterialCraft | 0.3.0 | `mcraft` | `mcraft` |
 
 LightCraft develops photos and exports them as new files; it never saves a photo back, and its
 edits are gone when the editor closes. FilmCraft and EffectCraft open their project files; a
 project refers to its media, which are not in the file. SoundCraft opens the sessions it saves in
 the browser, a `.scraftz` bundle with the audio inside (from SoundCraft 0.6.1 on). FigCraft opens and
-saves its own `.figcraft` files (from FigCraft 0.12.1 on). Each app's page in
+saves its own `.figcraft` files (from FigCraft 0.12.1 on), TextureCraft its `.tcraft` projects
+and MaterialCraft its `.mcraft` projects. Each app's page in
 [docs/apps/](docs/apps/) says what saves where.
 
 Files are matched by extension, in any letter case. The tested version is the Craft release the
@@ -103,7 +107,7 @@ The app is not in the Nextcloud App Store. Each
 | `SHA256SUMS` | The checksums of both |
 
 ```sh
-v=0.6.0
+v=0.7.0
 base=https://github.com/hozwei/nextcloud-craftsuite-layer/releases/download/v$v
 curl -fL --remote-name-all "$base/craftsuite_layer-$v.tar.gz" \
   "$base/craftsuite-layer-hosting-$v.tar.gz" "$base/SHA256SUMS"
@@ -334,7 +338,7 @@ sales sample and FilmCraft's demo project with the files derived from it (see `R
 
 This project is not affiliated with, endorsed by or sponsored by storytold or Nextcloud GmbH.
 PdfCraft, PhotoCraft, VectorCraft, DesignCraft, WordCraft, GridCraft, DeckCraft, CADCraft,
-LightCraft, FilmCraft, EffectCraft, SoundCraft, FigCraft, ArtCraft and Nextcloud are names or trademarks of
+LightCraft, FilmCraft, EffectCraft, SoundCraft, FigCraft, TextureCraft, MaterialCraft, ArtCraft and Nextcloud are names or trademarks of
 their respective owners and are used here only to say what this project works with.
 
 The Craft apps are not part of this repository. They are developed by storytold in their own

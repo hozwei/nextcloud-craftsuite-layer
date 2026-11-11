@@ -105,6 +105,11 @@ class CraftApps {
 			'default' => ['figcraft'],
 			'languages' => ['en', 'cs', 'de', 'es', 'es-419', 'fi', 'fr', 'id', 'it', 'ka', 'nl', 'pl', 'pt-BR', 'ru', 'sv', 'tr', 'vi'],
 		],
+		// Its own projects only: meshes (.glb, .obj, .fbx, ...) open as a new project that saves as a
+		// .tcraft next to them. ko and zh-Hans show no letters on the web.
+		'texturecraft' => ['name' => 'TextureCraft', 'extensions' => ['tcraft'], 'default' => ['tcraft'], 'languages' => ['en', 'ar', 'de', 'es', 'fr', 'it', 'ja', 'pt-BR']],
+		// Its own projects only: an .sbs saves as a zip of the SBS with its resources, not as an .sbs.
+		'materialcraft' => ['name' => 'MaterialCraft', 'extensions' => ['mcraft'], 'default' => ['mcraft'], 'languages' => ['en', 'ar']],
 	];
 
 	/**

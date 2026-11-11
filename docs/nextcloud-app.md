@@ -26,13 +26,13 @@ The app is not in the Nextcloud App Store. Each
 `craftsuite_layer-<version>.tar.gz`, with the checksums in `SHA256SUMS`. Both are plain
 downloads from
 `https://github.com/hozwei/nextcloud-craftsuite-layer/releases/download/v<version>/<asset>`.
-For version 0.6.0:
+For version 0.7.0:
 
 ```sh
-v=0.6.0
+v=0.7.0
 base=https://github.com/hozwei/nextcloud-craftsuite-layer/releases/download/v$v
 curl -fL --remote-name-all "$base/craftsuite_layer-$v.tar.gz" "$base/SHA256SUMS"
-sha256sum -c --ignore-missing SHA256SUMS      # craftsuite_layer-0.6.0.tar.gz: OK
+sha256sum -c --ignore-missing SHA256SUMS      # craftsuite_layer-0.7.0.tar.gz: OK
 ```
 
 `--ignore-missing` skips the line of the hosting bundle, which `SHA256SUMS` lists too. The
@@ -156,6 +156,8 @@ app's languages as a BCP 47 tag:
 | FilmCraft | `en` `de` `es` `fr` `ja` `pt-BR` `ru` `uk` |
 | EffectCraft | `en` `es` `pt-BR` `uk` |
 | FigCraft | `en` `cs` `de` `es` `es-419` `fi` `fr` `id` `it` `ka` `nl` `pl` `pt-BR` `ru` `sv` `tr` `vi` |
+| TextureCraft | `en` `ar` `de` `es` `fr` `it` `ja` `pt-BR` |
+| MaterialCraft | `en` `ar` |
 
 ```sh
 occ config:app:set craftsuite_layer pdfcraft_language --value=user
@@ -272,6 +274,8 @@ on the file does; as the default app (see [Configuring](#configuring)), for all 
 | EffectCraft | `ecproj` | `ecproj` |
 | SoundCraft | `scraftz` | `scraftz` |
 | FigCraft | `figcraft` | `figcraft` |
+| TextureCraft | `tcraft` | `tcraft` |
+| MaterialCraft | `mcraft` | `mcraft` |
 
 - **By extension, in any letter case.** Nextcloud stores `application/octet-stream` for
   extensions it does not know, such as `.designcraft`, `.vectorcraft` and `.idml`. The app adds
@@ -295,7 +299,8 @@ on the file does; as the default app (see [Configuring](#configuring)), for all 
   [WordCraft](apps/wordcraft.md), [GridCraft](apps/gridcraft.md), [DeckCraft](apps/deckcraft.md),
   [CADCraft](apps/cadcraft.md), [LightCraft](apps/lightcraft.md), [FilmCraft](apps/filmcraft.md),
   [EffectCraft](apps/effectcraft.md), [SoundCraft](apps/soundcraft.md#file-types),
-  [FigCraft](apps/figcraft.md#file-types). The lists live
+  [FigCraft](apps/figcraft.md#file-types), [TextureCraft](apps/texturecraft.md#file-types),
+  [MaterialCraft](apps/materialcraft.md#file-types). The lists live
   in `lib/Service/CraftApps.php`.
 - **Not offered** for several selected files, for folders, in the trash (a deleted file has no
   folder to save to), and for files shared without permission to download or with downloads
@@ -329,6 +334,8 @@ belongs to:
 | EffectCraft | `ecproj` |
 | SoundCraft | `scraftz` |
 | FigCraft | `figcraft` |
+| TextureCraft | `tcraft` |
+| MaterialCraft | `mcraft` |
 
 Office files, PDFs and common images keep Nextcloud's icons, and a file with a preview (a photo,
 or a PSD where the administrator enabled Nextcloud's Photoshop previews) shows the preview.
@@ -414,6 +421,8 @@ format. The entry's name is also the name Files proposes for the file:
 | New EffectCraft project | `.ecproj` | an empty project (8 bpc, timecode, 48 kHz): EffectCraft's New Project |
 | New SoundCraft session | `.scraftz` | an empty session without audio (48 kHz, 24 bit, 120 bpm, 4/4): SoundCraft's new session |
 | New FigCraft design | `.figcraft` | one empty page: FigCraft's New design file; FigCraft names the design like the file |
+| New TextureCraft project | `.tcraft` | the built-in material ball with one empty paint layer per texture set, 1024 × 1024, named like the file; TextureCraft saves it under that name with `_` for spaces and other characters, so a name with them saves into a new file next to the blank ([texturecraft.md](apps/texturecraft.md#known-gaps)) |
+| New MaterialCraft package | `.mcraft` | `Untitled package` with one empty material graph: MaterialCraft's new package; it saves under the file's name |
 | New WordCraft document | `.docx`, only as the default app | one empty page with 1" margins |
 | New GridCraft spreadsheet | `.xlsx`, only as the default app | one empty sheet, `Sheet1` |
 | New PdfCraft document | `.pdf`, only as the default app | one empty page |

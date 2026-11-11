@@ -49,6 +49,8 @@ class NewFiles {
 		'effectcraft' => ['ext' => 'ecproj', 'mime' => 'application/x-effectcraft', 'ratio' => 16 / 9],
 		'soundcraft' => ['ext' => 'scraftz', 'mime' => 'application/x-soundcraft-session', 'ratio' => 16 / 9],
 		'figcraft' => ['ext' => 'figcraft', 'mime' => 'application/x-figcraft', 'ratio' => 16 / 9],
+		'texturecraft' => ['ext' => 'tcraft', 'mime' => 'application/x-texturecraft', 'ratio' => 16 / 9],
+		'materialcraft' => ['ext' => 'mcraft', 'mime' => 'application/x-materialcraft', 'ratio' => 16 / 9],
 	];
 
 	/**
@@ -169,12 +171,15 @@ class NewFiles {
 	/** The project name in FilmCraft's blank (blanks.mjs), which the new file's name replaces. */
 	private const FILMCRAFT_NAME = 'New FilmCraft project';
 
+	/** The project name in TextureCraft's blank (blanks.mjs), which the new file's name replaces. */
+	private const TEXTURECRAFT_NAME = 'New TextureCraft project';
+
 	/**
 	 * The blank made the new file's own. WordCraft, VectorCraft, DesignCraft and DeckCraft keep a
 	 * document's creation time as they find it (their document information shows it), and their
 	 * adapters tell the opened document by it from a new one saved under the same name: it becomes
 	 * the time of now. FilmCraft keeps the project's name, which names its Save As and the adapter's
-	 * saves: it becomes the file's name ($stem). The blank as it is if it cannot be changed: then the
+	 * saves: it becomes the file's name ($stem), and so does TextureCraft's, which names its saves. The blank as it is if it cannot be changed: then the
 	 * stand-in stays, which only a file named like an app's new document (Untitled-1) minds.
 	 */
 	private function stamped(string $app, string $blank, string $stem): string {
@@ -192,6 +197,8 @@ class NewFiles {
 				'#(<dcterms:(?:created|modified)\\b[^>]*>)[^<]*#', '${1}' . $w3c, $xml)) ?? $blank,
 			'filmcraft' => str_replace('"name":"' . self::FILMCRAFT_NAME . '"',
 				'"name":' . (string)json_encode($stem, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE), $blank),
+			'texturecraft' => $this->changeEntry($blank, 'project.json', fn (string $json): string => str_replace(
+				'"name":' . (string)json_encode(self::TEXTURECRAFT_NAME), '"name":' . (string)json_encode($stem, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE), $json)) ?? $blank,
 			default => $blank,
 		};
 	}
@@ -251,6 +258,8 @@ class NewFiles {
 			'effectcraft' => $this->l->t('New EffectCraft project'),
 			'soundcraft' => $this->l->t('New SoundCraft session'),
 			'figcraft' => $this->l->t('New FigCraft design'),
+			'texturecraft' => $this->l->t('New TextureCraft project'),
+			'materialcraft' => $this->l->t('New MaterialCraft package'),
 			default => $app,
 		};
 	}

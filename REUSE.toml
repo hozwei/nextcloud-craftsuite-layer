@@ -49,6 +49,8 @@ path = [
   "tests/e2e/fixtures/effectcraft/*.ecprojx",
   "tests/e2e/fixtures/soundcraft/*.scraftz",
   "tests/e2e/fixtures/figcraft/*.figcraft",
+  "tests/e2e/fixtures/texturecraft/*.tcraft",
+  "tests/e2e/fixtures/materialcraft/*.mcraft",
 ]
 precedence = "override"
 SPDX-FileCopyrightText = "2026 The nextcloud-craftsuite-layer contributors"
@@ -174,6 +176,24 @@ SPDX-FileCopyrightText = [
 SPDX-License-Identifier = "MIT OR Apache-2.0"
 
 [[annotations]]
+path = "craftsuite_layer/assets/blank.tcraft"
+precedence = "override"
+SPDX-FileCopyrightText = [
+  "2026 ArtCraft Team and the TextureCraft contributors",
+  "2026 The nextcloud-craftsuite-layer contributors",
+]
+SPDX-License-Identifier = "MIT OR Apache-2.0"
+
+[[annotations]]
+path = "craftsuite_layer/assets/blank.mcraft"
+precedence = "override"
+SPDX-FileCopyrightText = [
+  "2026 ArtCraft Team and the MaterialCraft contributors",
+  "2026 The nextcloud-craftsuite-layer contributors",
+]
+SPDX-License-Identifier = "MIT OR Apache-2.0"
+
+[[annotations]]
 path = "craftsuite_layer/assets/blank.ecproj"
 precedence = "override"
 SPDX-FileCopyrightText = [
@@ -256,6 +276,18 @@ SPDX-License-Identifier = "MIT OR Apache-2.0"
 path = "craftsuite_layer/img/types/figcraft.svg"
 precedence = "override"
 SPDX-FileCopyrightText = "2026 ArtCraft Team and the FigCraft contributors"
+SPDX-License-Identifier = "MIT OR Apache-2.0"
+
+[[annotations]]
+path = "craftsuite_layer/img/types/texturecraft.svg"
+precedence = "override"
+SPDX-FileCopyrightText = "2026 ArtCraft Team and the TextureCraft contributors"
+SPDX-License-Identifier = "MIT OR Apache-2.0"
+
+[[annotations]]
+path = "craftsuite_layer/img/types/materialcraft.svg"
+precedence = "override"
+SPDX-FileCopyrightText = "2026 ArtCraft Team and the MaterialCraft contributors"
 SPDX-License-Identifier = "MIT OR Apache-2.0"
 
 # The MIT notices of the icons above, shipped with them in the app package.
@@ -348,6 +380,18 @@ SPDX-License-Identifier = "MIT OR Apache-2.0"
 path = "craftsuite_layer/img/new/figcraft.png"
 precedence = "override"
 SPDX-FileCopyrightText = "2026 ArtCraft Team and the FigCraft contributors"
+SPDX-License-Identifier = "MIT OR Apache-2.0"
+
+[[annotations]]
+path = "craftsuite_layer/img/new/texturecraft.png"
+precedence = "override"
+SPDX-FileCopyrightText = "2026 ArtCraft Team and the TextureCraft contributors"
+SPDX-License-Identifier = "MIT OR Apache-2.0"
+
+[[annotations]]
+path = "craftsuite_layer/img/new/materialcraft.png"
+precedence = "override"
+SPDX-FileCopyrightText = "2026 ArtCraft Team and the MaterialCraft contributors"
 SPDX-License-Identifier = "MIT OR Apache-2.0"
 
 # The MIT notices of the icons above, shipped with them in the app package.

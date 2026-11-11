@@ -39,6 +39,10 @@ What the project is and how it works in short: [README](../README.md). Changes p
   export of selected tracks.
 - [FigCraft](apps/figcraft.md): `.figcraft` files, saved under the name of the document inside;
   Figma and Sketch files not offered.
+- [TextureCraft](apps/texturecraft.md): `.tcraft` projects, saved under the file-safe name of the
+  project inside; the sample it bakes before it takes files; the language it stores.
+- [MaterialCraft](apps/materialcraft.md): `.mcraft` projects, saved under the opened name; its Save
+  package window; `.sbs` not offered.
 
 ## For developers
 

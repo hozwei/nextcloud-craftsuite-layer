@@ -13,6 +13,35 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-11-11
+
+TextureCraft and MaterialCraft join as the fourteenth and fifteenth apps, with their first web
+releases: TextureCraft 0.5.0 and MaterialCraft 0.3.0 are the tested and oldest versions
+(`apps.json`). The other apps keep their tested versions; LightCraft stays at 0.18.0
+([storytold/lightcraft#4017](https://github.com/storytold/lightcraft/issues/4017)).
+
+### Added
+
+- TextureCraft (0.5.0 and later): the adapter `translators/texturecraft.js`, its spec and
+  docs/apps/texturecraft.md. A `.tcraft` project opens as the document; TextureCraft saves the
+  whole project under its stored name with every character but letters, digits, `_`, `.` and `-`
+  replaced by `_`, so a file whose project is named otherwise, or whose name has such characters,
+  gets its saves in a new file next to it. A new project, or one the user opened from the disk
+  that would save under the same name, never replaces the file. TextureCraft bakes a sample
+  project before it takes files (about 10 s), so the adapter waits for its drop target as long as
+  the startup timeout instead of reporting a startup error after 3 s. It reads its saves' ZIP64
+  entries. The host's language reaches TextureCraft as the browser's language (eight languages;
+  Korean and Chinese show no letters in its web build); because TextureCraft stores the language
+  it started in, the adapter replaces that stored language with the host's at the next start, and
+  leaves one the user picked in TextureCraft alone.
+- MaterialCraft (0.3.0 and later): the adapter `translators/materialcraft.js`, its spec and
+  docs/apps/materialcraft.md. A `.mcraft` project opens as the document, and Save writes it back
+  under the opened name; an `.sbs` saves as `<stem>_sbs.zip` next to it. New packages never
+  replace the file. English and Arabic, with the host's language kept as for TextureCraft.
+- Both are plain Trunk builds: they need no hosting option, and hostings that take their apps from
+  `apps.json` serve them as they are.
+- Nextcloud app: TextureCraft and MaterialCraft, see craftsuite_layer/CHANGELOG.md.
+
 ## [0.6.0] - 2026-11-10
 
 PhotoCraft is back on its newest release: 0.22.0 is the tested version (`apps.json`), up from
@@ -661,7 +690,8 @@ DeckCraft 0.6.1, FilmCraft 0.7.2, LightCraft 0.7.1 and EffectCraft 0.9.2 are the
 - Documentation: an index (`docs/README.md`), architecture, protocol, security, hosting,
   development, the Nextcloud app, and one page per Craft app.
 
-[Unreleased]: https://github.com/hozwei/nextcloud-craftsuite-layer/compare/v0.6.0...main
+[Unreleased]: https://github.com/hozwei/nextcloud-craftsuite-layer/compare/v0.7.0...main
+[0.7.0]: https://github.com/hozwei/nextcloud-craftsuite-layer/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/hozwei/nextcloud-craftsuite-layer/compare/v0.5.9...v0.6.0
 [0.5.9]: https://github.com/hozwei/nextcloud-craftsuite-layer/compare/v0.5.8...v0.5.9
 [0.5.8]: https://github.com/hozwei/nextcloud-craftsuite-layer/compare/v0.5.7...v0.5.8

@@ -7,12 +7,14 @@
 // SPDX-FileCopyrightText: 2026 ArtCraft Team and the EffectCraft contributors
 // SPDX-FileCopyrightText: 2026 ArtCraft Team and the SoundCraft contributors
 // SPDX-FileCopyrightText: 2026 ArtCraft Team and the FigCraft contributors
+// SPDX-FileCopyrightText: 2026 ArtCraft Team and the TextureCraft contributors
+// SPDX-FileCopyrightText: 2026 ArtCraft Team and the MaterialCraft contributors
 // SPDX-License-Identifier: AGPL-3.0-or-later AND (MIT OR Apache-2.0)
 //
 // What the apps write for a new document, taken from their own saves, is theirs (MIT OR
 // Apache-2.0): VC_DOCUMENT and DC_DOCUMENT (VectorCraft, DesignCraft), GridCraft's styles part,
 // CADCraft's DXF, FilmCraft's and EffectCraft's new project, SoundCraft's new session, FigCraft's new
-// document. The rest is ours (AGPL-3.0-or-later).
+// document, TextureCraft's new project, MaterialCraft's new package. The rest is ours (AGPL-3.0-or-later).
 // assets/LICENSE-MIT.txt carries the MIT notices in the app package.
 //
 // The blank documents of the Craft apps' "+ New" entries in Files (lib/Service/NewFiles.php), in
@@ -504,6 +506,30 @@ function figcraftBlank() {
   return Buffer.from(zipSync({ 'document.json': [strToU8(FC_DOCUMENT), { level: 9, mtime: MTIME }] }));
 }
 
+// --- TextureCraft (.tcraft) ---------------------------------------------------------------------
+// The project TextureCraft 0.5.0 makes when File > Close leaves none, the built-in material ball
+// with one paint layer per texture set, as its web build saves it: a zip with project.json, here
+// at the 1024 x 1024 its web build gives a project made from a mesh (2048 for this one on the
+// desktop). TextureCraft keeps the project's name in the file and saves under it, so the server
+// writes the new file's stem instead of this name (NewFiles::stamped(), docs/apps/texturecraft.md).
+export const TEXTURECRAFT_NAME = 'New TextureCraft project';
+const TC_PROJECT = '{"format_version":2,"name":"@@NAME@@","mesh":"builtin:material_ball","normal_format":"OpenGl","texture_sets":[{"name":"Ball","description":"","material":0,"resolution":1024,"channels":[["BaseColor","Srgb8"],["Metallic","L8"],["Roughness","L8"],["Normal","Rgb16F"],["Height","L16F"]],"stack":[1],"normal_mixing":"Combine","ao_mixing":"Multiply","height_strength":1.0,"bake":{"common":{"is_enabled":true,"resolution":"R2048","resolution_height":null,"antialiasing":"None","dilation":1,"apply_diffusion":true},"high_poly":{"use_low_as_high":false,"ignore_backface":true,"match_mode":"Always","low_suffix":"_low","high_suffix":"_high","ignore_backface_suffix":"_ignorebf"},"cage":{"kind":"DistanceBased","max_frontal":0.01,"max_rear":0.01,"relative_to_bounding_box":true,"average_normals":true},"skew":{"method":"MeshNormalsBased","edge_protection":false,"edge_distance":0.15,"edge_contrast":0.5},"maps":{"normal":{"is_enabled":true,"parameters":null},"world_normal":{"is_enabled":true,"parameters":null},"id":{"is_enabled":true,"parameters":{"source":"MaterialColor","generator":"HueShift"}},"ao":{"is_enabled":true,"parameters":{"rays":{"rays":64,"min_distance":1e-05,"max_distance":1.0,"relative_to_bounding_box":true,"spread":180.0,"distribution":"Cosine"},"ignore_backface":"Never","self_occlusion":"Always","attenuation":"Linear","ground_plane":{"enabled":false,"offset":0.0}}},"curvature":{"is_enabled":true,"parameters":{"method":"Mesh","normal_map":{"details":0.5,"enable_seams":true,"seams_intensity":1.0},"mesh":{"rays":32,"sampling_radius":0.001,"relative_to_bounding_box":true,"self_intersection":"Always","auto_tonemapping":true,"value_min":-1.0,"value_max":1.0}}},"position":{"is_enabled":true,"parameters":{"axis":"All","normalization":"BoundingSphere","scale":"FullScene"}},"thickness":{"is_enabled":true,"parameters":{"rays":{"rays":64,"min_distance":1e-05,"max_distance":0.1,"relative_to_bounding_box":true,"spread":180.0,"distribution":"Cosine"},"self_occlusion":"Always","normalization":"RelativeToMinMax"}},"height":{"is_enabled":false,"parameters":{"normalization":"RelativeToLowMesh","scaling_divisor":1.0}},"bent_normal":{"is_enabled":false,"parameters":{"rays":{"rays":64,"min_distance":1e-05,"max_distance":1.0,"relative_to_bounding_box":true,"spread":180.0,"distribution":"Cosine"},"ignore_backface":"Never","self_occlusion":"Always"}},"opacity":{"is_enabled":false,"parameters":null}}},"baked":[],"visible":true},{"name":"Base","description":"","material":1,"resolution":1024,"channels":[["BaseColor","Srgb8"],["Metallic","L8"],["Roughness","L8"],["Normal","Rgb16F"],["Height","L16F"]],"stack":[2],"normal_mixing":"Combine","ao_mixing":"Multiply","height_strength":1.0,"bake":{"common":{"is_enabled":true,"resolution":"R2048","resolution_height":null,"antialiasing":"None","dilation":1,"apply_diffusion":true},"high_poly":{"use_low_as_high":false,"ignore_backface":true,"match_mode":"Always","low_suffix":"_low","high_suffix":"_high","ignore_backface_suffix":"_ignorebf"},"cage":{"kind":"DistanceBased","max_frontal":0.01,"max_rear":0.01,"relative_to_bounding_box":true,"average_normals":true},"skew":{"method":"MeshNormalsBased","edge_protection":false,"edge_distance":0.15,"edge_contrast":0.5},"maps":{"normal":{"is_enabled":true,"parameters":null},"world_normal":{"is_enabled":true,"parameters":null},"id":{"is_enabled":true,"parameters":{"source":"MaterialColor","generator":"HueShift"}},"ao":{"is_enabled":true,"parameters":{"rays":{"rays":64,"min_distance":1e-05,"max_distance":1.0,"relative_to_bounding_box":true,"spread":180.0,"distribution":"Cosine"},"ignore_backface":"Never","self_occlusion":"Always","attenuation":"Linear","ground_plane":{"enabled":false,"offset":0.0}}},"curvature":{"is_enabled":true,"parameters":{"method":"Mesh","normal_map":{"details":0.5,"enable_seams":true,"seams_intensity":1.0},"mesh":{"rays":32,"sampling_radius":0.001,"relative_to_bounding_box":true,"self_intersection":"Always","auto_tonemapping":true,"value_min":-1.0,"value_max":1.0}}},"position":{"is_enabled":true,"parameters":{"axis":"All","normalization":"BoundingSphere","scale":"FullScene"}},"thickness":{"is_enabled":true,"parameters":{"rays":{"rays":64,"min_distance":1e-05,"max_distance":0.1,"relative_to_bounding_box":true,"spread":180.0,"distribution":"Cosine"},"self_occlusion":"Always","normalization":"RelativeToMinMax"}},"height":{"is_enabled":false,"parameters":{"normalization":"RelativeToLowMesh","scaling_divisor":1.0}},"bent_normal":{"is_enabled":false,"parameters":{"rays":{"rays":64,"min_distance":1e-05,"max_distance":1.0,"relative_to_bounding_box":true,"spread":180.0,"distribution":"Cosine"},"ignore_backface":"Never","self_occlusion":"Always"}},"opacity":{"is_enabled":false,"parameters":null}}},"baked":[],"visible":true}],"layers":{"1":{"id":1,"name":"Layer 1","visible":true,"kind":"Paint","channels":{"BaseColor":{"mode":"Normal","opacity":1.0},"Metallic":{"mode":"Normal","opacity":1.0},"Roughness":{"mode":"Normal","opacity":1.0},"Normal":{"mode":"Normal","opacity":1.0},"Height":{"mode":"Normal","opacity":1.0}},"mask":null,"content_effects":[],"color_tag":null,"height_mask":{"enabled":false,"contrast":1.0,"offset":0.0},"geometry_mask":null},"2":{"id":2,"name":"Layer 1","visible":true,"kind":"Paint","channels":{"BaseColor":{"mode":"Normal","opacity":1.0},"Metallic":{"mode":"Normal","opacity":1.0},"Roughness":{"mode":"Normal","opacity":1.0},"Normal":{"mode":"Normal","opacity":1.0},"Height":{"mode":"Normal","opacity":1.0}},"mask":null,"content_effects":[],"color_tag":null,"height_mask":{"enabled":false,"contrast":1.0,"offset":0.0},"geometry_mask":null}},"next_id":3,"display":{"environment":"Studio Soft","env_opacity":0.0,"env_exposure":0.0,"env_blur":0.35,"env_rotation":0.0,"shadows":false,"tone_mapping":"AcesFilmic","fov":40.0,"post_effects":false,"bloom":0.0,"vignette":0.0,"sharpen":0.0,"grain":0.0,"ao_intensity":0.75,"taa":true,"spec_gloss":false,"parallax":false,"displacement":false,"scatter_color":[1.0,0.4,0.25],"scatter_radius":0.1,"ior":1.5,"dof":{"enabled":false,"focusDistance":0.0,"aperture":0.05}},"cameras":[]}';
+
+function texturecraftBlank(name) {
+  const json = TC_PROJECT.replace('"name":"@@NAME@@"', `"name":${JSON.stringify(name)}`);
+  return Buffer.from(zipSync({ 'project.json': [strToU8(json), { level: 9, mtime: MTIME }] }));
+}
+
+// --- MaterialCraft (.mcraft) --------------------------------------------------------------------
+// The package MaterialCraft 0.3.0 starts with, 'Untitled package' with one empty material graph,
+// as its web build saves it as a MaterialCraft Project: a zip with resources/ and package.sbs.
+// MaterialCraft saves an opened .mcraft under the file's own name, whatever the package is called.
+const MC_PACKAGE = '<?xml version="1.0" encoding="UTF-8"?><package><identifier v="Untitled package"/><formatVersion v="1.1.0.202401"/><updaterVersion v="0.3.0"/><fileUID v="0"/><versionUID v="0"/><dependencies><dependency><filename v="?himself"/><uid v="1000000001"/><type v="package"/><fileUID v="0"/><versionUID v="0"/></dependency></dependencies><content><graph><identifier v="New_graph"/><uid v="1000000002"/><graphtype v="material"/><attributes></attributes><paraminputs></paraminputs><graphOutputs></graphOutputs><compNodes></compNodes><baseParameters><parameter><name v="randomseed"/><relativeTo v="0"/><paramValue><constantValueInt32 v="0"/></paramValue></parameter></baseParameters><GUIObjects></GUIObjects><options><option><name v="defaultParentSize"/><value v="10x10"/></option></options><root><rootOutputs></rootOutputs></root></graph><group><uid v="1000000003"/><identifier v="Resources"/><content></content></group></content></package>';
+
+function materialcraftBlank() {
+  return Buffer.from(zipSync({ 'resources/': [new Uint8Array(0), { mtime: MTIME }], 'package.sbs': [strToU8(MC_PACKAGE), { level: 9, mtime: MTIME }] }));
+}
+
 // FilmCraft keeps the project's name in the file, and Save As and the adapter name a save after it:
 // the server writes the new file's name instead of this one (NewFiles::stamped()).
 export const FILMCRAFT_NAME = 'New FilmCraft project';
@@ -524,6 +550,8 @@ blank.fcproj: Copyright (c) 2026 ArtCraft Team and the FilmCraft contributors
 blank.ecproj: Copyright (c) 2026 ArtCraft Team and the EffectCraft contributors
 blank.scraftz: Copyright (c) 2026 ArtCraft Team and the SoundCraft contributors
 blank.figcraft: Copyright (c) 2026 ArtCraft Team and the FigCraft contributors
+blank.tcraft: Copyright (c) 2026 ArtCraft Team and the TextureCraft contributors
+blank.mcraft: Copyright (c) 2026 ArtCraft Team and the MaterialCraft contributors
 
 ${mit}`, 'utf8');
 }
@@ -547,6 +575,8 @@ export function blanks() {
     'blank.ecproj': effectcraftBlank(),
     'blank.scraftz': soundcraftBlank(),
     'blank.figcraft': figcraftBlank(),
+    'blank.tcraft': texturecraftBlank(TEXTURECRAFT_NAME),
+    'blank.mcraft': materialcraftBlank(),
   };
 }
 
@@ -572,7 +602,7 @@ if (command === 'write') {
   // there, and each exactly as often in the blank as it expects.
   const php = readFileSync(path.join(here, 'lib', 'Service', 'NewFiles.php'), 'utf8');
   const constant = (name) => /const\s+\w+\s+=\s+'?([^';]+)'?;/.exec(php.slice(php.indexOf(`const ${name} `)))?.[1];
-  for (const [name, value] of [['CREATED_SECONDS', String(CREATED_SECONDS)], ['CREATED_W3C', CREATED_W3C], ['FILMCRAFT_NAME', FILMCRAFT_NAME]]) {
+  for (const [name, value] of [['CREATED_SECONDS', String(CREATED_SECONDS)], ['CREATED_W3C', CREATED_W3C], ['FILMCRAFT_NAME', FILMCRAFT_NAME], ['TEXTURECRAFT_NAME', TEXTURECRAFT_NAME]]) {
     if (constant(name) !== value) { console.error(`NewFiles::${name} is ${constant(name)}, blanks.mjs has ${value}`); failed = true; }
   }
   const count = (bytes, text) => bytes.toString('latin1').split(text).length - 1;
@@ -590,6 +620,11 @@ if (command === 'write') {
       console.error(`assets/${name}: docProps/core.xml lacks the creation and change time NewFiles::stamped() replaces`);
       failed = true;
     }
+  }
+  const project = strFromU8(unzipSync(want['blank.tcraft'])['project.json'] ?? new Uint8Array());
+  if (project.split(`"name":${JSON.stringify(TEXTURECRAFT_NAME)}`).length - 1 !== 1) {
+    console.error('assets/blank.tcraft: project.json does not name the project once with the stand-in NewFiles::stamped() replaces');
+    failed = true;
   }
   if (failed) process.exit(1);
   console.log(`${Object.keys(want).length} blank documents as blanks.mjs makes them`);

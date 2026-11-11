@@ -107,6 +107,22 @@
       "color": "#02da96",
       "minVersion": "0.12.1",
       "tested": "0.17.0"
+    },
+    "texturecraft": {
+      "name": "TextureCraft",
+      "repo": "storytold/texturecraft",
+      "description": { "en": "Paint textures and materials on 3D models", "de": "Texturen und Materialien auf 3D-Modelle malen" },
+      "color": "#c2672b",
+      "minVersion": "0.5.0",
+      "tested": "0.5.0"
+    },
+    "materialcraft": {
+      "name": "MaterialCraft",
+      "repo": "storytold/materialcraft",
+      "description": { "en": "Build procedural materials from node graphs", "de": "Prozedurale Materialien aus Knotengraphen bauen" },
+      "color": "#178a9c",
+      "minVersion": "0.3.0",
+      "tested": "0.3.0"
     }
   }
 }
