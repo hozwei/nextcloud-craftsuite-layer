@@ -58,7 +58,7 @@ jobs:
   canary:
     name: newest Craft releases
     runs-on: ubuntu-24.04
-    timeout-minutes: 110
+    timeout-minutes: 140
     outputs:
       summary: ${{ steps.summary.outputs.summary }}
       failed: ${{ steps.summary.outputs.failed }}
@@ -129,7 +129,7 @@ jobs:
       # their own; their JSON reports feed the summary.
       - name: Run the contract tests
         id: test
-        timeout-minutes: 40
+        timeout-minutes: 55
         env:
           PROJECTS: ${{ steps.projects.outputs.projects }}
           PLAYWRIGHT_JSON_OUTPUT_FILE: ${{ runner.temp }}/contract.json
@@ -160,7 +160,7 @@ jobs:
         id: later
         if: ${{ !cancelled() && steps.projects.outputs.later != '' && (steps.test.outcome == 'success' || steps.test.outcome == 'failure') }}
         continue-on-error: true
-        timeout-minutes: 30
+        timeout-minutes: 45
         env:
           PROJECTS: ${{ steps.projects.outputs.later }}
         run: |

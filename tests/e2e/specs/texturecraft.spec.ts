@@ -350,6 +350,9 @@ async function storedLanguage(app: Frame, not: string | null = null) {
 // ---------------------------------------------------------------------------------------------
 
 test('contract: an allowed host opens the file and stores every save, nothing is downloaded', async ({ page }) => {
+  // TextureCraft draws slowly on a CI runner's software renderer: a test takes over 2 minutes there.
+  test.slow();
+
   const downloads = trackDownloads(page);
   await recordAppVersions(page);
   const app = await openInHost(page, 'craftsuite-probe.tcraft', `&app-ack=${SHORT_ACK}&app-result=${SHORT_RESULT}`);
@@ -503,6 +506,9 @@ test('language: the host\'s language reaches TextureCraft and replaces the one i
 });
 
 test('ui: File > Save and File > Export Mesh... with the pointer', { tag: '@ui' }, async ({ page }) => {
+  // TextureCraft draws slowly on a CI runner's software renderer: a test takes over 2 minutes there.
+  test.slow();
+
   const downloads = trackDownloads(page);
   const app = await openInHost(page, 'craftsuite-probe.tcraft');
 

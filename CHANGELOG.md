@@ -42,6 +42,14 @@ releases: TextureCraft 0.5.0 and MaterialCraft 0.3.0 are the tested and oldest v
   `apps.json` serve them as they are.
 - Nextcloud app: TextureCraft and MaterialCraft, see craftsuite_layer/CHANGELOG.md.
 
+### Changed
+
+- CI: the test job may take 100 minutes instead of 75, its non-blocking tests 35 instead of 25;
+  the canary's contract tests 55 minutes instead of 40, its non-blocking ones 45 instead of 30,
+  the whole canary 140 instead of 110. TextureCraft draws on the runner's software renderer and
+  its tests take minutes each there (they are marked slow); with fifteen apps the job of the
+  first push of 0.7.0 was cancelled.
+
 ## [0.6.0] - 2026-11-10
 
 PhotoCraft is back on its newest release: 0.22.0 is the tested version (`apps.json`), up from
