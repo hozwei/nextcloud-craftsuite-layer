@@ -51,6 +51,14 @@ export async function press(page: Page, app: Frame, key: string) {
   await page.keyboard.press(key);
 }
 
+// A 'Control+…' shortcut with the command key of the platform the app reads from the user agent:
+// under a Mac one (WebKit's) that is Cmd, the Meta key. VectorCraft 0.24 and DesignCraft 0.20
+// take Cmd there and no longer Ctrl; real Mac users press Cmd anyway.
+export async function platformKey(app: Frame, key: string) {
+  if (!key.startsWith('Control+')) return key;
+  return (await app.evaluate(() => navigator.userAgent.includes('Mac'))) ? `Meta+${key.slice('Control+'.length)}` : key;
+}
+
 // eframe moves the focus to its hidden <input> while an egui text field is edited, and back to
 // the canvas afterwards: the one sign in the DOM that the palette opened or closed. Should a
 // release change that, fall back to waiting some frames; the contract checks still decide.

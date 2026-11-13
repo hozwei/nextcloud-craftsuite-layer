@@ -14,6 +14,14 @@ Each GitHub release takes its text from the section whose heading matches the ve
 
 ## [Unreleased]
 
+## [0.7.1] - 2026-11-13
+
+### Changed
+
+- No changes to the app. Released together with translators 0.7.1, which are tested with the
+  Craft releases of 2026-11-12 (test fixes for FigCraft 0.18.1, VectorCraft 0.24.1 and
+  DesignCraft 0.20.1 in WebKit, and TextureCraft 0.6.1 on slow machines).
+
 ## [0.7.0] - 2026-11-11
 
 ### Added

@@ -181,10 +181,11 @@ async function shortcut(page: Page, app: Frame, key: string) {
 
 // After a step that replaces the project: wait until the picture is no longer `before`, then
 // until it settles. On a slow machine the app can take the next key before it shows the project.
+// On CI runners (software rendering) one screenshot of the app can take over 30 s, hence 90 s.
 async function untilChanged(page: Page, app: Frame, before: Buffer, what: string) {
   const view = page.locator('#app');
   await expect.poll(async () => !(await view.screenshot({ caret: 'initial', scale: 'css' })).equals(before),
-    { message: what, timeout: 30_000 }).toBe(true);
+    { message: what, timeout: 90_000 }).toBe(true);
   await settle(view, app);
 }
 

@@ -145,8 +145,9 @@ const AT = {
   // Main menu: File, its first row below the Actions… field; it opens a submenu to its right.
   file: (b: Box) => ({ x: b.x + 80, y: b.y + 146 }),
   // File submenu: Save, after New design file, New board, New from template…, New window, Open…,
-  // Import from file…, Place image… and a separator.
-  fileSave: (b: Box) => ({ x: b.x + 318, y: b.y + 351 }),
+  // Import from file…, Place image… and a separator. Since 0.18.0 the submenu is taller (version
+  // history, branches, live session) and opens near the frame's top instead of beside File.
+  fileSave: (b: Box) => ({ x: b.x + 318, y: b.y + 245 }),
   // Right panel with nothing selected: Export page as PNG, the last button.
   exportPage: (b: Box) => ({ x: b.x + b.width - 120, y: b.y + 461 }),
 };
@@ -402,6 +403,8 @@ test('contract: an allowed host opens the file and stores every save, nothing is
 });
 
 test('saved-as: saves go under the document\'s name; one FigCraft cannot tell apart is a new file', async ({ context }) => {
+  // Five app starts in one test: on a CI runner's software renderer this takes about 2 minutes.
+  test.slow();
   await scenario(context, 'a file whose document has another name saves under that name, the document, and so does the next save', async (page, downloads) => {
     // The host keeps renamed.figcraft and stores the saves next to it.
     const app = await openInHost(page, 'renamed.figcraft', '', probeNamed('Probe board'));

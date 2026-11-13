@@ -49,7 +49,12 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { gunzipSync } from 'node:zlib';
 import { test as baseTest, expect, type BrowserContext, type Download, type Frame, type Page } from '@playwright/test';
-import { appFrames, PALETTE_KEYS, press, runCommand, settle } from '../lib/craft-ui.ts';
+import { appFrames, PALETTE_KEYS, platformKey, press as pressKey, runCommand, settle } from '../lib/craft-ui.ts';
+
+// Shortcuts are written with Control; under WebKit's Mac user agent the app takes Cmd instead.
+async function press(page: Page, app: Frame, key: string) {
+  await pressKey(page, app, await platformKey(app, key));
+}
 
 const portBase = Number(process.env.CRAFTSUITE_PORT_BASE || 8701);
 const HOST = `http://127.0.0.1:${portBase}/`;
@@ -226,7 +231,7 @@ async function hoverApp(page: Page, app: Frame, what: string, at: (b: Box) => { 
 }
 
 // Runs a command of VectorCraft's palette by its id (see the header).
-const command = (page: Page, app: Frame, id: string) => runCommand(page, app, id, PALETTE_KEYS.vectorcraft);
+const command = async (page: Page, app: Frame, id: string) => runCommand(page, app, id, await platformKey(app, PALETTE_KEYS.vectorcraft));
 
 // Loads the test host and waits until the translator has handed the file to the app.
 async function openInHost(page: Page, query = '') {
@@ -292,7 +297,7 @@ async function firstSave(page: Page, app: Frame) {
 async function firstSaveAs(page: Page, app: Frame, name: string) {
   await test.step(`ui: Ctrl+S, '${name}' and Enter in the Save As dialog`, async () => {
     await openSaveAs(page, app);
-    await page.keyboard.press('Control+a');
+    await page.keyboard.press(await platformKey(app, 'Control+a'));
     await page.keyboard.insertText(name); // no key events: stray letters could be shortcuts
     await appFrames(app, 3); // the field takes the text on its next frame; Enter must see it
     await page.keyboard.press('Enter');

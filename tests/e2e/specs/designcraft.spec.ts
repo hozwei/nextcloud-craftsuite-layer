@@ -41,7 +41,12 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { test as baseTest, expect, type BrowserContext, type Download, type Frame, type Page } from '@playwright/test';
 import { strFromU8, strToU8, unzipSync, zipSync, type Zippable } from 'fflate';
-import { appFrames, press, settle } from '../lib/craft-ui.ts';
+import { appFrames, platformKey, press as pressKey, settle } from '../lib/craft-ui.ts';
+
+// Shortcuts are written with Control; under WebKit's Mac user agent the app takes Cmd instead.
+async function press(page: Page, app: Frame, key: string) {
+  await pressKey(page, app, await platformKey(app, key));
+}
 
 const PROBE = readFileSync(new URL('../fixtures/designcraft/craftsuite-probe.designcraft', import.meta.url));
 const IDML = readFileSync(new URL('../fixtures/designcraft/from-indesign.idml', import.meta.url));
