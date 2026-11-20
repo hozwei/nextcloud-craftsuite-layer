@@ -13,6 +13,13 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Changed
+
+- Canary: the scheduled run starts its jobs only in `hozwei/nextcloud-craftsuite-layer`. A
+  private copy of the repository ran it every day as well, failed for the same held-back apps and
+  spent about an hour and a half of runner time on it. A run by hand still starts every job in any
+  copy; elsewhere a scheduled run shows its jobs as skipped.
+
 ## [0.7.1] - 2026-11-13
 
 The Craft releases of 2026-11-12 are tested: PdfCraft 0.21.1, PhotoCraft 0.23.1, VectorCraft

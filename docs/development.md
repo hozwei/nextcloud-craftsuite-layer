@@ -296,7 +296,7 @@ Workflows live in `.github/workflows/`:
 | CI (`ci.yml`), `translators-and-tests` | pushes to `main`, pull requests, by hand | Lint, typecheck, the [hosting tests](#hosting-tests), and the end-to-end tests against the tested Craft versions |
 | CI, `nextcloud-app` | the same | `php -l` on PHP 8.2, 8.3, 8.4 and 8.5 (a deprecation fails too); on 8.2 also `appinfo/info.xml` against the App Store schema, `npm run l10n:check`, `npm run blanks:check`, `npm run apps:check`, and the App Store package with the App Store's archive rules |
 | CI, `nextcloud-e2e` | the same | The project `nextcloud-chromium` in a Nextcloud started from the official images `nextcloud:34.0.4-apache` and `nextcloud:35.0.1-apache` (both on PHP 8.5), on SQLite, see [Testing in Nextcloud](#testing-in-nextcloud) |
-| Canary (`canary.yml`), `canary` | daily, by hand | Fetches the newest release of each Craft app and runs `translator-chromium` and every `<app>-<browser>` project against it: first the contract tests, then the `@ui` and `@language` tests, then the `NON_BLOCKING` projects |
+| Canary (`canary.yml`), `canary` | daily (only in `hozwei/nextcloud-craftsuite-layer`), by hand | Fetches the newest release of each Craft app and runs `translator-chromium` and every `<app>-<browser>` project against it: first the contract tests, then the `@ui` and `@language` tests, then the `NON_BLOCKING` projects |
 | Canary, `nextcloud-next` | the same | Reads `package.json` and `version.php` of Nextcloud's development branch (raw files, no API). Reports (`changed`) when `package.json` no longer asks for `@nextcloud/files` 4.x, the major whose action registry the Files entries use, and warns when the branch's major version is above the `max-version` in `appinfo/info.xml`. Nothing else of the server is checked. It never fails, so a failed run is always one of the Craft releases' tests (or of the report). |
 | Canary, `report` | after both, on `main` | Opens, comments on or closes the issues labelled `canary` and `canary-ui` (from the job `canary`) and `canary-nextcloud` (from `nextcloud-next`); each part acts only on its own job's result. On the `canary` issue it sets the labels `canary:<app>` of the apps to hold back |
 | Release (`release.yml`), `release` | a pushed tag `v*` | Checks the versions, builds the release's assets and publishes the GitHub release, see [Releasing](#releasing) |
@@ -367,6 +367,9 @@ failed and is listed in the summary, so that a release that changes the timing g
   start one there (Run workflow, branch `main`), and turn the schedule back on if GitHub turned it
   off. Sites that update from the
   canary check its latest run, not only its issues (see [hosting.md](hosting.md#updates)).
+- **A copy of the repository.** In a fork, a private clone or a backup the scheduled run starts
+  but skips all three jobs, so it neither spends runner time nor mails a failure every day. A run
+  by hand starts them there as well; `report` then acts on that copy's own issues (on `main` only).
 
 Dependabot (`.github/dependabot.yml`) proposes updates once a week, for the npm packages at the
 root (the test tooling, and the libraries and esbuild that build the app's front end), the

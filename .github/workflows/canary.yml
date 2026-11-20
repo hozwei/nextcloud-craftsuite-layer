@@ -57,6 +57,10 @@ concurrency:
 jobs:
   canary:
     name: newest Craft releases
+    # The schedule runs only in this repository: a private clone or a backup of it would otherwise
+    # spend runner time every day and mail a failure for each held-back app. A run by hand works
+    # everywhere. nextcloud-next and report carry the same condition.
+    if: ${{ github.event_name != 'schedule' || github.repository == 'hozwei/nextcloud-craftsuite-layer' }}
     runs-on: ubuntu-24.04
     timeout-minutes: 140
     outputs:
@@ -335,6 +339,7 @@ jobs:
   # report.
   nextcloud-next:
     name: next Nextcloud release
+    if: ${{ github.event_name != 'schedule' || github.repository == 'hozwei/nextcloud-craftsuite-layer' }}
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     outputs:
@@ -406,8 +411,9 @@ jobs:
     needs: [canary, nextcloud-next]
     # Only for main (a manual run on another branch must not touch the issues), and not for a
     # cancelled run. Each part below looks at its own job's result, so a canary job that timed out
-    # does not keep the Nextcloud check from being reported, nor the other way round.
-    if: ${{ !cancelled() && github.ref == 'refs/heads/main' }}
+    # does not keep the Nextcloud check from being reported, nor the other way round. Without the
+    # repository condition (see canary) a skipped schedule elsewhere would still report.
+    if: ${{ !cancelled() && github.ref == 'refs/heads/main' && (github.event_name != 'schedule' || github.repository == 'hozwei/nextcloud-craftsuite-layer') }}
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     permissions:
