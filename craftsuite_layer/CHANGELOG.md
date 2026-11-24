@@ -14,6 +14,13 @@ Each GitHub release takes its text from the section whose heading matches the ve
 
 ## [Unreleased]
 
+## [0.7.2] - 2026-11-24
+
+### Changed
+
+- No changes to the app. Released together with translators 0.7.2, which are tested with the
+  Craft releases of 2026-11-23 (PdfCraft 0.22.0, DesignCraft 0.21.1 and EffectCraft 0.25.1).
+
 ## [0.7.1] - 2026-11-13
 
 ### Changed

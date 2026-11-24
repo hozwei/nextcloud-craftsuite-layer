@@ -13,6 +13,18 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.7.2] - 2026-11-24
+
+The Craft releases of 2026-11-23 are tested: PdfCraft 0.22.0, DesignCraft 0.21.1 and
+EffectCraft 0.25.1 (`apps.json`). The translators are unchanged apart from their version.
+LightCraft stays at 0.18.0: 0.21.1 still stops on raw photos
+([storytold/lightcraft#4017](https://github.com/storytold/lightcraft/issues/4017)).
+
+### Fixed
+
+- DesignCraft 0.21.0 and later: the @ui test clicks File > Export IDML… one row lower, since
+  0.21.0 added Place Contact Sheet… to the File menu.
+
 ### Changed
 
 - Canary: the scheduled run starts its jobs only in `hozwei/nextcloud-craftsuite-layer`. A
@@ -725,7 +737,8 @@ DeckCraft 0.6.1, FilmCraft 0.7.2, LightCraft 0.7.1 and EffectCraft 0.9.2 are the
 - Documentation: an index (`docs/README.md`), architecture, protocol, security, hosting,
   development, the Nextcloud app, and one page per Craft app.
 
-[Unreleased]: https://github.com/hozwei/nextcloud-craftsuite-layer/compare/v0.7.1...main
+[Unreleased]: https://github.com/hozwei/nextcloud-craftsuite-layer/compare/v0.7.2...main
+[0.7.2]: https://github.com/hozwei/nextcloud-craftsuite-layer/compare/v0.7.1...v0.7.2
 [0.7.1]: https://github.com/hozwei/nextcloud-craftsuite-layer/compare/v0.7.0...v0.7.1
 [0.7.0]: https://github.com/hozwei/nextcloud-craftsuite-layer/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/hozwei/nextcloud-craftsuite-layer/compare/v0.5.9...v0.6.0

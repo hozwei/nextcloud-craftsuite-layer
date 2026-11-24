@@ -159,8 +159,9 @@ const AT = {
   // separator and Close).
   fileSave: (b: Box) => ({ x: b.x + 84, y: b.y + 154 }),
   // File menu: Export IDML…, the row below Export Page as PNG… (one row lower since 0.18.0, which
-  // added Export Layouts and Versions… after Export PDF…).
-  fileExportIdml: (b: Box) => ({ x: b.x + 84, y: b.y + 449 }),
+  // added Export Layouts and Versions… after Export PDF…, and one more since 0.21.0, which added
+  // Place Contact Sheet… after Place…).
+  fileExportIdml: (b: Box) => ({ x: b.x + 84, y: b.y + 474 }),
 };
 
 function appFrame(page: Page): Frame {
