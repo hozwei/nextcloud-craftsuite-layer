@@ -427,6 +427,16 @@ contract tests; the canary runs them apart from the `@ui` test.
 A test with several scenarios runs each in a page of its own and reports every scenario that
 fails as `scenario failed: <title>`, not only the first.
 
+From 0.19.0 on WordCraft brings up Get the Missing Fonts once for each document opened from a
+file that uses a font it knows a download for, such as Aptos, the font of recent Word documents
+and of the fixtures (`ui-egui/src/font_download.rs`, storytold/wordcraft#6826). The box keeps
+the keys until it is closed, so a Ctrl+S pressed while it is open saves nothing; a user in
+Nextcloud sees it after the file opens and closes it, or turns it off with "Don't show this
+again". The spec closes it the same
+way, with Escape, after every file it opens (`closeFontNotice()`); without the box Escape changes
+nothing there. Without that step the contract tests of 0.19.1 failed in the canary run of
+2026-11-26: no save reached the host. The translator and its rules are unchanged.
+
 The spec reaches File > Export with the pointer only. 0.5.0's File tab has no KeyTip, Tab does
 not move the focus to the backstage's buttons, and the command search opens only with the
 pointer. 0.6.1 opens the File tab with Alt, F (`ui-egui/src/keytips.rs:68-71`) and the command

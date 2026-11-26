@@ -169,11 +169,13 @@ const AT = {
   newSlideMenu: (b: Box) => ({ x: b.x + 171, y: b.y + 130 }),
   // New Slide menu: Title Only, the second layout of the second row.
   newSlideTitleOnly: (b: Box) => ({ x: b.x + 309, y: b.y + 258 }),
-  // Export dialog: PowerPoint Presentation (.pptx), the fifth choice.
-  exportPowerPoint: (b: Box) => ({ x: b.x + 645, y: b.y + 289 }),
+  // Export dialog: PowerPoint Presentation (.pptx), the sixth choice since 0.19.0 added JPEG
+  // image (current slide) above it (the fifth at y 289 before).
+  exportPowerPoint: (b: Box) => ({ x: b.x + 645, y: b.y + 313 }),
   // Export dialog: the Export button once PowerPoint is chosen (the PDF options are gone); by
-  // 0.11.1 the dialog lists Outline/RTF as an eighth choice, which moved it down from y 432.
-  exportButton: (b: Box) => ({ x: b.x + 833, y: b.y + 456 }),
+  // 0.11.1 the dialog lists Outline/RTF as an eighth choice, which moved it down from y 432,
+  // and the ninth choice of 0.19.0 (a taller dialog) from y 456.
+  exportButton: (b: Box) => ({ x: b.x + 833, y: b.y + 469 }),
 };
 
 function appFrame(page: Page): Frame {

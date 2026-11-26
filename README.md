@@ -49,9 +49,9 @@ opens them in the app ([docs/nextcloud-app.md](docs/nextcloud-app.md#new-files))
 | PhotoCraft | 0.23.1 | `psd` `psb` `pcraft` `tga` `png` `jpg` `jpeg` `webp` `gif` `bmp` `tif` `tiff` `ico` `heic` `heif` | `psd` `psb` `pcraft` `tga` |
 | VectorCraft | 0.24.1 | `vectorcraft` `drawcraft` `ai` `eps` `svgz` `dxf` `svg` `emf` `wmf` `pdf` | `vectorcraft` `drawcraft` `eps` `svgz` `dxf` |
 | DesignCraft | 0.21.1 | `designcraft` `idml` | `designcraft` `idml` |
-| WordCraft | 0.18.1 | `docx` `docm` `dotx` `dotm` `doc` `dot` `odt` `rtf` | none |
+| WordCraft | 0.19.1 | `docx` `docm` `dotx` `dotm` `doc` `dot` `odt` `rtf` | none |
 | GridCraft | 0.19.1 | `xlsx` `xlsm` `ods` `csv` | none |
-| DeckCraft | 0.18.1 | `deckcraft` `pptx` `potx` `ppsx` | `deckcraft` |
+| DeckCraft | 0.19.1 | `deckcraft` `pptx` `potx` `ppsx` | `deckcraft` |
 | CADCraft | 0.20.1 | `dxf` | `dxf` (instead of VectorCraft when both are set up) |
 | LightCraft | 0.18.0 | `dng` `cr2` `cr3` `nef` `nrw` `arw` `raf` `orf` `rw2` `rwl` `pef` `srw` `jpg` `jpeg` `png` `tif` `tiff` `webp` | the camera raw types |
 | FilmCraft | 0.20.1 | `fcproj` | `fcproj` |
@@ -107,7 +107,7 @@ The app is not in the Nextcloud App Store. Each
 | `SHA256SUMS` | The checksums of both |
 
 ```sh
-v=0.7.2
+v=0.7.3
 base=https://github.com/hozwei/nextcloud-craftsuite-layer/releases/download/v$v
 curl -fL --remote-name-all "$base/craftsuite_layer-$v.tar.gz" \
   "$base/craftsuite-layer-hosting-$v.tar.gz" "$base/SHA256SUMS"

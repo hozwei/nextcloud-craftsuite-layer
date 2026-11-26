@@ -312,7 +312,9 @@ and command ids by substring and runs the first match; the Export dialog is reac
 Enter confirms a dialog (`ui-egui/src/dialogs.rs:82-98`). A key pressed in the frames right after
 the palette closed can get lost, so the steps wait until the picture settles before the next key.
 Only the `ui` test also clicks with the pointer; its click positions are in the `AT` table of the
-spec, measured on 0.5.0 at a 1400x900 viewport with the locale `en-US`. When a new release fails
+spec, measured on 0.5.0 at a 1400x900 viewport with the locale `en-US` (the Export dialog's rows
+again on 0.19.1, which added JPEG image (current slide) above PowerPoint Presentation and made
+the dialog taller). When a new release fails
 the canary:
 
 - **Contract tests fail.** The release changed something the translator relies on: the drop

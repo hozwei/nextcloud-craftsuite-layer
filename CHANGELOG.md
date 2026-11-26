@@ -13,6 +13,22 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.7.3] - 2026-11-26
+
+The Craft releases of 2026-11-25 are tested: WordCraft 0.19.1 and DeckCraft 0.19.1
+(`apps.json`). The translators are unchanged apart from their version. LightCraft stays at
+0.18.0: 0.21.1 still stops on raw photos
+([storytold/lightcraft#4017](https://github.com/storytold/lightcraft/issues/4017)).
+
+### Fixed
+
+- WordCraft 0.19.0 and later: the tests close Get the Missing Fonts with Escape after each file
+  they open. WordCraft brings the box up once for a document that uses a font it knows a download
+  for (Aptos in the fixtures), and while it is open the keys go to it, so the tests' Ctrl+S saved
+  nothing and the contract tests failed in the canary.
+- DeckCraft 0.19.0 and later: the @ui test clicks PowerPoint Presentation one row lower and Export
+  further down in the Export dialog, which lists JPEG image (current slide) as a new choice.
+
 ## [0.7.2] - 2026-11-24
 
 The Craft releases of 2026-11-23 are tested: PdfCraft 0.22.0, DesignCraft 0.21.1 and

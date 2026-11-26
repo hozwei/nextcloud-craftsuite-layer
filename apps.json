@@ -40,7 +40,7 @@
       "description": { "en": "Write and format documents, DOCX included", "de": "Texte schreiben und gestalten, auch DOCX" },
       "color": "#3f5fe0",
       "minVersion": "0.5.0",
-      "tested": "0.18.1"
+      "tested": "0.19.1"
     },
     "gridcraft": {
       "name": "GridCraft",
@@ -56,7 +56,7 @@
       "description": { "en": "Build presentations, also from PPTX", "de": "Präsentationen gestalten, auch aus PPTX" },
       "color": "#f07a1e",
       "minVersion": "0.5.0",
-      "tested": "0.18.1"
+      "tested": "0.19.1"
     },
     "cadcraft": {
       "name": "CADCraft",

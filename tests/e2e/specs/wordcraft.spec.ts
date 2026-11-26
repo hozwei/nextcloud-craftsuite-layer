@@ -241,6 +241,16 @@ async function pressAndSettle(page: Page, app: Frame, what: string, key: string)
   });
 }
 
+// WordCraft 0.19.0 brings up Get the Missing Fonts once for each document opened from a file
+// that uses a font it knows a download for (Aptos, which the fixtures use; ui-egui/src/
+// font_download.rs, storytold/wordcraft#6826). The box takes the keys until it is closed, so a
+// user closes it first: Escape, like its Close button. It comes up some frames after the file
+// opens, once the app has settled. Without the box (other fonts, releases before 0.19.0) Escape
+// after an open changes nothing.
+async function closeFontNotice(page: Page, app: Frame) {
+  await pressAndSettle(page, app, 'close Get the Missing Fonts if it is open', 'Escape');
+}
+
 // File > Open (Ctrl+O) through the browser's file picker, with a file from the user's disk.
 async function openFromDisk(page: Page, app: Frame, file: { name: string; buffer: Buffer }) {
   await test.step(`ui: File > Open (Control+o) of ${file.name} from the disk`, async () => {
@@ -248,6 +258,7 @@ async function openFromDisk(page: Page, app: Frame, file: { name: string; buffer
     await press(page, app, 'Control+o');
     await (await chooser).setFiles({ name: file.name, mimeType: 'application/octet-stream', buffer: file.buffer });
     await settleApp(page, app); // the file replaces the open document
+    await closeFontNotice(page, app);
   });
 }
 
@@ -264,6 +275,7 @@ async function dropFromDesktop(page: Page, app: Frame, file: string) {
     for (const type of ['dragEnter', 'dragOver', 'drop'] as const) await cdp.send('Input.dispatchDragEvent', { type, ...at, data });
     await cdp.detach();
     await settleApp(page, app); // the file replaces the open document
+    await closeFontNotice(page, app);
   });
 }
 
@@ -343,6 +355,7 @@ async function openInHost(page: Page, name: string, query = '', bytes?: Buffer) 
   expect((await hostRecord(page)).errors, 'translator errors while opening').toEqual([]);
   const app = appFrame(page);
   await settleApp(page, app); // the app reads the file and opens it some frames after the drop
+  await closeFontNotice(page, app);
   return app;
 }
 

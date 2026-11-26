@@ -14,6 +14,14 @@ Each GitHub release takes its text from the section whose heading matches the ve
 
 ## [Unreleased]
 
+## [0.7.3] - 2026-11-26
+
+### Changed
+
+- No changes to the app. Released together with translators 0.7.3, which are tested with the
+  Craft releases of 2026-11-25 (WordCraft 0.19.1 and DeckCraft 0.19.1, with test fixes for
+  both).
+
 ## [0.7.2] - 2026-11-24
 
 ### Changed
