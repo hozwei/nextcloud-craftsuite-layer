@@ -22,8 +22,8 @@ The Craft releases of 2026-11-25 are tested: WordCraft 0.19.1 and DeckCraft 0.19
 
 ### Fixed
 
-- WordCraft 0.19.0 and later: the tests close Get the Missing Fonts with Escape after each file
-  they open. WordCraft brings the box up once for a document that uses a font it knows a download
+- WordCraft 0.19.0 and later: the tests, the Nextcloud end-to-end test among them, close Get the
+  Missing Fonts with Escape after each file they open. WordCraft brings the box up once for a document that uses a font it knows a download
   for (Aptos in the fixtures), and while it is open the keys go to it, so the tests' Ctrl+S saved
   nothing and the contract tests failed in the canary.
 - DeckCraft 0.19.0 and later: the @ui test clicks PowerPoint Presentation one row lower and Export

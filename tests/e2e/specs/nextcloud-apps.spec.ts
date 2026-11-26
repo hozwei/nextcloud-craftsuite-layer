@@ -289,6 +289,20 @@ test('wordcraft: an opened .docx Word wrote is saved as a copy next to it, later
   const downloads = trackDownloads(page);
   const app = await openEditor(page, await folder.fileId(ORIGINAL), 'wordcraft');
 
+  // From 0.19.0 on WordCraft brings up Get the Missing Fonts for this file (it uses Aptos), and
+  // the box keeps the keys until it is closed: Escape, as in wordcraft.spec.ts (closeFontNotice).
+  // The box comes some frames after the open, once the picture has settled; WordCraft blinks its
+  // caret while its page has the focus, so the focus goes to the Nextcloud page first.
+  await test.step('ui: close Get the Missing Fonts if it is open (Escape)', async () => {
+    await appFrames(app, 3);
+    await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
+    await settle(appView(page), app);
+    await press(page, app, 'Escape');
+    await appFrames(app, 3);
+    await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
+    await settle(appView(page), app);
+  });
+
   // Typing, then Ctrl+S (WordCraft's shortcut, wordcraft.spec.ts): WordCraft saves under the
   // opened name, but drops what it does not model, so the save must not replace Word's file.
   const editAndSave = async (text: string) => {
